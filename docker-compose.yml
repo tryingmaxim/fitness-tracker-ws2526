@@ -1,0 +1,18 @@
+services:
+  api:
+    build:
+      context: ./fitness-tracker-service
+    image: fitness-tracker/api:dev
+    container_name: fitness-tracker-api
+    ports:
+      - '8080:8080'
+
+  web:
+    build:
+      context: ./fitness-tracker-web
+    image: fitness-tracker/web:dev
+    container_name: fitness-tracker-web
+    depends_on:
+      - api
+    ports:
+      - '4200:80'
