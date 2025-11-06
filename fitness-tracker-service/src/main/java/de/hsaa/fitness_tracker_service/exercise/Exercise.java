@@ -1,7 +1,8 @@
-package de.hsaa.fitness_tracker_service.exercise.domain;
+package de.hsaa.fitness_tracker_service.exercise;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 @Entity
 @Table(name = "exercises", uniqueConstraints = @UniqueConstraint(columnNames = "name"))
@@ -12,7 +13,7 @@ public class Exercise {
 	private Long id;
 
 	@NotBlank
-	@Column(nullable = false)
+	@Column(nullable = false, unique = true)
 	private String name;
 
 	@NotBlank
@@ -22,10 +23,26 @@ public class Exercise {
 	@Column(length = 1000)
 	private String description;
 
-	/** Minimal: als CSV; später normalisieren */
-	private String muscleGroupsCsv;
+	@NotBlank
+	@Column(name = "muscle_groups", nullable = false)
+	private String muscleGroups;
+	
+	
 
-	// getters/setters
+	public Exercise() {
+	}
+
+	@JsonProperty("muscleGroups")
+	public String getMuscleGroups() {
+		return muscleGroups;
+	}
+
+	@JsonProperty("muscleGroups")
+	public void setMuscleGroups(String muscleGroups) {
+		this.muscleGroups = muscleGroups;
+	}
+
+	// --- Getter/Setter ---
 	public Long getId() {
 		return id;
 	}
@@ -56,13 +73,5 @@ public class Exercise {
 
 	public void setDescription(String description) {
 		this.description = description;
-	}
-
-	public String getMuscleGroupsCsv() {
-		return muscleGroupsCsv;
-	}
-
-	public void setMuscleGroupsCsv(String muscleGroupsCsv) {
-		this.muscleGroupsCsv = muscleGroupsCsv;
 	}
 }

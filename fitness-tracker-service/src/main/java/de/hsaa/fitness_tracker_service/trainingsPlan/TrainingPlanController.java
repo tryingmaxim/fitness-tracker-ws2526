@@ -1,7 +1,5 @@
-package de.hsaa.fitness_tracker_service.plan.web;
+package de.hsaa.fitness_tracker_service.trainingsPlan;
 
-import de.hsaa.fitness_tracker_service.plan.domain.TrainingPlan;
-import de.hsaa.fitness_tracker_service.plan.service.TrainingPlanService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

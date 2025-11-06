@@ -1,7 +1,5 @@
-package de.hsaa.fitness_tracker_service.plan.service;
+package de.hsaa.fitness_tracker_service.trainingsPlan;
 
-import de.hsaa.fitness_tracker_service.plan.domain.TrainingPlan;
-import de.hsaa.fitness_tracker_service.plan.repo.TrainingPlanRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;

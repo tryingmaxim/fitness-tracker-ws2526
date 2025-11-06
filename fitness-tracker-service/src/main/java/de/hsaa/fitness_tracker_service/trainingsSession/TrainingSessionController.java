@@ -1,7 +1,5 @@
-package de.hsaa.fitness_tracker_service.session.web;
+package de.hsaa.fitness_tracker_service.trainingsSession;
 
-import de.hsaa.fitness_tracker_service.session.domain.TrainingSession;
-import de.hsaa.fitness_tracker_service.session.service.TrainingSessionService;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.data.domain.Page;

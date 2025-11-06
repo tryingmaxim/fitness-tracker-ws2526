@@ -1,6 +1,5 @@
-package de.hsaa.fitness_tracker_service.session.repo;
+package de.hsaa.fitness_tracker_service.trainingsSession;
 
-import de.hsaa.fitness_tracker_service.session.domain.TrainingSession;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;

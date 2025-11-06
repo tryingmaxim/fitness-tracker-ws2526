@@ -1,11 +1,12 @@
-package de.hsaa.fitness_tracker_service.session.domain;
+package de.hsaa.fitness_tracker_service.trainingsSession;
 
-import de.hsaa.fitness_tracker_service.plan.domain.TrainingPlan;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
+
+import de.hsaa.fitness_tracker_service.trainingsPlan.TrainingPlan;
 
 @Entity
 @Table(name = "training_sessions", uniqueConstraints = @UniqueConstraint(columnNames = { "plan_id", "name",
