@@ -1,14 +1,19 @@
 package de.hsaa.fitness_tracker_service.trainingsSession;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import de.hsaa.fitness_tracker_service.trainingsPlan.TrainingPlan;
+import de.hsaa.fitness_tracker_service.execution.ExerciseExecution;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
-import de.hsaa.fitness_tracker_service.trainingsPlan.TrainingPlan;
-
+//@Entity = Tabelle für geplante Einheiten (Trainingssessions)
 @Entity
+// pro Plan darf es name+datum nur einmal geben
 @Table(name = "training_sessions", uniqueConstraints = @UniqueConstraint(columnNames = { "plan_id", "name",
 		"scheduled_date" }))
 public class TrainingSession {
@@ -17,8 +22,10 @@ public class TrainingSession {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
+	// Jede Session gehört zu genau einem Trainingsplan
 	@ManyToOne(optional = false)
 	@JoinColumn(name = "plan_id", nullable = false)
+	@JsonBackReference
 	private TrainingPlan plan;
 
 	@NotBlank
@@ -29,7 +36,11 @@ public class TrainingSession {
 	@Column(name = "scheduled_date", nullable = false)
 	private LocalDate scheduledDate;
 
-	// getters/setters
+	// Verbindung zu ExerciseExecutions (z. B. geplante Übungen)
+	@OneToMany(mappedBy = "session", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+	private List<ExerciseExecution> exerciseExecutions = new ArrayList<>();
+
+	// --- Getter/Setter ---
 	public Long getId() {
 		return id;
 	}
@@ -60,5 +71,13 @@ public class TrainingSession {
 
 	public void setScheduledDate(LocalDate scheduledDate) {
 		this.scheduledDate = scheduledDate;
+	}
+
+	public List<ExerciseExecution> getExerciseExecutions() {
+		return exerciseExecutions;
+	}
+
+	public void setExerciseExecutions(List<ExerciseExecution> exerciseExecutions) {
+		this.exerciseExecutions = exerciseExecutions;
 	}
 }

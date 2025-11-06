@@ -5,30 +5,34 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+
+//@Entity=DB-Tabelle für Trainingspläne
 @Entity
+//@Table mit Unique-Constraint auf name(Plan-Namen dürfen nicht doppelt sein)
 @Table(name = "training_plans", uniqueConstraints = @UniqueConstraint(columnNames = "name"))
 public class TrainingPlan {
 
+	// @Id=Primärschlüssel,automatisch generiert
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
+	// @NotBlank=Pflichtfeld; @Column nullable=false setzt NOT NULL in der DB
 	@NotBlank
-	@Column(nullable = false)
+	@Column(nullable = false, length = 120)
 	private String name;
 
-	@Column(length = 1000)
+	// @NotBlank laut Akzeptanzkriterien(kurze Beschreibung ist Pflicht)
+	@NotBlank
+	@Column(nullable = false, length = 1000)
 	private String description;
 
-
-	@OneToMany
-	(mappedBy = "plan",
-	cascade = CascadeType.ALL,
-	orphanRemoval = true,
-	fetch = FetchType.LAZY)
-	
+	// @OneToMany=ein Plan hat viele Sessions;mappedBy=FK liegt in TrainingSession.plan
+	@OneToMany(mappedBy = "plan", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+	@JsonManagedReference
 	private List<de.hsaa.fitness_tracker_service.trainingsSession.TrainingSession> sessions = new ArrayList<>();
-
+  
 	// Getter/Setter
 	public Long getId() {
 		return id;
