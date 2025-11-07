@@ -1,6 +1,9 @@
 package de.hsaa.fitness_tracker_service.execution;
 
 import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSession;
+
+import com.fasterxml.jackson.annotation.JsonBackReference;
+
 import de.hsaa.fitness_tracker_service.exercise.Exercise;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
@@ -22,6 +25,7 @@ public class ExerciseExecution {
 	// @ManyToOne=gehört zu genau einer Session
 	@ManyToOne(optional = false)
 	@JoinColumn(name = "session_id", nullable = false)
+	@JsonBackReference("session-executions")
 	private TrainingSession session;
 
 	// @ManyToOne=verweist auf genau eine Übung

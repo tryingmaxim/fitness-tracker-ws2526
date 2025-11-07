@@ -1,6 +1,8 @@
 package de.hsaa.fitness_tracker_service.trainingsSession;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+
 import de.hsaa.fitness_tracker_service.trainingsPlan.TrainingPlan;
 import de.hsaa.fitness_tracker_service.execution.ExerciseExecution;
 import jakarta.persistence.*;
@@ -38,6 +40,7 @@ public class TrainingSession {
 
 	// Verbindung zu ExerciseExecutions (z. B. geplante Übungen)
 	@OneToMany(mappedBy = "session", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+	@JsonManagedReference("session-executions")
 	private List<ExerciseExecution> exerciseExecutions = new ArrayList<>();
 
 	// --- Getter/Setter ---
