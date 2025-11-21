@@ -1,0 +1,21 @@
+<div class="heading">
+  <h1>FitnessTracker</h1>
+
+  <button
+    class="start-btn"
+    *ngIf="!showLoginButtons"
+    (click)="onStart()"
+    type="button"
+  >
+    Let’s get started
+  </button>
+
+  <div class="login-buttons" [class.show]="showLoginButtons">
+    <button class="action-btn" routerLink="/login" type="button">
+      Anmelden
+    </button>
+    <button class="action-btn" routerLink="/register" type="button">
+      Registrieren
+    </button>
+  </div>
+</div>

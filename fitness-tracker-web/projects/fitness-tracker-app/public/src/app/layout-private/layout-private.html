@@ -1,0 +1,49 @@
+<!-- Hamburger + Side-Navigation -->
+<div class="nav-wrapper">
+  <div class="nav-hover-area">
+    <div class="hamburger">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+  </div>
+
+  <nav class="side-nav">
+    <p class="nav-title">Bereich</p>
+
+    <p class="nav-user">
+      Angemeldet als <strong>{{ username }}</strong>
+    </p>
+
+    <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
+    <a routerLink="/exercises" routerLinkActive="active">Übungen</a>
+    <a routerLink="/plans" routerLinkActive="active">Pläne</a>
+    <a routerLink="/sessions" routerLinkActive="active">Sessions</a>
+    <a routerLink="/profile" routerLinkActive="active">Profil</a>
+
+    <hr class="nav-separator" />
+
+    <a (click)="logout()">Abmelden</a>
+  </nav>
+</div>
+
+<!-- Slideshow im Hintergrund -->
+<div class="slideshow">
+  <img
+    *ngFor="let img of slides; let i = index"
+    class="slide"
+    [src]="img"
+    [style.opacity]="i === current ? '1' : '0'"
+    alt=""
+  />
+  <div class="overlay"></div>
+</div>
+
+<!-- Theme Toggle oben rechts -->
+<button class="theme-toggle" (click)="toggleTheme()">
+  <span *ngIf="isDarkMode">◑</span>
+  <span *ngIf="!isDarkMode">◐</span>
+</button>
+
+<!-- Private Seiten -->
+<router-outlet></router-outlet>

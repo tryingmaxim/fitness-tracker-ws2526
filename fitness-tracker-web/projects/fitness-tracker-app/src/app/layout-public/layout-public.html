@@ -1,0 +1,48 @@
+<!-- Gemeinsames Hamburger-Menü -->
+<div class="nav-wrapper">
+  <div class="nav-hover-area">
+    <div class="hamburger">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+  </div>
+  <nav class="side-nav">
+    <p class="nav-title" style="color: #ffffff; opacity: 0.85;">
+        Navigation
+    </p>
+    <a routerLink="/">Home</a>
+    <a routerLink="/login">Anmelden</a>
+    <a routerLink="/register">Registrieren</a>
+    <a routerLink="/about">Über uns</a> 
+
+    <!-- Linie als Trennung -->
+    <hr class="nav-separator" />
+
+    <a routerLink="/agb">AGB</a>
+    <a routerLink="/impressum">Impressum</a>
+    
+  </nav>
+</div>
+
+<!-- Slideshow -->
+<div class="slideshow">
+  <img
+    *ngFor="let img of slides; let i = index"
+    class="slide"
+    [src]="img"
+    [style.opacity]="i === current ? '1' : '0'"
+    alt=""
+  />
+  <div class="overlay"></div>
+</div>
+
+<!-- Theme Toggle oben rechts -->
+<button class="theme-toggle" (click)="toggleTheme()">
+  <span *ngIf="isDarkMode">◑</span>
+  <span *ngIf="!isDarkMode">◐</span>
+</button>
+
+
+<router-outlet></router-outlet>
+

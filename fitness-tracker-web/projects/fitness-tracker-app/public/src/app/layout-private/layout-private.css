@@ -1,0 +1,229 @@
+:host {
+  display: block;
+}
+
+/* === Theme Toggle oben rechts === */
+.theme-toggle {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 100;
+}
+
+.theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: scale(1.05);
+}
+
+/* Darkmode */
+:host-context(.dark-mode) .theme-toggle {
+  border-color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+/* Lightmode */
+:host-context(.light-mode) .theme-toggle {
+  border-color: rgba(0, 0, 0, 0.25);
+  background: rgba(255, 255, 255, 0.9);
+  color: #000;
+}
+
+/* === Slideshow === */
+.slideshow {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.slide {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 1s ease-in-out;
+  filter: brightness(80%); /* leicht abgedunkelt in beiden Modes */
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Lightmode: Overlay minimal heller, nicht milchig weiß */
+:host-context(.light-mode) .overlay {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* === Hamburger + Side-Navi === */
+.nav-wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 50;
+  height: 100vh;
+}
+
+.nav-hover-area {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  cursor: pointer;
+  z-index: 51;
+}
+
+.hamburger {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  width: 26px;
+  height: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  z-index: 52;
+}
+
+.hamburger span {
+  display: block;
+  height: 3px;
+  background: #fff;
+  border-radius: 999px;
+  transition: transform 0.3s ease, opacity 0.3s ease, background 0.3s ease;
+}
+
+
+.side-nav {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 240px;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  transform: translateX(-100%);
+  transition: transform 0.35s ease;
+  display: flex;
+  flex-direction: column;
+  padding-top: 80px;
+  gap: 0.5rem;
+}
+
+/* Lightmode: helle Leiste */
+:host-context(.light-mode) .side-nav {
+  background: rgba(255, 255, 255, 0.96);
+  color: #0f172a;
+  border-right: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.nav-wrapper:hover .side-nav,
+.nav-hover-area:hover + .side-nav {
+  transform: translateX(0);
+}
+
+/* Hamburger-Animation */
+.nav-wrapper:hover .hamburger span:nth-child(1) {
+  transform: translateY(8px) rotate(45deg);
+}
+.nav-wrapper:hover .hamburger span:nth-child(2) {
+  opacity: 0;
+}
+.nav-wrapper:hover .hamburger span:nth-child(3) {
+  transform: translateY(-8px) rotate(-45deg);
+}
+
+/* Links */
+.side-nav a {
+  color: #fff;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 0.75rem 1.2rem;
+  transition: background 0.25s ease, color 0.25s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.95rem;
+}
+
+:host-context(.light-mode) .side-nav a {
+  color: #0f172a;
+}
+
+.side-nav a:hover,
+.side-nav a.active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+:host-context(.light-mode) .side-nav a:hover,
+:host-context(.light-mode) .side-nav a.active {
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.side-nav .nav-title {
+  padding: 0 1.2rem 0.4rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  opacity: 0.65;
+  color: #ffffff;
+}
+
+.nav-user {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.9rem;
+  padding: 0 1.2rem;
+  margin-bottom: 0.8rem;
+}
+
+:host-context(.light-mode) .nav-title {
+  color: rgba(15, 23, 42, 0.65);
+}
+
+:host-context(.light-mode) .nav-user {
+  color: rgba(15, 23, 42, 0.85);
+}
+
+/* Separator */
+.nav-separator {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+  margin: 0.25rem 1rem 0.4rem;
+}
+
+:host-context(.light-mode) .nav-separator {
+  border-top: 1px solid rgba(15, 23, 42, 0.16);
+}
+
+/* mobile */
+@media (max-width: 600px) {
+  .side-nav {
+    width: 75vw;
+  }
+
+  .hamburger {
+    top: 12px;
+    left: 12px;
+    width: 22px;
+  }
+}

@@ -1,0 +1,47 @@
+<div class="login-container">
+  <h1>Anmelden</h1>
+  <p>Sie haben bereits ein Konto? Dann melden Sie sich mit Ihrem bestehenden Konto an.</p>
+  <p class="dev-hint" *ngIf="devBypassEmail">
+    Dev-Shortcut aktiv: melde dich mit <strong>{{ devBypassEmail }}</strong> an (Passwort beliebig).
+  </p>
+  <div class="login-box">
+    <form #loginForm="ngForm" (ngSubmit)="onLogin(loginForm)" novalidate>
+      <label for="email">E-Mail:</label>
+      <input
+        id="email"
+        name="email"
+        type="email"
+        placeholder="E-Mail-Adresse eingeben"
+        [(ngModel)]="email"
+        autocomplete="username"
+        required
+        [disabled]="loading"
+      />
+
+      <label for="password">Passwort:</label>
+      <input
+        id="password"
+        name="password"
+        type="password"
+        placeholder="Passwort eingeben"
+        [(ngModel)]="password"
+        autocomplete="current-password"
+        required
+        [disabled]="loading"
+      />
+
+      <div class="error" *ngIf="error">
+        {{ error }}
+      </div>
+
+    <button type="submit" [disabled]="loading || loginForm.invalid">
+      {{ loading ? 'Anmeldung laeuft...' : 'Anmelden' }}
+    </button>
+    </form>
+  </div>
+
+  <div class="register-hint">
+    Sie haben noch kein Konto?
+    <a routerLink="/register">Registrieren Sie sich hier</a>.
+  </div>
+</div>

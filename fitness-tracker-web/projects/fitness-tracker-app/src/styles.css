@@ -1,0 +1,165 @@
+/* === 1. Reset === */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  width: 100%;
+  /* war vorher schon so – du wolltest fixen Hintergrund */
+  /* overflow: hidden;  <-- ALT */
+  overflow: auto;       /* NEU: Scrollen wieder erlaubt */
+  font-family: "Poppins", system-ui, sans-serif;
+  background: #000;
+}
+
+/* === 2. Farb-Variablen (global, weil alle Pages drauf hören) === */
+:root {
+  --bg: #ffffff;
+  --text: #0f172a;
+  --panel: #ffffff;
+  --primary: #22c55e;
+  --secondary: #2563eb;
+}
+
+/* === 3. Dark Mode – globale Variante, damit auch Page-CSS es nutzen kann === */
+.dark-mode {
+  --bg: #1a1a1a;
+  --text: #f1f1f1;
+  --panel: rgba(40, 40, 40, 0.75);
+  --blur: 10px;
+  --primary: #22c55e;
+  --secondary: #ffffff;
+}
+
+.light-mode {
+  --bg: #ffffff;
+  --text: #0f172a;
+  --panel: rgba(255, 255, 255, 0.92);
+}
+
+/* Body soll auf Variablen hören */
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  transition: background-color 0.4s ease, color 0.4s ease;
+  min-height: 100vh; /* wichtig für mobile */
+}
+
+/* Scroll-Verhalten global belassen */
+html {
+  scroll-behavior: smooth;
+}
+
+/* kleine allgemeine Sachen */
+button:active {
+  transform: scale(0.96);
+  opacity: 0.9;
+}
+
+/* =====================================================
+   PRIVATE AREA – gemeinsame Box-Optik
+   (Dashboard, Übungen, Pläne, Sessions, Profil)
+   ===================================================== */
+.dashboard-wrapper,
+.page,
+.sessions-page {
+  border-radius: 1.2rem;
+}
+
+/* ---------- FELDER: Basis (gilt für beide Modes) ---------- */
+.dashboard-wrapper input,
+.dashboard-wrapper select,
+.dashboard-wrapper textarea,
+.page input,
+.page select,
+.page textarea,
+.sessions-page input,
+.sessions-page select,
+.sessions-page textarea {
+  width: auto;
+  background: rgba(248, 250, 252, 0.9);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border 0.2s ease, background 0.2s ease;
+  color: #0f172a;
+}
+
+.dashboard-wrapper input:focus,
+.dashboard-wrapper select:focus,
+.dashboard-wrapper textarea:focus,
+.page input:focus,
+.page select:focus,
+.page textarea:focus,
+.sessions-page input:focus,
+.sessions-page select:focus,
+.sessions-page textarea:focus {
+  border-color: rgba(37, 99, 235, 0.5);
+  background: #fff;
+}
+
+/* ---------- FELDER: Darkmode-Override ---------- */
+.dark-mode .dashboard-wrapper input,
+.dark-mode .dashboard-wrapper select,
+.dark-mode .dashboard-wrapper textarea,
+.dark-mode .page input,
+.dark-mode .page select,
+.dark-mode .page textarea,
+.dark-mode .sessions-page input,
+.dark-mode .sessions-page select,
+.dark-mode .sessions-page textarea {
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+/* optional: explizites Lightmode-Override */
+.light-mode .dashboard-wrapper input,
+.light-mode .page input,
+.light-mode .sessions-page input {
+  background: rgba(248, 250, 252, 0.95);
+  color: #0f172a;
+}
+
+/* ---------- BUTTONS: Basis ---------- */
+.dashboard-wrapper button,
+.page button,
+.sessions-page button {
+  background: #22c55e;
+  color: #fff;
+  border: none;
+  border-radius: 0.55rem;
+  padding: 0.45rem 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dashboard-wrapper button:hover,
+.page button:hover,
+.sessions-page button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 20px rgba(34, 197, 94, 0.25);
+}
+
+/* ---------- Buttons: Lightmode explizit ---------- */
+.light-mode .dashboard-wrapper button,
+.light-mode .page button,
+.light-mode .sessions-page button {
+  background: #22c55e;
+  color: #fff;
+}
+
+/* ---------- Buttons: Darkmode explizit ---------- */
+.dark-mode .dashboard-wrapper button,
+.dark-mode .page button,
+.dark-mode .sessions-page button {
+  background: #22c55e;
+  color: #fff;
+}
