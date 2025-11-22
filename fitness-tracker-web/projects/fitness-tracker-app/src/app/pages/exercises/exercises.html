@@ -17,12 +17,7 @@
     </p>
 
     <form class="form" #createForm="ngForm" (ngSubmit)="addExercise(createForm)">
-      <input
-        [(ngModel)]="form.name"
-        name="name"
-        placeholder="Name (z.B. Bankdrücken)"
-        required
-      />
+      <input [(ngModel)]="form.name" name="name" placeholder="Name (z.B. Bankdrücken)" required />
       <input
         [(ngModel)]="form.category"
         name="category"
@@ -57,9 +52,7 @@
       </div>
 
       <p class="muted" *ngIf="loading">Übungen werden geladen...</p>
-      <p class="muted" *ngIf="!loading && !exercises.length">
-        Noch keine Übungen angelegt.
-      </p>
+      <p class="muted" *ngIf="!loading && !exercises.length">Noch keine Übungen angelegt.</p>
 
       <ul class="list">
         <li
@@ -98,11 +91,7 @@
             >
               Details
             </button>
-            <button
-              type="button"
-              class="danger"
-              (click)="deleteExercise(ex, $event)"
-            >
+            <button type="button" class="danger" (click)="deleteExercise(ex, $event)">
               Löschen
             </button>
           </div>
@@ -155,11 +144,7 @@
         </p>
 
         <label for="editDesc">Beschreibung</label>
-        <textarea
-          id="editDesc"
-          name="editDesc"
-          [(ngModel)]="editForm.description"
-        ></textarea>
+        <textarea id="editDesc" name="editDesc" [(ngModel)]="editForm.description"></textarea>
 
         <button type="submit" [disabled]="saving">
           {{ saving ? 'Speichern...' : 'Änderungen speichern' }}

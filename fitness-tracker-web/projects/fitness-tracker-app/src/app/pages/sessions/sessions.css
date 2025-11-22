@@ -1,240 +1,427 @@
-:host {
-  display: flex;
-  justify-content: center;
-  padding: 4.5rem 1.5rem 3.5rem;
-  width: 100%;
-}
-
-/* Hauptbox wie Dashboard */
+/* ============================
+   Sessions-Seite Wrapper
+   ============================ */
 
 .sessions-page {
-  background: rgba(5, 5, 5, 0.85);
-  color: var(--text);
-  border-radius: 1.2rem;
-  padding: 1.8rem 2rem 2rem;
-  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(10px);
-  width: min(1000px, 100%);
-  min-height: calc(100vh - 8rem);
   position: relative;
-  z-index: 5;
+  z-index: 2;
+  max-width: 1100px;
+  margin: 4rem auto 3rem;
+  padding: 2.2rem 2.4rem;
+  border-radius: 1.2rem;
+
+  /* Standard (Darkmode-Default) */
+  background: rgba(5, 5, 5, 0.85);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
 }
 
+/* Light-Mode: äußere Box wie bei „Übungen“ hell */
 :host-context(.light-mode) .sessions-page {
-  background: rgba(255, 255, 255, 0.9);
-  border-color: rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 25px 50px rgba(15, 23, 42, 0.15);
   color: #0f172a;
 }
 
-h1 {
-  margin: 0;
-  font-size: clamp(1.8rem, 4vw, 2.2rem);
+/* Titel + Untertitel */
+.sessions-page h1 {
+  font-size: 2.1rem;
+  font-weight: 700;
+  margin-bottom: 0.2rem;
 }
 
-.sub {
-  margin: 0.3rem 0 1.4rem;
+.sessions-page .sub {
+  font-size: 0.95rem;
   opacity: 0.85;
+  margin-bottom: 0.3rem;
 }
 
-/* Alerts */
+/* ============================
+   Alerts
+   ============================ */
 
 .alert {
-  border-radius: 0.75rem;
-  padding: 0.85rem 1rem;
-  margin-bottom: 1rem;
-  font-size: 0.95rem;
-  line-height: 1.4;
+  padding: 0.55rem 0.8rem;
+  border-radius: 0.6rem;
+  font-size: 0.9rem;
 }
 
 .alert.error {
-  background: rgba(248, 113, 113, 0.14);
-  border: 1px solid #f87171;
-  color: #fee2e2;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.55);
 }
 
 .alert.info {
-  background: rgba(56, 189, 248, 0.14);
-  border: 1px solid #38bdf8;
-  color: #e0f2fe;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.55);
 }
 
-/* 🔆 Lightmode-Overrides nur für Lesbarkeit */
-:host-context(.light-mode) .alert.error {
-  background: #fee2e2;
-  color: #b91c1c;
-  border-color: #fca5a5;
+/* ============================
+   Oberes Grid
+   ============================ */
+
+.top-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 1.6rem;
+  align-items: stretch;
 }
 
-:host-context(.light-mode) .alert.info {
-  background: #e0f2fe;
-  color: #075985;
-  border-color: #7dd3fc;
+.top-grid > .session-card,
+.top-grid > .exercise-card {
+  height: 100%;
 }
 
-/* Formular */
+@media (max-width: 900px) {
+  .top-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .top-grid > .session-card,
+  .top-grid > .exercise-card {
+    height: auto;
+  }
+}
+
+/* ============================
+   Karten allgemein
+   ============================ */
+
+.session-card,
+.exercise-card,
+.sessions-list-card {
+  background: rgba(15, 23, 42, 0.9); /* DARK: navy */
+  border-radius: 1rem;
+  padding: 1.2rem 1.4rem;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(10px);
+
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+/* Light-Mode Karten */
+:host-context(.light-mode) .session-card,
+:host-context(.light-mode) .exercise-card,
+:host-context(.light-mode) .sessions-list-card {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.12);
+  color: #0f172a;
+}
+
+.card-title {
+  font-size: 1.02rem;
+  font-weight: 600;
+}
+
+.card-sub {
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
+/* ============================
+   FORM
+   ============================ */
 
 .form {
-  display: grid;
-  gap: 0.75rem;
-  background: rgba(11, 15, 24, 0.96);
-  padding: 1.2rem 1.3rem;
-  border-radius: 1rem;
-  margin-bottom: 2rem;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  backdrop-filter: blur(8px);
-}
-
-:host-context(.light-mode) .form {
-  background: rgba(255, 255, 255, 0.9);
-  border-color: rgba(148, 163, 184, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
 }
 
 .form label {
-  font-size: 0.85rem;
-  opacity: 0.9;
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
-.form select,
-.form input {
+/* Lightmode Inputs */
+:host-context(.light-mode) .sessions-page input,
+:host-context(.light-mode) .sessions-page select,
+:host-context(.light-mode) .sessions-page textarea {
+  background: rgba(248, 250, 252, 0.95);
+  color: #0f172a;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+}
+
+/* ============================
+   DATE INPUT + SCHLICHTES ICON
+   ============================ */
+
+.date-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.date-field input[type="date"] {
   width: 100%;
-  border-radius: 0.6rem;
-  border: 1px solid rgba(148, 163, 184, 0.4);
-  padding: 0.7rem 0.9rem;
-  background: rgba(15, 23, 42, 0.96);
-  color: inherit;
-  outline: none;
-  transition: border 0.2s ease, box-shadow 0.2s ease;
+  padding-right: 2.4rem; /* Platz für Icon rechts */
 }
 
-:host-context(.light-mode) .form select,
-:host-context(.light-mode) .form input {
-  background: #ffffff;
-  border-color: rgba(148, 163, 184, 0.6);
+/* Native WebKit-Icon ausblenden – wir nutzen eigenes SVG */
+.date-field input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0;
 }
 
-.form select:focus,
-.form input:focus {
-  border-color: #22c55e;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
-}
-
-.form button {
-  margin-top: 0.2rem;
-  border: none;
-  border-radius: 0.6rem;
-  padding: 0.85rem 1rem;
-  font-weight: 600;
-  background: #22c55e;
-  color: #041007;
+/* SVG-Icon rechts innen */
+.date-icon {
+  position: absolute;
+  right: 0.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  pointer-events: auto; /* Icon fängt Klick, TS öffnet Picker */
 }
 
-.form button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.date-icon-svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Farben je nach Theme */
+:host-context(.dark-mode) .date-icon {
+  color: #ffffff;
+}
+
+:host-context(.light-mode) .date-icon {
+  color: #0f172a;
+}
+
+/* Date-Feld-Farbschema für Browser */
+:host-context(.dark-mode) .sessions-page input[type="date"] {
+  color-scheme: dark;
+  background: rgba(15, 23, 42, 0.9);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+:host-context(.light-mode) .sessions-page input[type="date"] {
+  color-scheme: light;
+}
+
+/* ============================
+   Übungsbox
+   ============================ */
+
+.exercise-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.22);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Scrollbare Liste */
+.exercise-list {
+  border-radius: 0.7rem;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  max-height: 230px;
+  overflow-y: auto;
+  margin-top: 0.4rem;
+}
+
+.exercise-list::-webkit-scrollbar {
+  width: 6px;
+}
+.exercise-list::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.65);
+  border-radius: 999px;
+}
+
+/* Eintrag */
+.exercise-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+
+.exercise-item + .exercise-item {
+  border-top: 1px solid rgba(30, 41, 59, 0.85);
+}
+
+.exercise-item:hover {
+  background: rgba(34, 197, 94, 0.18);
+  transform: translateY(-1px);
+}
+
+/* Linker Bereich (Name + Meta) – linksbündig */
+.exercise-main {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.15rem;
+  text-align: left;
+}
+
+.exercise-name,
+.exercise-meta {
+  text-align: left !important;
+}
+
+.exercise-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.exercise-meta {
+  font-size: 0.78rem;
+  opacity: 0.8;
+}
+
+/* Check-Kreis rechts */
+.exercise-check {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.8);
+  opacity: 0.75;
+}
+
+.exercise-check span {
+  font-size: 0.85rem;
+}
+
+/* GEWÄHLT */
+.exercise-check.selected {
+  background: #22c55e !important;
+  border-color: #22c55e !important;
+  color: white !important;
+  opacity: 1 !important;
+}
+
+/* ---------- LIGHTMODE ---------- */
+
+:host-context(.light-mode) .exercise-item,
+:host-context(.light-mode) .exercise-name,
+:host-context(.light-mode) .exercise-meta {
+  color: #ffffff !important;
+}
+
+/* Lightmode Hover */
+:host-context(.light-mode) .exercise-item:hover {
+  background: rgba(34, 197, 94, 0.12) !important;
+}
+
+/* Lightmode Grund-Kreis */
+:host-context(.light-mode) .exercise-check {
+  background: rgba(248, 250, 252, 0.96);
+}
+
+/* Lightmode ausgewählt */
+:host-context(.light-mode) .exercise-check.selected {
+  background: #22c55e !important;
+  border-color: #22c55e !important;
+  color: white !important;
+  opacity: 1 !important;
+}
+
+/* ============================
+   Sessions-Liste (unten)
+   ============================ */
+
+.sessions-list-card {
+  gap: 0.6rem;
+}
+
+.sessions-list-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+/* Scrollbereich für Tabelle */
+.sessions-table-wrapper {
+  border-radius: 0.7rem;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  max-height: 260px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Scrollbar */
+.sessions-table-wrapper::-webkit-scrollbar {
+  width: 6px;
+}
+.sessions-table-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.65);
+  border-radius: 999px;
 }
 
 /* Tabelle */
-
-.table-wrapper {
-  border-radius: 1rem;
-  background: rgba(11, 15, 24, 0.96);
-  padding: 1rem 1.3rem;
-  overflow-x: auto;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  backdrop-filter: blur(8px);
-}
-
-:host-context(.light-mode) .table-wrapper {
-  background: rgba(255, 255, 255, 0.9);
-  border-color: rgba(148, 163, 184, 0.35);
-}
-
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+}
+
+/* Sticky Header in Scrollbereich */
+.table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(15, 23, 42, 0.98);
+  backdrop-filter: blur(6px);
+}
+
+:host-context(.light-mode) .table thead {
+  background: rgba(248, 250, 252, 0.98);
 }
 
 .table th,
 .table td {
-  padding: 0.8rem 0.6rem;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.32);
   text-align: left;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.35);
 }
 
-:host-context(.light-mode) .table th,
-:host-context(.light-mode) .table td {
-  border-bottom-color: rgba(148, 163, 184, 0.3);
+.table th {
+  font-weight: 600;
 }
 
-.table thead th {
-  font-size: 0.85rem;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  opacity: 0.8;
+/* Übungen-Spalte etwas schmaler Zeilenabstand */
+.sessions-exercises-cell {
+  font-size: 0.8rem;
+  opacity: 0.9;
 }
 
-.table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.table tbody tr:hover {
-  background: rgba(15, 23, 42, 0.92);
-}
-
-:host-context(.light-mode) .table tbody tr:hover {
-  background: rgba(248, 250, 252, 0.9);
-}
-
-.table td:first-child {
-  white-space: nowrap;
-}
-
+/* kleine Textklassen */
 .muted {
+  font-size: 0.86rem;
   opacity: 0.8;
-  font-size: 0.9rem;
 }
 
-:host-context(.light-mode) .muted {
-  color: rgba(15, 23, 42, 0.7);
-}
-
-/* ========= RESPONSIVE ========= */
-
-@media (max-width: 1024px) {
-  :host {
-    padding: 4rem 1rem 3rem;
-  }
-
-  .sessions-page {
-    width: 100%;
-    padding: 1.6rem 1.6rem 1.8rem;
-    border-radius: 1.1rem;
-  }
-}
-
-@media (max-width: 600px) {
-  :host {
-    padding: 3.5rem 0.75rem 2.75rem;
-  }
-
-  .sessions-page {
-    padding: 1.4rem 1.2rem 1.6rem;
-    border-radius: 0.9rem;
-    min-height: calc(100vh - 6rem);
-  }
-
-  h1 {
-    font-size: 1.6rem;
-  }
-
-  .form {
-    padding: 1rem 1.05rem;
-  }
-
-  .table-wrapper {
-    padding: 0.9rem 1.05rem;
-  }
+.small {
+  font-size: 0.78rem;
 }

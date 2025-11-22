@@ -4,6 +4,6 @@ import { Component } from '@angular/core';
   selector: 'app-agb',
   standalone: true,
   templateUrl: './agb.html',
-  styleUrl: './agb.css'
+  styleUrl: './agb.css',
 })
 export class AGB {}

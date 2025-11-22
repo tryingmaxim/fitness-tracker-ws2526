@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { environment } from '../../../../environment';
+import { forkJoin } from 'rxjs';
 
 interface TrainingPlan {
   id: number;
@@ -17,6 +18,14 @@ interface TrainingSession {
   date?: string | Date;
   planId: number | null;
   planName?: string;
+  exerciseNames?: string[]; // für Tabelle unten
+}
+
+interface Exercise {
+  id: number;
+  name: string;
+  category?: string;
+  muscleGroups?: string;
 }
 
 @Component({
@@ -36,8 +45,15 @@ export class Sessions implements OnInit {
     date: '',
   };
 
+  // Übungen
+  exercises: Exercise[] = [];
+  filteredExercises: Exercise[] = [];
+  exerciseSearch = '';
+  selectedExerciseIds: number[] = [];
+
   loadingPlans = false;
   loadingSessions = false;
+  loadingExercises = false;
   creating = false;
 
   errorMsg = '';
@@ -50,7 +66,12 @@ export class Sessions implements OnInit {
   ngOnInit(): void {
     this.loadPlans();
     this.loadSessions();
+    this.loadExercises();
   }
+
+  /* ===============================
+     Session speichern
+  =============================== */
 
   add(): void {
     this.errorMsg = '';
@@ -66,6 +87,7 @@ export class Sessions implements OnInit {
       planId: this.form.planId,
       name: trimmedName,
       scheduledDate: this.form.date,
+      exerciseIds: this.selectedExerciseIds,
     };
 
     this.creating = true;
@@ -74,17 +96,40 @@ export class Sessions implements OnInit {
         this.infoMsg = 'Session wurde hinzugefügt.';
         this.form.name = '';
         this.form.date = '';
+        this.selectedExerciseIds = [];
+        this.exerciseSearch = '';
+        this.filteredExercises = [...this.exercises];
+
         this.loadSessions();
         this.loadPlans();
         this.creating = false;
       },
       error: (err) => {
         this.creating = false;
-        this.errorMsg = err?.error?.detail || 'Session konnte nicht angelegt werden.';
+        this.errorMsg =
+          err?.error?.detail || 'Session konnte nicht angelegt werden.';
         console.error(err);
       },
     });
   }
+
+  /* ===============================
+     Datepicker Öffnen (Custom Icon)
+  =============================== */
+
+  openDatePicker(input: HTMLInputElement): void {
+    const anyInput = input as any;
+
+    if (typeof anyInput.showPicker === 'function') {
+      anyInput.showPicker(); // Chrome, Edge, Opera
+    } else {
+      input.focus(); // Fallback
+    }
+  }
+
+  /* ===============================
+     Planname anzeigen
+  =============================== */
 
   getPlanName(planId: number | null, fallback?: string): string {
     if (fallback) {
@@ -94,21 +139,84 @@ export class Sessions implements OnInit {
     return plan?.name ?? '-';
   }
 
+    // Namen der Übungen für die Tabelle sicher zusammenbauen
+  joinExerciseNames(session: TrainingSession): string {
+    return (session.exerciseNames ?? []).join(', ');
+  }
+
   trackBySession = (_: number, session: TrainingSession) =>
     session.id ?? `${session.name}-${session.date}`;
+
+  /* ===============================
+     Übungen laden & filtern
+  =============================== */
+
+  private loadExercises(): void {
+    this.loadingExercises = true;
+    this.http.get<any>(`${this.baseUrl}/exercises`).subscribe({
+      next: (res) => {
+        this.exercises = this.flattenCollection(res, 'exercises').map((e) => ({
+          id: e.id,
+          name: e.name,
+          category: e.category,
+          muscleGroups: e.muscleGroups,
+        }));
+        this.filteredExercises = [...this.exercises];
+        this.loadingExercises = false;
+        this.enrichSessionsWithExerciseNames();
+      },
+      error: (err) => {
+        console.error(err);
+        this.loadingExercises = false;
+      },
+    });
+  }
+
+  onExerciseSearchChange(): void {
+    const term = this.exerciseSearch.trim().toLowerCase();
+    if (!term) {
+      this.filteredExercises = [...this.exercises];
+      return;
+    }
+    this.filteredExercises = this.exercises.filter((e) =>
+      e.name.toLowerCase().includes(term)
+    );
+  }
+
+  toggleExercise(ex: Exercise): void {
+    const idx = this.selectedExerciseIds.indexOf(ex.id);
+    if (idx >= 0) {
+      this.selectedExerciseIds.splice(idx, 1);
+    } else {
+      this.selectedExerciseIds.push(ex.id);
+    }
+  }
+
+  isExerciseSelected(ex: Exercise): boolean {
+    return this.selectedExerciseIds.includes(ex.id);
+  }
+
+  /* ===============================
+     Pläne & Sessions
+  =============================== */
 
   private loadPlans(): void {
     this.loadingPlans = true;
     this.http.get<any>(`${this.baseUrl}/training-plans`).subscribe({
       next: (res) => {
-        this.plans = this.flattenCollection(res, 'trainingPlans').map((plan) => ({
-          id: plan.id,
-          name: plan.name,
-          description: plan.description,
-        }));
+        this.plans = this.flattenCollection(res, 'trainingPlans').map(
+          (plan) => ({
+            id: plan.id,
+            name: plan.name,
+            description: plan.description,
+          })
+        );
         if (!this.plans.length) {
           this.form.planId = null;
-        } else if (!this.form.planId || !this.plans.some((p) => p.id === this.form.planId)) {
+        } else if (
+          !this.form.planId ||
+          !this.plans.some((p) => p.id === this.form.planId)
+        ) {
           this.form.planId = this.plans[0]?.id ?? null;
         }
         this.loadingPlans = false;
@@ -125,10 +233,11 @@ export class Sessions implements OnInit {
     this.loadingSessions = true;
     this.http.get<any>(`${this.baseUrl}/training-sessions`).subscribe({
       next: (res) => {
-        this.sessions = this.flattenCollection(res, 'trainingSessions').map((session) =>
-          this.toUiSession(session)
+        this.sessions = this.flattenCollection(res, 'trainingSessions').map(
+          (session) => this.toUiSession(session)
         );
         this.loadingSessions = false;
+        this.enrichSessionsWithExerciseNames();
       },
       error: (err) => {
         this.errorMsg = 'Sessions konnten nicht geladen werden.';
@@ -157,30 +266,61 @@ export class Sessions implements OnInit {
     };
   }
 
+  /* ===============================
+     Session → Übungen-Namen anreichern
+  =============================== */
+
+  private enrichSessionsWithExerciseNames(): void {
+    // Wir brauchen Sessions + Exercises
+    if (!this.sessions.length || !this.exercises.length) {
+      return;
+    }
+
+    const sessionsWithId = this.sessions.filter((s) => !!s.id);
+    if (!sessionsWithId.length) {
+      return;
+    }
+
+    const requests = sessionsWithId.map((s) =>
+      this.http.get<any>(`${this.baseUrl}/training-sessions/${s.id}`)
+    );
+
+    forkJoin(requests).subscribe({
+      next: (details) => {
+        details.forEach((detail, index) => {
+          const session = sessionsWithId[index];
+          const execs = detail?.exerciseExecutions ?? [];
+
+          const names = execs
+            .map((e: any) =>
+              this.exercises.find((ex) => ex.id === e.exerciseId)?.name
+            )
+            // HIER war dein Fehler → Typ für n fehlt
+            .filter((n: string | undefined): n is string => !!n);
+
+          session.exerciseNames = names;
+        });
+      },
+      error: (err) => {
+        console.error('Konnte Übungen für Sessions nicht laden', err);
+      },
+    });
+  }
+
+  /* ===============================
+     Hilfsfunktionen
+  =============================== */
+
   private flattenCollection(res: any, embeddedKey: string): any[] {
-    if (Array.isArray(res)) {
-      return res;
-    }
+    if (Array.isArray(res)) return res;
 
-    if (Array.isArray(res?._embedded?.[embeddedKey])) {
+    if (Array.isArray(res?._embedded?.[embeddedKey]))
       return res._embedded[embeddedKey];
-    }
+    if (Array.isArray(res?.content)) return res.content;
+    if (Array.isArray(res?.items)) return res.items;
+    if (Array.isArray(res?.data)) return res.data;
 
-    if (Array.isArray(res?.content)) {
-      return res.content;
-    }
-
-    if (Array.isArray(res?.items)) {
-      return res.items;
-    }
-
-    if (Array.isArray(res?.data)) {
-      return res.data;
-    }
-
-    if (res && typeof res === 'object') {
-      return [res];
-    }
+    if (res && typeof res === 'object') return [res];
 
     return [];
   }

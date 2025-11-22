@@ -14,21 +14,9 @@
       </div>
 
       <div class="actions">
-        <button
-          class="mini-btn primary"
-          type="button"
-          routerLink="/sessions"
-        >
-          + Session
-        </button>
+        <button class="mini-btn primary" type="button" routerLink="/sessions">+ Session</button>
 
-        <button
-          class="mini-btn ghost"
-          type="button"
-          routerLink="/exercises"
-        >
-          + Übung
-        </button>
+        <button class="mini-btn ghost" type="button" routerLink="/exercises">+ Übung</button>
       </div>
     </div>
   </div>
@@ -49,13 +37,7 @@
       <div class="panel-header">
         <h2>Nächste Sessions</h2>
 
-        <button
-          class="link-btn"
-          type="button"
-          routerLink="/sessions"
-        >
-          Alle Sessions ansehen
-        </button>
+        <button class="link-btn" type="button" routerLink="/sessions">Alle Sessions ansehen</button>
       </div>
 
       <div class="sessions-row">
@@ -69,13 +51,7 @@
           <p class="session-meta">Geplant · {{ s.focus }}</p>
 
           <div class="session-footer">
-            <button
-              class="mini-btn primary"
-              type="button"
-              routerLink="/sessions"
-            >
-              Öffnen
-            </button>
+            <button class="mini-btn primary" type="button" routerLink="/sessions">Öffnen</button>
           </div>
         </article>
       </div>
@@ -98,13 +74,7 @@
             </div>
           </div>
 
-          <button
-            class="mini-btn ghost tiny"
-            type="button"
-            routerLink="/exercises"
-          >
-            Details
-          </button>
+          <button class="mini-btn ghost tiny" type="button" routerLink="/exercises">Details</button>
         </li>
       </ul>
     </section>
@@ -115,9 +85,7 @@
         <h2>Notizen</h2>
       </div>
 
-      <p class="panel-sub">
-        Sammle hier Gedanken zu Technik, Gewicht, Tagesform oder Zielen.
-      </p>
+      <p class="panel-sub">Sammle hier Gedanken zu Technik, Gewicht, Tagesform oder Zielen.</p>
 
       <textarea
         class="notes-input"
@@ -129,9 +97,7 @@
 
       <div class="notes-footer">
         <span class="notes-hint">{{ notes?.length || 0 }}/500</span>
-        <button class="mini-btn primary" type="button">
-          Speichern
-        </button>
+        <button class="mini-btn primary" type="button">Speichern</button>
       </div>
     </section>
   </div>

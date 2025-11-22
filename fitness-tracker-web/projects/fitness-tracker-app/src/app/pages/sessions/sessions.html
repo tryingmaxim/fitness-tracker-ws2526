@@ -2,7 +2,8 @@
 <div class="sessions-page">
   <h1>Sessions planen</h1>
   <p class="sub">
-    Ordne neue Trainingseinheiten einem vorhandenen Plan zu, damit sie im Uebersicht-Modul erscheinen.
+    Ordne neue Trainingseinheiten einem vorhandenen Plan zu, damit sie im Übersicht-Modul
+    erscheinen.
   </p>
 
   <div class="alert error" *ngIf="errorMsg">
@@ -13,74 +14,204 @@
     {{ infoMsg }}
   </div>
 
-  <form class="form" (ngSubmit)="add()">
-    <label for="planSelect">Trainingsplan</label>
-    <select
-      id="planSelect"
-      [(ngModel)]="form.planId"
-      name="planId"
-      [disabled]="loadingPlans || !plans.length || creating"
-      required
-    >
-      <option [ngValue]="null" disabled>
-        {{ loadingPlans ? 'Trainingspläne werden geladen...' : 'Kein Plan vorhanden' }}
-      </option>
-      <option *ngFor="let p of plans" [ngValue]="p.id">
-        {{ p.name }}
-      </option>
-    </select>
+  <!-- Oberes Grid: links Formular, rechts Übungsauswahl -->
+  <div class="top-grid">
+    <!-- Session-Formular -->
+    <div class="session-card">
+      <h2 class="card-title">Neue Session anlegen</h2>
+      <p class="card-sub">
+        Wähle einen Plan, vergib einen Namen und plane das Datum deiner Trainingseinheit.
+      </p>
 
-    <label for="sessionName">Session-Name</label>
-    <input
-      id="sessionName"
-      [(ngModel)]="form.name"
-      name="name"
-      placeholder="z. B. Push Day"
-      [disabled]="creating"
-      required
-    />
+      <form class="form" (ngSubmit)="add()">
+        <label for="planSelect">Trainingsplan</label>
+        <select
+          id="planSelect"
+          [(ngModel)]="form.planId"
+          name="planId"
+          [disabled]="loadingPlans || !plans.length || creating"
+          required
+        >
+          <option [ngValue]="null" disabled>
+            {{ loadingPlans ? 'Trainingspläne werden geladen...' : 'Kein Plan vorhanden' }}
+          </option>
+          <option *ngFor="let p of plans" [ngValue]="p.id">
+            {{ p.name }}
+          </option>
+        </select>
 
-    <label for="sessionDate">Datum</label>
-    <input
-      id="sessionDate"
-      [(ngModel)]="form.date"
-      name="date"
-      type="date"
-      [disabled]="creating"
-      required
-    />
+        <label for="sessionName">Session-Name</label>
+        <input
+          id="sessionName"
+          [(ngModel)]="form.name"
+          name="name"
+          placeholder="z. B. Push Day"
+          [disabled]="creating"
+          required
+        />
 
-    <button type="submit" [disabled]="creating || !plans.length">
-      {{ creating ? 'Session wird angelegt...' : 'Session hinzufuegen' }}
-    </button>
-  </form>
+        <label for="sessionDate">Datum</label>
+        <div class="date-field">
+          <input
+            #sessionDateInput
+            id="sessionDate"
+            [(ngModel)]="form.date"
+            name="date"
+            type="date"
+            [disabled]="creating"
+            required
+          />
+          <span class="date-icon" aria-hidden="true" (click)="openDatePicker(sessionDateInput)">
+            <svg viewBox="0 0 24 24" class="date-icon-svg" xmlns="http://www.w3.org/2000/svg">
+              <!-- Rahmen -->
+              <rect
+                x="3.5"
+                y="4.5"
+                width="17"
+                height="16"
+                rx="2"
+                ry="2"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+              />
+              <!-- obere Linie -->
+              <line x1="3.5" y1="9" x2="20.5" y2="9" stroke="currentColor" stroke-width="1.5" />
+              <!-- linkes Kalendersymbol -->
+              <line
+                x1="9"
+                y1="3"
+                x2="9"
+                y2="7"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+              <!-- rechtes Kalendersymbol -->
+              <line
+                x1="15"
+                y1="3"
+                x2="15"
+                y2="7"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+              <!-- kleiner Termin-Punkt -->
+              <rect
+                x="9.2"
+                y="11.2"
+                width="2.6"
+                height="2.6"
+                rx="0.6"
+                ry="0.6"
+                fill="currentColor"
+              />
+            </svg>
+          </span>
+        </div>
 
-  <div class="table-wrapper">
-    <p class="muted" *ngIf="loadingSessions">Sessions werden geladen...</p>
-    <p class="muted" *ngIf="!loadingSessions && !sessions.length">
+        <button type="submit" [disabled]="creating || !plans.length">
+          {{ creating ? 'Session wird angelegt...' : 'Session hinzufügen' }}
+        </button>
+      </form>
+    </div>
+
+    <!-- Übungsauswahl -->
+    <div class="exercise-card">
+      <div class="exercise-card-header">
+        <div>
+          <h2 class="card-title">Übungen für diese Session</h2>
+          <p class="card-sub">
+            Wähle hier Übungen aus deinem Übungspool aus. Die Suche filtert automatisch während der
+            Eingabe.
+          </p>
+        </div>
+        <span class="badge">
+          {{ selectedExerciseIds.length }}
+        </span>
+      </div>
+
+      <input
+        type="text"
+        placeholder="Übung nach Name filtern..."
+        [(ngModel)]="exerciseSearch"
+        name="exerciseSearch"
+        (input)="onExerciseSearchChange()"
+        [disabled]="loadingExercises"
+      />
+
+      <div class="exercise-list" *ngIf="!loadingExercises && filteredExercises.length">
+        <button
+          type="button"
+          class="exercise-item"
+          *ngFor="let ex of filteredExercises"
+          (click)="toggleExercise(ex)"
+        >
+          <div class="exercise-main">
+            <span class="exercise-name">{{ ex.name }}</span>
+            <span class="exercise-meta">
+              {{ ex.category || 'Kategorie unbekannt' }}
+              <span *ngIf="ex.muscleGroups"> · {{ ex.muscleGroups }}</span>
+            </span>
+          </div>
+          <div class="exercise-check" [class.selected]="isExerciseSelected(ex)">
+            <span *ngIf="isExerciseSelected(ex)">✓</span>
+          </div>
+        </button>
+      </div>
+
+      <p class="muted small" *ngIf="!loadingExercises && !filteredExercises.length">
+        Keine Übung gefunden. Passe deinen Suchbegriff an.
+      </p>
+
+      <p class="muted small" *ngIf="loadingExercises">Übungen werden geladen...</p>
+    </div>
+  </div>
+
+  <!-- Untere Sessions-Liste in eigener Card -->
+  <div class="sessions-list-card">
+    <div class="sessions-list-header">
+      <div>
+        <h2 class="card-title">Geplante Sessions</h2>
+        <p class="card-sub">Übersicht deiner geplanten Einheiten mit zugehörigen Übungen.</p>
+      </div>
+    </div>
+
+    <p class="muted small" *ngIf="loadingSessions">Sessions werden geladen...</p>
+    <p class="muted small" *ngIf="!loadingSessions && !sessions.length">
       Noch keine Sessions geplant. Erfasse oben deine erste Session.
     </p>
 
-    <table class="table" *ngIf="!loadingSessions && sessions.length">
-      <thead>
-        <tr>
-          <th>Datum</th>
-          <th>Session</th>
-          <th>Plan</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let s of sessions; trackBy: trackBySession">
-          <td>
-            <span *ngIf="s.date; else noDate">
-              {{ s.date | date: 'dd.MM.yyyy' }}
-            </span>
-            <ng-template #noDate>-</ng-template>
-          </td>
-          <td>{{ s.name }}</td>
-          <td>{{ getPlanName(s.planId, s.planName) }}</td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="sessions-table-wrapper" *ngIf="!loadingSessions && sessions.length">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Datum</th>
+            <th>Session</th>
+            <th>Plan</th>
+            <th>Übungen</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let s of sessions; trackBy: trackBySession">
+            <td>
+              <span *ngIf="s.date; else noDate">
+                {{ s.date | date : 'dd.MM.yyyy' }}
+              </span>
+              <ng-template #noDate>-</ng-template>
+            </td>
+            <td>{{ s.name }}</td>
+            <td>{{ getPlanName(s.planId, s.planName) }}</td>
+            <td class="sessions-exercises-cell">
+              <ng-container *ngIf="s.exerciseNames?.length; else noEx">
+                {{ joinExerciseNames(s) }}
+              </ng-container>
+              <ng-template #noEx>-</ng-template>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
