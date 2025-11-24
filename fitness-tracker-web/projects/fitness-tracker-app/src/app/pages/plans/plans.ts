@@ -1,5 +1,5 @@
 ﻿import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, NgIf, NgForOf } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
 import { HttpClient, HttpClientModule, HttpParams } from '@angular/common/http';
 import { map } from 'rxjs/operators';
@@ -34,7 +34,7 @@ type UiPlan = PlanDto & {
 @Component({
   selector: 'app-plans',
   standalone: true,
-  imports: [CommonModule, FormsModule, HttpClientModule],
+  imports: [CommonModule, NgIf, NgForOf, FormsModule, HttpClientModule],
   templateUrl: './plans.html',
   styleUrls: ['./plans.css'],
 })
@@ -58,6 +58,7 @@ export class Plans implements OnInit {
   ngOnInit(): void {
     this.loadPlans();
   }
+
   baseUrl = environment.apiBaseUrl;
 
   private loadPlans(): void {
@@ -88,11 +89,15 @@ export class Plans implements OnInit {
           });
 
           if (previousSelectionId) {
-            const refreshedPlan = this.plans.find((plan) => plan.id === previousSelectionId);
+            const refreshedPlan = this.plans.find(
+              (plan) => plan.id === previousSelectionId
+            );
             if (refreshedPlan) {
               refreshedPlan.sessions = this.selectedPlan?.sessions ?? [];
-              refreshedPlan.sessionsLoaded = this.selectedPlan?.sessionsLoaded;
-              refreshedPlan.loadingSessions = this.selectedPlan?.loadingSessions;
+              refreshedPlan.sessionsLoaded =
+                this.selectedPlan?.sessionsLoaded;
+              refreshedPlan.loadingSessions =
+                this.selectedPlan?.loadingSessions;
               refreshedPlan.sessionsCount = this.selectedPlan?.sessionsCount;
               this.selectedPlan = refreshedPlan;
               this.editForm = {
@@ -184,13 +189,19 @@ export class Plans implements OnInit {
     };
 
     this.http
-      .put<PlanDto>(`${this.baseUrl}/training-plans/${this.selectedPlan.id}`, dto)
+      .put<PlanDto>(
+        `${this.baseUrl}/training-plans/${this.selectedPlan.id}`,
+        dto
+      )
       .subscribe({
         next: (updated) => {
           const payload = updated ?? dto;
           this.selectedPlan!.name = payload.name ?? dto.name;
-          this.selectedPlan!.description = payload.description ?? dto.description;
-          const listPlan = this.plans.find((plan) => plan.id === this.selectedPlan!.id);
+          this.selectedPlan!.description =
+            payload.description ?? dto.description;
+          const listPlan = this.plans.find(
+            (plan) => plan.id === this.selectedPlan!.id
+          );
           if (listPlan) {
             listPlan.name = this.selectedPlan!.name;
             listPlan.description = this.selectedPlan!.description;
@@ -199,7 +210,8 @@ export class Plans implements OnInit {
           this.saving = false;
         },
         error: (err) => {
-          this.error = 'Aktualisieren des Trainingsplans ist fehlgeschlagen.';
+          this.error =
+            'Aktualisieren des Trainingsplans ist fehlgeschlagen.';
           this.saving = false;
           console.error(err);
         },
@@ -211,45 +223,49 @@ export class Plans implements OnInit {
 
     plan.loadingSessions = true;
     const params = new HttpParams().set('planId', String(plan.id));
-    this.http.get<any>(`${this.baseUrl}/training-sessions`, { params }).subscribe({
-      next: (res) => {
-        const sessions = this.normalizeSessionsArray(res);
-        plan.sessions =
-          sessions?.map((session) => ({
-            ...session,
-            exercisesCount:
-              typeof session.exercisesCount === 'number'
-                ? session.exercisesCount
-                : Array.isArray(session.exercises)
-                ? session.exercises.length
-                : Array.isArray(session.exerciseExecutions)
-                ? session.exerciseExecutions.length
-                : undefined,
-          })) ?? [];
-        plan.sessionsCount = plan.sessions.length ?? 0;
-        plan.sessionsLoaded = true;
-        plan.loadingSessions = false;
-      },
-      error: (err) => {
-        this.error = `Fehler beim Laden der Sessions für "${plan.name}".`;
-        plan.loadingSessions = false;
-        plan.sessionsLoaded = false;
-        console.error(err);
-      },
-    });
+    this.http
+      .get<any>(`${this.baseUrl}/training-sessions`, { params })
+      .subscribe({
+        next: (res) => {
+          const sessions = this.normalizeSessionsArray(res);
+          plan.sessions =
+            sessions?.map((session) => ({
+              ...session,
+              exercisesCount:
+                typeof session.exercisesCount === 'number'
+                  ? session.exercisesCount
+                  : Array.isArray(session.exercises)
+                  ? session.exercises.length
+                  : Array.isArray(session.exerciseExecutions)
+                  ? session.exerciseExecutions.length
+                  : undefined,
+            })) ?? [];
+          plan.sessionsCount = plan.sessions.length ?? 0;
+          plan.sessionsLoaded = true;
+          plan.loadingSessions = false;
+        },
+        error: (err) => {
+          this.error = `Fehler beim Laden der Sessions für "${plan.name}".`;
+          plan.loadingSessions = false;
+          plan.sessionsLoaded = false;
+          console.error(err);
+        },
+      });
   }
 
   delete(plan: UiPlan, e?: MouseEvent): void {
     e?.stopPropagation();
     if (!window.confirm(`Möchte Sie ${plan.name} wirklich löschen?`)) return;
 
-    this.http.delete(`${this.baseUrl}/training-plans/${plan.id}`).subscribe({
-      next: () => this.loadPlans(),
-      error: (err) => {
-        this.error = `Fehler beim Löschen von ${plan.name}.`;
-        console.error(err);
-      },
-    });
+    this.http
+      .delete(`${this.baseUrl}/training-plans/${plan.id}`)
+      .subscribe({
+        next: () => this.loadPlans(),
+        error: (err) => {
+          this.error = `Fehler beim Löschen von ${plan.name}.`;
+          console.error(err);
+        },
+      });
   }
 
   trackByPlan = (_: number, p: UiPlan) => p.id;
@@ -276,7 +292,12 @@ export class Plans implements OnInit {
     if (doneKeywords.some((keyword) => normalized.includes(keyword))) {
       return 'Abgeschlossen';
     }
-    const plannedKeywords = ['planned', 'planed', 'geplant', 'scheduled'];
+    const plannedKeywords = [
+      'planned',
+      'planed',
+      'geplant',
+      'scheduled',
+    ];
     if (plannedKeywords.some((keyword) => normalized.includes(keyword))) {
       return 'Geplant';
     }
@@ -285,7 +306,10 @@ export class Plans implements OnInit {
 
   private normalizePlansArray(res: any): any[] {
     if (Array.isArray(res)) return res;
-    if (res?._embedded?.trainingPlans && Array.isArray(res._embedded.trainingPlans)) {
+    if (
+      res?._embedded?.trainingPlans &&
+      Array.isArray(res._embedded.trainingPlans)
+    ) {
       return res._embedded.trainingPlans; // Spring Data REST
     }
     if (Array.isArray(res?.content)) return res.content; // Page<TrainingPlan>
@@ -297,7 +321,10 @@ export class Plans implements OnInit {
 
   private normalizeSessionsArray(res: any): SessionDto[] {
     if (Array.isArray(res)) return res;
-    if (res?._embedded?.trainingSessions && Array.isArray(res._embedded.trainingSessions)) {
+    if (
+      res?._embedded?.trainingSessions &&
+      Array.isArray(res._embedded.trainingSessions)
+    ) {
       return res._embedded.trainingSessions;
     }
     if (Array.isArray(res?.content)) return res.content;

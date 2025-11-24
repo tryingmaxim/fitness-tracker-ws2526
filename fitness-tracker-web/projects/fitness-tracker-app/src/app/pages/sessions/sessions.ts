@@ -1,6 +1,5 @@
-// src/app/pages/sessions/sessions.ts
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, NgIf, NgForOf } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { environment } from '../../../../environment';
@@ -18,7 +17,7 @@ interface TrainingSession {
   date?: string | Date;
   planId: number | null;
   planName?: string;
-  exerciseNames?: string[]; // für Tabelle unten
+  exerciseNames?: string[];
 }
 
 interface Exercise {
@@ -31,11 +30,13 @@ interface Exercise {
 @Component({
   selector: 'app-sessions',
   standalone: true,
-  imports: [CommonModule, FormsModule, HttpClientModule],
+  imports: [CommonModule, NgIf, NgForOf, FormsModule, HttpClientModule],
   templateUrl: './sessions.html',
   styleUrls: ['./sessions.css'],
 })
 export class Sessions implements OnInit {
+  private readonly baseUrl = environment.apiBaseUrl;
+
   plans: TrainingPlan[] = [];
   sessions: TrainingSession[] = [];
 
@@ -45,21 +46,37 @@ export class Sessions implements OnInit {
     date: '',
   };
 
-  // Übungen
+  detailForm = {
+    id: null as number | null,
+    planId: null as number | null,
+    name: '',
+    date: '',
+  };
+
+  selectedSession: TrainingSession | null = null;
+
+  sessionSearch = '';
+
   exercises: Exercise[] = [];
   filteredExercises: Exercise[] = [];
   exerciseSearch = '';
   selectedExerciseIds: number[] = [];
+
+  detailSelectedExerciseIds: number[] = [];
+  detailExerciseSearch = '';
 
   loadingPlans = false;
   loadingSessions = false;
   loadingExercises = false;
   creating = false;
 
+  detailLoading = false;
+  updating = false;
+  deleting = false;
+  deleteId: number | null = null;
+
   errorMsg = '';
   infoMsg = '';
-
-  private readonly baseUrl = environment.apiBaseUrl;
 
   constructor(private http: HttpClient) {}
 
@@ -69,9 +86,13 @@ export class Sessions implements OnInit {
     this.loadExercises();
   }
 
-  /* ===============================
-     Session speichern
-  =============================== */
+  get filteredSessionsForOverview(): TrainingSession[] {
+    const term = this.sessionSearch.trim().toLowerCase();
+    if (!term) return this.sessions;
+    return this.sessions.filter((s) =>
+      (s.name ?? '').toLowerCase().includes(term)
+    );
+  }
 
   add(): void {
     this.errorMsg = '';
@@ -113,23 +134,15 @@ export class Sessions implements OnInit {
     });
   }
 
-  /* ===============================
-     Datepicker Öffnen (Custom Icon)
-  =============================== */
-
   openDatePicker(input: HTMLInputElement): void {
     const anyInput = input as any;
 
     if (typeof anyInput.showPicker === 'function') {
-      anyInput.showPicker(); // Chrome, Edge, Opera
+      anyInput.showPicker();
     } else {
-      input.focus(); // Fallback
+      input.focus();
     }
   }
-
-  /* ===============================
-     Planname anzeigen
-  =============================== */
 
   getPlanName(planId: number | null, fallback?: string): string {
     if (fallback) {
@@ -139,7 +152,6 @@ export class Sessions implements OnInit {
     return plan?.name ?? '-';
   }
 
-    // Namen der Übungen für die Tabelle sicher zusammenbauen
   joinExerciseNames(session: TrainingSession): string {
     return (session.exerciseNames ?? []).join(', ');
   }
@@ -147,9 +159,153 @@ export class Sessions implements OnInit {
   trackBySession = (_: number, session: TrainingSession) =>
     session.id ?? `${session.name}-${session.date}`;
 
-  /* ===============================
-     Übungen laden & filtern
-  =============================== */
+  selectSession(session: TrainingSession): void {
+    if (!session.id) return;
+
+    this.selectedSession = session;
+    this.detailLoading = true;
+    this.errorMsg = '';
+    this.infoMsg = '';
+
+    this.http
+      .get<any>(`${this.baseUrl}/training-sessions/${session.id}`)
+      .subscribe({
+        next: (detail) => {
+          const date =
+            detail?.scheduledDate ??
+            detail?.date ??
+            (session.date as string) ??
+            '';
+
+          const planId = detail?.planId ?? session.planId ?? null;
+
+          this.detailForm = {
+            id: detail?.id ?? session.id ?? null,
+            name: detail?.name ?? session.name,
+            date,
+            planId,
+          };
+
+          const execs = detail?.exerciseExecutions ?? [];
+
+          this.detailSelectedExerciseIds = execs
+            .map(
+              (e: any) => e.exerciseId as number | null | undefined
+            )
+            .filter(
+              (id: number | null | undefined): id is number =>
+                typeof id === 'number'
+            );
+
+          this.detailExerciseSearch = '';
+          this.detailLoading = false;
+        },
+        error: (err) => {
+          console.error('Details konnten nicht geladen werden', err);
+          this.errorMsg = 'Details zur Session konnten nicht geladen werden.';
+          this.detailLoading = false;
+        },
+      });
+  }
+
+  clearSelection(): void {
+    this.selectedSession = null;
+    this.detailSelectedExerciseIds = [];
+    this.detailExerciseSearch = '';
+    this.detailForm = {
+      id: null,
+      planId: null,
+      name: '',
+      date: '',
+    };
+  }
+
+  updateSelectedSession(): void {
+    if (!this.detailForm.id) return;
+
+    const trimmedName = this.detailForm.name?.trim();
+    if (!trimmedName || !this.detailForm.date || !this.detailForm.planId) {
+      this.errorMsg = 'Bitte Name, Plan und Datum angeben.';
+      return;
+    }
+
+    this.errorMsg = '';
+    this.infoMsg = '';
+    this.updating = true;
+
+    const payload = {
+      planId: this.detailForm.planId,
+      name: trimmedName,
+      scheduledDate: this.detailForm.date,
+      exerciseIds: this.detailSelectedExerciseIds,
+    };
+
+    const id = this.detailForm.id;
+
+    this.http.patch<any>(`${this.baseUrl}/training-sessions/${id}`, payload).subscribe({
+      next: (updated) => {
+        this.updating = false;
+        this.infoMsg = 'Session wurde aktualisiert.';
+
+        const s = this.sessions.find((sess) => sess.id === id);
+        if (s) {
+          s.name = updated?.name ?? trimmedName;
+          s.date = updated?.scheduledDate ?? this.detailForm.date;
+          s.planId = updated?.planId ?? this.detailForm.planId;
+          s.planName = this.getPlanName(s.planId, s.planName);
+          s.exerciseNames = this.getDetailExercises().map((e) => e.name);
+        }
+
+        if (this.selectedSession && this.selectedSession.id === id) {
+          this.selectedSession.name = s?.name ?? trimmedName;
+          this.selectedSession.date = s?.date ?? this.detailForm.date;
+          this.selectedSession.planId = s?.planId ?? this.detailForm.planId;
+          this.selectedSession.exerciseNames = s?.exerciseNames ?? [];
+        }
+
+        this.enrichSessionsWithExerciseNames();
+      },
+      error: (err) => {
+        console.error(err);
+        this.updating = false;
+        this.errorMsg = 'Session konnte nicht aktualisiert werden.';
+      },
+    });
+  }
+
+  deleteSession(session: TrainingSession, event?: MouseEvent): void {
+    if (event) event.stopPropagation();
+    if (!session.id) return;
+
+    const confirmed = window.confirm(
+      `Möchtest du die Session "${session.name}" wirklich löschen?`
+    );
+    if (!confirmed) return;
+
+    this.errorMsg = '';
+    this.infoMsg = '';
+    this.deleting = true;
+    this.deleteId = session.id;
+
+    this.http.delete(`${this.baseUrl}/training-sessions/${session.id}`).subscribe({
+      next: () => {
+        this.deleting = false;
+        this.deleteId = null;
+        this.infoMsg = 'Session wurde gelöscht.';
+        this.sessions = this.sessions.filter((s) => s.id !== session.id);
+
+        if (this.selectedSession?.id === session.id) {
+          this.clearSelection();
+        }
+      },
+      error: (err) => {
+        console.error(err);
+        this.deleting = false;
+        this.deleteId = null;
+        this.errorMsg = 'Session konnte nicht gelöscht werden.';
+      },
+    });
+  }
 
   private loadExercises(): void {
     this.loadingExercises = true;
@@ -196,9 +352,34 @@ export class Sessions implements OnInit {
     return this.selectedExerciseIds.includes(ex.id);
   }
 
-  /* ===============================
-     Pläne & Sessions
-  =============================== */
+  getDetailExercises(): Exercise[] {
+    if (!this.detailSelectedExerciseIds.length) return [];
+    return this.exercises.filter((e) =>
+      this.detailSelectedExerciseIds.includes(e.id)
+    );
+  }
+
+  getAvailableDetailExercises(): Exercise[] {
+    const term = this.detailExerciseSearch.trim().toLowerCase();
+    return this.exercises.filter((e) => {
+      if (this.detailSelectedExerciseIds.includes(e.id)) return false;
+      if (!term) return true;
+      return e.name.toLowerCase().includes(term);
+    });
+  }
+
+  addExerciseToDetail(ex: Exercise): void {
+    if (!this.detailSelectedExerciseIds.includes(ex.id)) {
+      this.detailSelectedExerciseIds.push(ex.id);
+    }
+    this.detailExerciseSearch = '';
+  }
+
+  removeExerciseFromDetail(ex: Exercise): void {
+    this.detailSelectedExerciseIds = this.detailSelectedExerciseIds.filter(
+      (id) => id !== ex.id
+    );
+  }
 
   private loadPlans(): void {
     this.loadingPlans = true;
@@ -231,6 +412,8 @@ export class Sessions implements OnInit {
 
   private loadSessions(): void {
     this.loadingSessions = true;
+    const previouslySelectedId = this.selectedSession?.id ?? null;
+
     this.http.get<any>(`${this.baseUrl}/training-sessions`).subscribe({
       next: (res) => {
         this.sessions = this.flattenCollection(res, 'trainingSessions').map(
@@ -238,6 +421,15 @@ export class Sessions implements OnInit {
         );
         this.loadingSessions = false;
         this.enrichSessionsWithExerciseNames();
+
+        if (previouslySelectedId) {
+          const match = this.sessions.find((s) => s.id === previouslySelectedId);
+          if (match) {
+            this.selectedSession = match;
+          } else {
+            this.clearSelection();
+          }
+        }
       },
       error: (err) => {
         this.errorMsg = 'Sessions konnten nicht geladen werden.';
@@ -266,20 +458,11 @@ export class Sessions implements OnInit {
     };
   }
 
-  /* ===============================
-     Session → Übungen-Namen anreichern
-  =============================== */
-
   private enrichSessionsWithExerciseNames(): void {
-    // Wir brauchen Sessions + Exercises
-    if (!this.sessions.length || !this.exercises.length) {
-      return;
-    }
+    if (!this.sessions.length || !this.exercises.length) return;
 
     const sessionsWithId = this.sessions.filter((s) => !!s.id);
-    if (!sessionsWithId.length) {
-      return;
-    }
+    if (!sessionsWithId.length) return;
 
     const requests = sessionsWithId.map((s) =>
       this.http.get<any>(`${this.baseUrl}/training-sessions/${s.id}`)
@@ -295,10 +478,20 @@ export class Sessions implements OnInit {
             .map((e: any) =>
               this.exercises.find((ex) => ex.id === e.exerciseId)?.name
             )
-            // HIER war dein Fehler → Typ für n fehlt
             .filter((n: string | undefined): n is string => !!n);
 
           session.exerciseNames = names;
+
+          if (this.selectedSession && this.selectedSession.id === session.id) {
+            this.detailSelectedExerciseIds = execs
+              .map(
+                (e: any) => e.exerciseId as number | null | undefined
+              )
+              .filter(
+                (id: number | null | undefined): id is number =>
+                  typeof id === 'number'
+              );
+          }
         });
       },
       error: (err) => {
@@ -307,21 +500,14 @@ export class Sessions implements OnInit {
     });
   }
 
-  /* ===============================
-     Hilfsfunktionen
-  =============================== */
-
   private flattenCollection(res: any, embeddedKey: string): any[] {
     if (Array.isArray(res)) return res;
-
     if (Array.isArray(res?._embedded?.[embeddedKey]))
       return res._embedded[embeddedKey];
     if (Array.isArray(res?.content)) return res.content;
     if (Array.isArray(res?.items)) return res.items;
     if (Array.isArray(res?.data)) return res.data;
-
     if (res && typeof res === 'object') return [res];
-
     return [];
   }
 }

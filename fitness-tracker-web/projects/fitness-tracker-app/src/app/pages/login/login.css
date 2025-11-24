@@ -22,7 +22,7 @@
   margin-bottom: 0.8rem;
 }
 
-/* Box wie Panel im Dashboard */
+/* Box  */
 .login-box {
   background: var(--panel);
   color: var(--text);
@@ -49,7 +49,7 @@
   color: #0f172a;
 }
 
-/* Inputs wie Notes/Textboxen im Dashboard */
+/* Inputs */
 .login-box label {
   display: block;
   font-size: 0.9rem;
@@ -83,7 +83,7 @@
   border-color: #22c55e;
 }
 
-/* Button wie mini-btn.primary nur breiter */
+/* Button */
 .login-box button {
   width: 100%;
   padding: 0.9rem;
@@ -110,7 +110,7 @@
   box-shadow: none;
 }
 
-/* Fehlermeldung wie Error-Pill */
+/* Fehlermeldung */
 .login-box .error {
   background: rgba(239, 68, 68, 0.15);
   color: #b91c1c;
@@ -134,7 +134,7 @@
   color: #facc15;
 }
 
-/* Register-Link darunter */
+/* Register-Link */
 .register-hint {
   margin-top: 0.9rem;
   font-size: 0.95rem;

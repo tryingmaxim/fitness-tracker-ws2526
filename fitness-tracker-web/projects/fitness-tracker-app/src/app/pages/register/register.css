@@ -22,7 +22,7 @@
   margin-bottom: 0.8rem;
 }
 
-/* Box wie Panel im Dashboard */
+/* Box */
 .register-box {
   background: var(--panel);
   color: var(--text);
@@ -153,7 +153,7 @@
   color: #dbeafe;
 }
 
-/* Simple Flex-Row (du hast inline-style im Template, das kann auch in CSS) */
+/* Simple Flex-Row */
 .row {
   display: flex;
   gap: 1rem;

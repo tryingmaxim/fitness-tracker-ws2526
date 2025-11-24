@@ -1,16 +1,15 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { RouterOutlet, RouterLink } from '@angular/router';
-import { CommonModule, NgIf, NgFor } from '@angular/common';
+import { CommonModule, NgIf, NgForOf } from '@angular/common';
 
 @Component({
   selector: 'app-layout-public',
   standalone: true,
-  imports: [CommonModule, NgIf, NgFor, RouterLink, RouterOutlet],
+  imports: [CommonModule, NgIf, NgForOf, RouterLink, RouterOutlet],
   templateUrl: './layout-public.html',
-  styleUrl: './layout-public.css'
+  styleUrl: './layout-public.css',
 })
 export class LayoutPublic implements OnInit, OnDestroy {
-
   slides = [
     'assets/GymBild1.png',
     'assets/GymBild2.png',
@@ -24,7 +23,7 @@ export class LayoutPublic implements OnInit, OnDestroy {
   current = 0;
   private timer?: number;
 
-  // du willst standardmäßig dunkel
+  //standardmäßig dunkel
   isDarkMode = true;
 
   ngOnInit(): void {
@@ -33,7 +32,7 @@ export class LayoutPublic implements OnInit, OnDestroy {
       this.current = (this.current + 1) % this.slides.length;
     }, 4000);
 
-    // 2) *** GANZ WICHTIG ***: aktuellen Zustand auf <body> anwenden
+    // 2) aktuellen Zustand auf <body> anwenden
     document.body.classList.toggle('dark-mode', this.isDarkMode);
     document.body.classList.toggle('light-mode', !this.isDarkMode);
   }

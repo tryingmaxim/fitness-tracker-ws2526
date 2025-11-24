@@ -5,7 +5,7 @@
   width: 100%;
 }
 
-/* Haupt-Box wie Dashboard */
+/* Haupt-Box */
 
 .page {
   background: rgba(5, 5, 5, 0.85);
@@ -154,14 +154,14 @@
   font-weight: 500;
 }
 
-.goals-card {
-  margin-top: 0.1rem;
-}
-
-.goals-text {
-  font-size: 0.95rem;
-  line-height: 1.5;
-  opacity: 0.95;
+.value-input {
+  width: 100%;
+  margin-top: 0.2rem;
+  background: transparent;
+  border: none;
+  outline: none;
+  font: inherit;
+  color: inherit;
 }
 
 /* Actions */
@@ -258,4 +258,30 @@
   .profile-title h1 {
     font-size: 1.5rem;
   }
+}
+
+/* ========= FIX DROPDOWN DARK MODE ========= */
+
+select.value-input {
+  background: rgba(15, 23, 42, 0.96);
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  padding: 0.4rem 0.5rem;
+  border-radius: 0.4rem;
+}
+
+select.value-input option {
+  background: #0f172a !important;
+  color: #e2e8f0 !important;
+}
+
+/* Light-Mode */
+:host-context(.light-mode) select.value-input {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+:host-context(.light-mode) select.value-input option {
+  background: #ffffff !important;
+  color: #0f172a !important;
 }

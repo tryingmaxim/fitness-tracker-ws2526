@@ -71,7 +71,7 @@
   z-index: 1;
 }
 
-/* Lightmode: Overlay minimal heller, nicht milchig weiß */
+/* Lightmode */
 :host-context(.light-mode) .overlay {
   background: rgba(0, 0, 0, 0.25);
 }

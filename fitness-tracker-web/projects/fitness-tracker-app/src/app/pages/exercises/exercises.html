@@ -51,12 +51,23 @@
         <span class="count-badge">{{ exercises.length }}</span>
       </div>
 
+      <!--  Live-Suche -->
+      <input
+        type="text"
+        class="exercise-search"
+        placeholder="Übung suchen..."
+        [(ngModel)]="exerciseOverviewSearch"
+        (input)="onExerciseOverviewSearchChange()"
+      />
+
       <p class="muted" *ngIf="loading">Übungen werden geladen...</p>
-      <p class="muted" *ngIf="!loading && !exercises.length">Noch keine Übungen angelegt.</p>
+      <p class="muted" *ngIf="!loading && !filteredExerciseOverview.length">
+        Keine Übung gefunden.
+      </p>
 
       <ul class="list">
         <li
-          *ngFor="let ex of exercises; trackBy: trackByExercise"
+          *ngFor="let ex of filteredExerciseOverview; trackBy: trackByExercise"
           (click)="selectExercise(ex)"
           [class.active]="selectedExercise?.id === ex.id"
         >
@@ -110,38 +121,18 @@
 
       <form class="edit-form" (ngSubmit)="saveSelected()">
         <label for="editName">Name</label>
-        <input
-          id="editName"
-          name="editName"
-          [(ngModel)]="editForm.name"
-          [class.invalid]="editErrors.name"
-          required
-        />
-        <p class="validation" *ngIf="editErrors.name">{{ editErrors.name }}</p>
+        <input id="editName" name="editName" [(ngModel)]="editForm.name" required />
 
         <label for="editCategory">Kategorie</label>
-        <input
-          id="editCategory"
-          name="editCategory"
-          [(ngModel)]="editForm.category"
-          [class.invalid]="editErrors.category"
-          required
-        />
-        <p class="validation" *ngIf="editErrors.category">
-          {{ editErrors.category }}
-        </p>
+        <input id="editCategory" name="editCategory" [(ngModel)]="editForm.category" required />
 
         <label for="editMuscles">Muskelgruppen</label>
         <input
           id="editMuscles"
           name="editMuscles"
           [(ngModel)]="editForm.muscleGroups"
-          [class.invalid]="editErrors.muscleGroups"
           required
         />
-        <p class="validation" *ngIf="editErrors.muscleGroups">
-          {{ editErrors.muscleGroups }}
-        </p>
 
         <label for="editDesc">Beschreibung</label>
         <textarea id="editDesc" name="editDesc" [(ngModel)]="editForm.description"></textarea>

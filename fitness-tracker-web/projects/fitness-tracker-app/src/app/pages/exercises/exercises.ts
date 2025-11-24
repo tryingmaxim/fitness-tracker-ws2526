@@ -1,4 +1,5 @@
 // src/app/private/exercises/exercises.ts
+
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
@@ -9,14 +10,18 @@ export interface ExerciseDto {
   id: number;
   name: string;
   category: string;
-  description?: string;
   muscleGroups: string;
+  description?: string;
 }
 
 @Component({
   selector: 'app-exercises',
   standalone: true,
-  imports: [CommonModule, FormsModule, HttpClientModule],
+  imports: [
+    CommonModule,      // für *ngIf, *ngFor, AsyncPipe usw.
+    FormsModule,       // für ngModel
+    HttpClientModule   // für HttpClient
+  ],
   templateUrl: './exercises.html',
   styleUrls: ['./exercises.css'],
 })
@@ -24,6 +29,8 @@ export class Exercises implements OnInit {
   baseUrl = environment.apiBaseUrl;
 
   exercises: ExerciseDto[] = [];
+  filteredExerciseOverview: ExerciseDto[] = [];
+  exerciseOverviewSearch = '';
 
   // Form für neue Übung
   form = {
@@ -34,7 +41,12 @@ export class Exercises implements OnInit {
   };
 
   // Form für Bearbeitung
-  editForm = {
+  editForm: {
+    name: string;
+    category: string;
+    muscleGroups: string;
+    description: string;
+  } = {
     name: '',
     category: '',
     muscleGroups: '',
@@ -48,8 +60,6 @@ export class Exercises implements OnInit {
   error: string | null = null;
   info: string | null = null;
 
-  editErrors: { name?: string; category?: string; muscleGroups?: string } = {};
-
   selectedExercise: ExerciseDto | null = null;
 
   constructor(private http: HttpClient) {}
@@ -58,7 +68,10 @@ export class Exercises implements OnInit {
     this.loadExercises();
   }
 
-  /** Übungen vom Backend laden */
+  /* ===============================
+     Laden
+  =============================== */
+
   private loadExercises(): void {
     this.loading = true;
     this.error = null;
@@ -66,6 +79,7 @@ export class Exercises implements OnInit {
     this.http.get<any>(`${this.baseUrl}/exercises`).subscribe({
       next: (res) => {
         this.exercises = this.normalizeExercisesArray(res);
+        this.applyFilter();
         this.loading = false;
       },
       error: (err) => {
@@ -76,27 +90,58 @@ export class Exercises implements OnInit {
     });
   }
 
-  /** Helfer: verschiedene mögliche Spring-Page-Formate normalisieren */
   private normalizeExercisesArray(res: any): ExerciseDto[] {
     if (!res) return [];
     if (Array.isArray(res)) return res;
     if (Array.isArray(res.content)) return res.content;
     if (Array.isArray(res.items)) return res.items;
     if (Array.isArray(res.data)) return res.data;
-    if (res._embedded?.exercises && Array.isArray(res._embedded.exercises)) {
-      return res._embedded.exercises;
-    }
-    if (typeof res === 'object' && res.id != null) return [res];
+    if (Array.isArray(res._embedded?.exercises)) return res._embedded.exercises;
+    if (res && typeof res === 'object' && res.id != null) return [res];
     return [];
   }
 
-  /** Neue Übung anlegen */
-  addExercise(form?: NgForm): void {
-    const trimmedName = this.form.name.trim();
-    const trimmedCategory = this.form.category.trim();
-    const trimmedMuscles = this.form.muscleGroups.trim();
+  /* ===============================
+     Live-Suche
+  =============================== */
 
-    if (!trimmedName || !trimmedCategory || !trimmedMuscles) {
+  onExerciseOverviewSearchChange(): void {
+    this.applyFilter();
+  }
+
+  private applyFilter(): void {
+    const term = this.exerciseOverviewSearch.trim().toLowerCase();
+
+    if (!term) {
+      this.filteredExerciseOverview = [...this.exercises];
+      return;
+    }
+
+    this.filteredExerciseOverview = this.exercises.filter((e) => {
+      const name = e.name?.toLowerCase() ?? '';
+      const cat = e.category?.toLowerCase() ?? '';
+      const muscles = e.muscleGroups?.toLowerCase() ?? '';
+      const desc = e.description?.toLowerCase() ?? '';
+      return (
+        name.includes(term) ||
+        cat.includes(term) ||
+        muscles.includes(term) ||
+        desc.includes(term)
+      );
+    });
+  }
+
+  /* ===============================
+     Neue Übung anlegen
+  =============================== */
+
+  addExercise(form?: NgForm): void {
+    const name = this.form.name.trim();
+    const category = this.form.category.trim();
+    const muscles = this.form.muscleGroups.trim();
+    const description = this.form.description?.trim() ?? '';
+
+    if (!name || !category || !muscles) {
       this.error = 'Bitte Name, Kategorie und Muskelgruppen angeben.';
       return;
     }
@@ -105,12 +150,7 @@ export class Exercises implements OnInit {
     this.error = null;
     this.info = null;
 
-    const dto = {
-      name: trimmedName,
-      category: trimmedCategory,
-      muscleGroups: trimmedMuscles,
-      description: this.form.description?.trim() || '',
-    };
+    const dto = { name, category, muscleGroups: muscles, description };
 
     this.http.post<ExerciseDto>(`${this.baseUrl}/exercises`, dto).subscribe({
       next: () => {
@@ -132,7 +172,10 @@ export class Exercises implements OnInit {
     });
   }
 
-  /** Übung auswählen & Edit-Form füllen */
+  /* ===============================
+     Auswahl & Edit
+  =============================== */
+
   selectExercise(ex: ExerciseDto): void {
     this.selectedExercise = ex;
     this.editForm = {
@@ -141,8 +184,8 @@ export class Exercises implements OnInit {
       muscleGroups: ex.muscleGroups ?? '',
       description: ex.description ?? '',
     };
-    this.editErrors = {};
     this.info = null;
+    this.error = null;
   }
 
   resetSelection(): void {
@@ -153,23 +196,18 @@ export class Exercises implements OnInit {
       muscleGroups: '',
       description: '',
     };
-    this.editErrors = {};
   }
 
-  /** Änderungen speichern */
   saveSelected(): void {
     if (!this.selectedExercise) return;
 
-    const name = this.editForm.name?.trim();
-    const category = this.editForm.category?.trim();
-    const muscles = this.editForm.muscleGroups?.trim();
+    const name = this.editForm.name.trim();
+    const category = this.editForm.category.trim();
+    const muscles = this.editForm.muscleGroups.trim();
+    const description = this.editForm.description?.trim() ?? '';
 
-    this.editErrors = {};
-    if (!name) this.editErrors.name = 'Der Name darf nicht leer sein.';
-    if (!category) this.editErrors.category = 'Bitte eine Kategorie angeben.';
-    if (!muscles) this.editErrors.muscleGroups = 'Bitte Muskelgruppen angeben.';
-
-    if (Object.keys(this.editErrors).length > 0) {
+    if (!name || !category || !muscles) {
+      this.error = 'Bitte Name, Kategorie und Muskelgruppen angeben.';
       return;
     }
 
@@ -177,32 +215,15 @@ export class Exercises implements OnInit {
     this.error = null;
     this.info = null;
 
-    const dto = {
-      name,
-      category,
-      muscleGroups: muscles,
-      description: this.editForm.description?.trim() || '',
-    };
+    const dto = { name, category, muscleGroups: muscles, description };
 
     this.http
       .put<ExerciseDto>(`${this.baseUrl}/exercises/${this.selectedExercise.id}`, dto)
       .subscribe({
-        next: (updated) => {
-          const payload = updated ?? dto;
-
-          // lokale Referenzen aktualisieren
-          this.selectedExercise!.name = payload.name;
-          this.selectedExercise!.category = payload.category;
-          this.selectedExercise!.muscleGroups = payload.muscleGroups;
-          this.selectedExercise!.description = payload.description;
-
-          const item = this.exercises.find((x) => x.id === this.selectedExercise!.id);
-          if (item) {
-            Object.assign(item, this.selectedExercise);
-          }
-
+        next: () => {
           this.info = 'Übung wurde aktualisiert.';
           this.saving = false;
+          this.loadExercises();
         },
         error: (err) => {
           console.error(err);
@@ -216,7 +237,10 @@ export class Exercises implements OnInit {
       });
   }
 
-  /** Übung löschen */
+  /* ===============================
+     Löschen
+  =============================== */
+
   deleteExercise(ex: ExerciseDto, event?: MouseEvent): void {
     event?.stopPropagation();
     if (!window.confirm(`Möchtest du "${ex.name}" wirklich löschen?`)) return;

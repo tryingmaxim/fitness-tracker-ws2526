@@ -9,14 +9,12 @@ html,
 body {
   height: 100%;
   width: 100%;
-  /* war vorher schon so – du wolltest fixen Hintergrund */
-  /* overflow: hidden;  <-- ALT */
-  overflow: auto;       /* NEU: Scrollen wieder erlaubt */
+  overflow: auto;      
   font-family: "Poppins", system-ui, sans-serif;
   background: #000;
 }
 
-/* === 2. Farb-Variablen (global, weil alle Pages drauf hören) === */
+/* === 2. Farb-Variablen (global) === */
 :root {
   --bg: #ffffff;
   --text: #0f172a;
@@ -25,7 +23,7 @@ body {
   --secondary: #2563eb;
 }
 
-/* === 3. Dark Mode – globale Variante, damit auch Page-CSS es nutzen kann === */
+/* === 3. Dark Mode – globale Variante === */
 .dark-mode {
   --bg: #1a1a1a;
   --text: #f1f1f1;

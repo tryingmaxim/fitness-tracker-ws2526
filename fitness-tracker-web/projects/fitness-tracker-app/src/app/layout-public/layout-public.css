@@ -216,7 +216,7 @@
   }
 }
 
-/* Handy: Scroll wieder an */
+/* Media Mode Scroll */
 @media (max-width: 600px) {
   body {
     overflow-y: auto;

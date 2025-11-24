@@ -1,10 +1,11 @@
+<!-- src/app/pages/dashboard/dashboard.html -->
 <div class="dashboard-wrapper">
   <!-- HEADER -->
   <div class="header-row">
     <div>
       <p class="eyebrow">Dashboard</p>
       <h1>{{ greeting }}</h1>
-      <p class="subtitle">Dein Überblick über Sessions, Übungen und Notizen.</p>
+      <p class="subtitle">Dein Überblick über Sessions, Übungen und Trainingspläne.</p>
     </div>
 
     <div class="header-right">
@@ -14,9 +15,15 @@
       </div>
 
       <div class="actions">
-        <button class="mini-btn primary" type="button" routerLink="/sessions">+ Session</button>
-
-        <button class="mini-btn ghost" type="button" routerLink="/exercises">+ Übung</button>
+        <button class="mini-btn primary" type="button" routerLink="/sessions">
+          + Session
+        </button>
+        <button class="mini-btn primary" type="button" routerLink="/exercises">
+          + Übung
+        </button>
+        <button class="mini-btn primary" type="button" routerLink="/plans">
+          + Plan
+        </button>
       </div>
     </div>
   </div>
@@ -30,17 +37,70 @@
     </div>
   </div>
 
-  <!-- GRID -->
+  <!-- MAIN CONTENT -->
   <div class="grid">
+    <!-- TRAININGSPLÄNE -->
+    <section class="panel wide">
+      <div class="panel-header">
+        <div>
+          <h2>Deine Trainingspläne</h2>
+          <p class="panel-sub">
+            Schneller Überblick über deine Pläne und wie viele Sessions dazu gehören.
+          </p>
+        </div>
+        <button class="link-btn" type="button" routerLink="/plans">
+          Alle Pläne ansehen
+        </button>
+      </div>
+
+      <div class="plans-row" *ngIf="plansDashboard.length; else noPlans">
+        <article class="plan-card" *ngFor="let p of plansDashboard">
+          <header class="plan-header">
+            <h3 class="plan-title">{{ p.name }}</h3>
+            <span class="plan-sessions">
+              {{ p.sessionCount }} Session{{ p.sessionCount === 1 ? '' : 's' }}
+            </span>
+          </header>
+
+          <p class="plan-description" *ngIf="p.description; else noDesc">
+            {{ p.description }}
+          </p>
+          <ng-template #noDesc>
+            <p class="plan-description muted">
+              Keine Beschreibung hinterlegt.
+            </p>
+          </ng-template>
+
+          <footer class="plan-footer">
+            <button class="mini-btn primary" type="button" routerLink="/plans">
+              Öffnen
+            </button>
+          </footer>
+        </article>
+      </div>
+
+      <ng-template #noPlans>
+        <p class="muted small">
+          Du hast noch keine Trainingspläne angelegt. Starte mit einem neuen Plan über
+          den Button <strong>+ Plan</strong> oben rechts.
+        </p>
+      </ng-template>
+    </section>
+
     <!-- NÄCHSTE SESSIONS -->
     <section class="panel wide">
       <div class="panel-header">
         <h2>Nächste Sessions</h2>
-
-        <button class="link-btn" type="button" routerLink="/sessions">Alle Sessions ansehen</button>
+        <button class="link-btn" type="button" routerLink="/sessions">
+          Alle Sessions ansehen
+        </button>
       </div>
 
-      <div class="sessions-row">
+      <p class="panel-sub" *ngIf="!quickSessions.length">
+        Aktuell sind keine zukünftigen Sessions geplant. Lege oben eine neue Session an.
+      </p>
+
+      <div class="sessions-row" *ngIf="quickSessions.length">
         <article class="session-card" *ngFor="let s of quickSessions">
           <div class="session-header">
             <span class="session-date">{{ s.date }}</span>
@@ -48,23 +108,29 @@
           </div>
 
           <h3 class="session-title">{{ s.title }}</h3>
-          <p class="session-meta">Geplant · {{ s.focus }}</p>
+          <p class="session-meta">{{ s.focus }}</p>
 
           <div class="session-footer">
-            <button class="mini-btn primary" type="button" routerLink="/sessions">Öffnen</button>
+            <button class="mini-btn primary" type="button" routerLink="/sessions">
+              Öffnen
+            </button>
           </div>
         </article>
       </div>
     </section>
 
-    <!-- LETZTE ÜBUNGEN -->
-    <section class="panel">
+    <!-- LETZTE ÜBUNGEN (VOLLE BREITE) -->
+    <section class="panel wide">
       <div class="panel-header">
         <h2>Letzte Übungen</h2>
         <span class="panel-chip">{{ lastExercises.length }} Übungen</span>
       </div>
 
-      <ul class="list">
+      <p class="panel-sub" *ngIf="!lastExercises.length">
+        Noch keine Übungen angelegt. Lege dir einen Übungspool über <strong>+ Übung</strong> an.
+      </p>
+
+      <ul class="list" *ngIf="lastExercises.length">
         <li class="list-item" *ngFor="let ex of lastExercises">
           <div class="list-main">
             <span class="dot"></span>
@@ -74,31 +140,11 @@
             </div>
           </div>
 
-          <button class="mini-btn ghost tiny" type="button" routerLink="/exercises">Details</button>
+          <button class="mini-btn primary tiny" type="button" routerLink="/exercises">
+            Details
+          </button>
         </li>
       </ul>
-    </section>
-
-    <!-- NOTIZEN -->
-    <section class="panel">
-      <div class="panel-header">
-        <h2>Notizen</h2>
-      </div>
-
-      <p class="panel-sub">Sammle hier Gedanken zu Technik, Gewicht, Tagesform oder Zielen.</p>
-
-      <textarea
-        class="notes-input"
-        rows="6"
-        [(ngModel)]="notes"
-        maxlength="500"
-        placeholder="Schreib dir z.B. auf, was du im nächsten Training verbessern willst …"
-      ></textarea>
-
-      <div class="notes-footer">
-        <span class="notes-hint">{{ notes?.length || 0 }}/500</span>
-        <button class="mini-btn primary" type="button">Speichern</button>
-      </div>
     </section>
   </div>
 </div>

@@ -8,7 +8,7 @@
   min-height: 100vh;
 }
 
-/* Box wie AGB/About/Dashboard */
+/* Box */
 .content-box {
   background: var(--panel);
   color: var(--text);

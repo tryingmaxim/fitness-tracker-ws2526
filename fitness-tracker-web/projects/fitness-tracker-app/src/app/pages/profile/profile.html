@@ -17,48 +17,121 @@
     </div>
   </header>
 
+  <!-- NUTZERDATEN -->
+  <section class="profile-section">
+    <h2>Nutzerdaten</h2>
+
+    <!-- Anzeige-Modus -->
+    <div class="profile-grid" *ngIf="!isEditing; else editUserSection">
+      <div class="info-card">
+        <span class="label">Vorname</span>
+        <span class="value">{{ user.firstName }}</span>
+      </div>
+
+      <div class="info-card">
+        <span class="label">Nachname</span>
+        <span class="value">{{ user.lastName }}</span>
+      </div>
+
+      <div class="info-card">
+        <span class="label">E-Mail</span>
+        <span class="value">{{ user.email }}</span>
+      </div>
+    </div>
+
+    <!-- Edit-Modus Nutzerdaten -->
+    <ng-template #editUserSection>
+      <div class="profile-grid">
+        <div class="info-card">
+          <span class="label">Vorname</span>
+          <input
+            class="value-input"
+            type="text"
+            [(ngModel)]="editedUser.firstName"
+          />
+        </div>
+
+        <div class="info-card">
+          <span class="label">Nachname</span>
+          <input
+            class="value-input"
+            type="text"
+            [(ngModel)]="editedUser.lastName"
+          />
+        </div>
+
+        <div class="info-card">
+          <span class="label">E-Mail</span>
+          <input
+            class="value-input"
+            type="email"
+            [(ngModel)]="editedUser.email"
+          />
+        </div>
+      </div>
+    </ng-template>
+  </section>
+
   <!-- KÖRPERDATEN -->
   <section class="profile-section">
     <h2>Körperdaten</h2>
 
-    <div class="profile-grid">
-      <div class="info-card">
-        <span class="label">Name</span>
-        <span class="value">{{ user.username }}</span>
-      </div>
-
+    <!-- Anzeige-Modus -->
+    <div class="profile-grid" *ngIf="!isEditing; else editBodySection">
       <div class="info-card">
         <span class="label">Alter</span>
         <span class="value">{{ user.age }} Jahre</span>
       </div>
 
       <div class="info-card">
-        <span class="label">Größe</span>
-        <span class="value">{{ user.height }} cm</span>
-      </div>
-
-      <div class="info-card">
-        <span class="label">Gewicht</span>
-        <span class="value">{{ user.weight }} kg</span>
+        <span class="label">Geschlecht</span>
+        <span class="value">
+          {{ user.gender || 'Nicht angegeben' }}
+        </span>
       </div>
     </div>
-  </section>
 
-  <!-- ZIELE -->
-  <section class="profile-section">
-    <h2>Trainingsziele</h2>
+    <!-- Edit-Modus Körperdaten -->
+    <ng-template #editBodySection>
+      <div class="profile-grid">
+        <div class="info-card">
+          <span class="label">Alter</span>
+          <input
+            class="value-input"
+            type="number"
+            min="0"
+            [(ngModel)]="editedUser.age"
+          />
+        </div>
 
-    <div class="goals-card">
-      <span class="label">Ziele</span>
-      <p class="goals-text">
-        {{ user.goals }}
-      </p>
-    </div>
+        <div class="info-card">
+          <span class="label">Geschlecht (optional)</span>
+          <select
+            class="value-input"
+            [(ngModel)]="editedUser.gender"
+          >
+            <option value="">Bitte wählen</option>
+            <option value="Männlich">Männlich</option>
+            <option value="Weiblich">Weiblich</option>
+            <option value="Divers">Divers</option>
+            <option value="Keine Angabe">Keine Angabe</option>
+          </select>
+        </div>
+      </div>
+    </ng-template>
   </section>
 
   <!-- ACTIONS -->
   <footer class="actions">
-    <button class="btn-secondary">Profil bearbeiten</button>
+    <ng-container *ngIf="!isEditing; else editButtons">
+      <button class="btn-secondary" (click)="startEdit()">Profil bearbeiten</button>
+    </ng-container>
+
+    <ng-template #editButtons>
+      <button class="btn-secondary" (click)="cancelEdit()">Abbrechen</button>
+      <button class="btn-secondary" (click)="saveEdit()">Änderungen speichern</button>
+    </ng-template>
+
     <button class="btn-logout" (click)="logout()">Abmelden</button>
   </footer>
 </div>
