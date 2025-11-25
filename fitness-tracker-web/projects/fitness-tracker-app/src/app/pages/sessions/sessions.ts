@@ -89,9 +89,7 @@ export class Sessions implements OnInit {
   get filteredSessionsForOverview(): TrainingSession[] {
     const term = this.sessionSearch.trim().toLowerCase();
     if (!term) return this.sessions;
-    return this.sessions.filter((s) =>
-      (s.name ?? '').toLowerCase().includes(term)
-    );
+    return this.sessions.filter((s) => (s.name ?? '').toLowerCase().includes(term));
   }
 
   add(): void {
@@ -108,30 +106,57 @@ export class Sessions implements OnInit {
       planId: this.form.planId,
       name: trimmedName,
       scheduledDate: this.form.date,
-      exerciseIds: this.selectedExerciseIds,
     };
 
     this.creating = true;
-    this.http.post<any>(`${this.baseUrl}/training-sessions`, payload).subscribe({
-      next: () => {
-        this.infoMsg = 'Session wurde hinzugefügt.';
-        this.form.name = '';
-        this.form.date = '';
-        this.selectedExerciseIds = [];
-        this.exerciseSearch = '';
-        this.filteredExercises = [...this.exercises];
 
-        this.loadSessions();
-        this.loadPlans();
-        this.creating = false;
+    this.http.post<any>(`${this.baseUrl}/training-sessions`, payload).subscribe({
+      next: (createdSession) => {
+        const sessionId = createdSession?.id;
+
+        if (!sessionId || !this.selectedExerciseIds.length) {
+          this.afterCreateSuccess();
+          return;
+        }
+
+        const requests = this.selectedExerciseIds.map((exerciseId, index) =>
+          this.http.post(`${this.baseUrl}/training-sessions/${sessionId}/executions`, {
+            exerciseId,
+            orderIndex: index + 1,
+            notes: null,
+          })
+        );
+
+        forkJoin(requests).subscribe({
+          next: () => {
+            this.afterCreateSuccess();
+          },
+          error: (err) => {
+            console.error('Konnte ExerciseExecutions nicht anlegen', err);
+            this.creating = false;
+            this.errorMsg = 'Session wurde angelegt, aber Übungen konnten nicht zugeordnet werden.';
+            this.loadSessions();
+          },
+        });
       },
       error: (err) => {
         this.creating = false;
-        this.errorMsg =
-          err?.error?.detail || 'Session konnte nicht angelegt werden.';
+        this.errorMsg = err?.error?.detail || 'Session konnte nicht angelegt werden.';
         console.error(err);
       },
     });
+  }
+
+  private afterCreateSuccess(): void {
+    this.infoMsg = 'Session wurde hinzugefügt.';
+    this.form.name = '';
+    this.form.date = '';
+    this.selectedExerciseIds = [];
+    this.exerciseSearch = '';
+    this.filteredExercises = [...this.exercises];
+    this.loadSessions();
+    this.loadPlans();
+    this.creating = false;
   }
 
   openDatePicker(input: HTMLInputElement): void {
@@ -167,45 +192,31 @@ export class Sessions implements OnInit {
     this.errorMsg = '';
     this.infoMsg = '';
 
-    this.http
-      .get<any>(`${this.baseUrl}/training-sessions/${session.id}`)
-      .subscribe({
-        next: (detail) => {
-          const date =
-            detail?.scheduledDate ??
-            detail?.date ??
-            (session.date as string) ??
-            '';
+    const date = (session.date as string) ?? '';
+    const planId = session.planId ?? null;
 
-          const planId = detail?.planId ?? session.planId ?? null;
+    this.detailForm = {
+      id: session.id ?? null,
+      name: session.name,
+      date,
+      planId,
+    };
 
-          this.detailForm = {
-            id: detail?.id ?? session.id ?? null,
-            name: detail?.name ?? session.name,
-            date,
-            planId,
-          };
+    this.http.get<any[]>(`${this.baseUrl}/training-sessions/${session.id}/executions`).subscribe({
+      next: (execs) => {
+        this.detailSelectedExerciseIds = execs
+          .map((e: any) => e.exercise?.id as number | null | undefined)
+          .filter((id: number | null | undefined): id is number => typeof id === 'number');
 
-          const execs = detail?.exerciseExecutions ?? [];
-
-          this.detailSelectedExerciseIds = execs
-            .map(
-              (e: any) => e.exerciseId as number | null | undefined
-            )
-            .filter(
-              (id: number | null | undefined): id is number =>
-                typeof id === 'number'
-            );
-
-          this.detailExerciseSearch = '';
-          this.detailLoading = false;
-        },
-        error: (err) => {
-          console.error('Details konnten nicht geladen werden', err);
-          this.errorMsg = 'Details zur Session konnten nicht geladen werden.';
-          this.detailLoading = false;
-        },
-      });
+        this.detailExerciseSearch = '';
+        this.detailLoading = false;
+      },
+      error: (err) => {
+        console.error('Details konnten nicht geladen werden', err);
+        this.errorMsg = 'Details zur Session konnten nicht geladen werden.';
+        this.detailLoading = false;
+      },
+    });
   }
 
   clearSelection(): void {
@@ -237,33 +248,99 @@ export class Sessions implements OnInit {
       planId: this.detailForm.planId,
       name: trimmedName,
       scheduledDate: this.detailForm.date,
-      exerciseIds: this.detailSelectedExerciseIds,
     };
 
     const id = this.detailForm.id;
 
     this.http.patch<any>(`${this.baseUrl}/training-sessions/${id}`, payload).subscribe({
       next: (updated) => {
-        this.updating = false;
-        this.infoMsg = 'Session wurde aktualisiert.';
-
         const s = this.sessions.find((sess) => sess.id === id);
         if (s) {
           s.name = updated?.name ?? trimmedName;
           s.date = updated?.scheduledDate ?? this.detailForm.date;
           s.planId = updated?.planId ?? this.detailForm.planId;
           s.planName = this.getPlanName(s.planId, s.planName);
-          s.exerciseNames = this.getDetailExercises().map((e) => e.name);
         }
 
         if (this.selectedSession && this.selectedSession.id === id) {
           this.selectedSession.name = s?.name ?? trimmedName;
           this.selectedSession.date = s?.date ?? this.detailForm.date;
           this.selectedSession.planId = s?.planId ?? this.detailForm.planId;
-          this.selectedSession.exerciseNames = s?.exerciseNames ?? [];
         }
 
-        this.enrichSessionsWithExerciseNames();
+        this.http.get<any[]>(`${this.baseUrl}/training-sessions/${id}/executions`).subscribe({
+          next: (execs) => {
+            const desiredIds = [...this.detailSelectedExerciseIds];
+            const existingByExerciseId = new Map<number, any>();
+            execs.forEach((e: any) => {
+              const exId = e.exercise?.id;
+              if (typeof exId === 'number') {
+                existingByExerciseId.set(exId, e);
+              }
+            });
+
+            const toDelete = execs.filter((e: any) => {
+              const exId = e.exercise?.id;
+              return typeof exId === 'number' && !desiredIds.includes(exId);
+            });
+
+            const toAddIds = desiredIds.filter((id) => !existingByExerciseId.has(id));
+
+            let maxOrder = execs.reduce(
+              (m: number, e: any) =>
+                Math.max(m, typeof e.orderIndex === 'number' ? e.orderIndex : 0),
+              0
+            );
+
+            const deleteReqs = toDelete.map((e: any) =>
+              this.http.delete(`${this.baseUrl}/training-sessions/${id}/executions/${e.id}`)
+            );
+
+            const addReqs = toAddIds.map((exerciseId) =>
+              this.http.post(`${this.baseUrl}/training-sessions/${id}/executions`, {
+                exerciseId,
+                orderIndex: ++maxOrder,
+                notes: null,
+              })
+            );
+
+            const allReqs = [...deleteReqs, ...addReqs];
+
+            if (!allReqs.length) {
+              this.updating = false;
+              this.infoMsg = 'Session wurde aktualisiert.';
+              this.enrichSessionsWithExerciseNames();
+              return;
+            }
+
+            forkJoin(allReqs).subscribe({
+              next: () => {
+                this.updating = false;
+                this.infoMsg = 'Session wurde aktualisiert.';
+                const exercisesForSession = this.getDetailExercises();
+                if (s) {
+                  s.exerciseNames = exercisesForSession.map((e) => e.name);
+                }
+                if (this.selectedSession && this.selectedSession.id === id) {
+                  this.selectedSession.exerciseNames = exercisesForSession.map((e) => e.name);
+                }
+                this.enrichSessionsWithExerciseNames();
+              },
+              error: (err) => {
+                console.error('Konnte Übungen für Session nicht aktualisieren', err);
+                this.updating = false;
+                this.errorMsg =
+                  'Session wurde teilweise aktualisiert (Übungen konnten nicht gespeichert werden).';
+              },
+            });
+          },
+          error: (err) => {
+            console.error('Executions konnten nicht geladen werden', err);
+            this.updating = false;
+            this.errorMsg =
+              'Session wurde aktualisiert, aber Übungen konnten nicht geladen werden.';
+          },
+        });
       },
       error: (err) => {
         console.error(err);
@@ -277,9 +354,7 @@ export class Sessions implements OnInit {
     if (event) event.stopPropagation();
     if (!session.id) return;
 
-    const confirmed = window.confirm(
-      `Möchtest du die Session "${session.name}" wirklich löschen?`
-    );
+    const confirmed = window.confirm(`Möchtest du die Session "${session.name}" wirklich löschen?`);
     if (!confirmed) return;
 
     this.errorMsg = '';
@@ -334,9 +409,7 @@ export class Sessions implements OnInit {
       this.filteredExercises = [...this.exercises];
       return;
     }
-    this.filteredExercises = this.exercises.filter((e) =>
-      e.name.toLowerCase().includes(term)
-    );
+    this.filteredExercises = this.exercises.filter((e) => e.name.toLowerCase().includes(term));
   }
 
   toggleExercise(ex: Exercise): void {
@@ -354,9 +427,7 @@ export class Sessions implements OnInit {
 
   getDetailExercises(): Exercise[] {
     if (!this.detailSelectedExerciseIds.length) return [];
-    return this.exercises.filter((e) =>
-      this.detailSelectedExerciseIds.includes(e.id)
-    );
+    return this.exercises.filter((e) => this.detailSelectedExerciseIds.includes(e.id));
   }
 
   getAvailableDetailExercises(): Exercise[] {
@@ -376,28 +447,21 @@ export class Sessions implements OnInit {
   }
 
   removeExerciseFromDetail(ex: Exercise): void {
-    this.detailSelectedExerciseIds = this.detailSelectedExerciseIds.filter(
-      (id) => id !== ex.id
-    );
+    this.detailSelectedExerciseIds = this.detailSelectedExerciseIds.filter((id) => id !== ex.id);
   }
 
   private loadPlans(): void {
     this.loadingPlans = true;
     this.http.get<any>(`${this.baseUrl}/training-plans`).subscribe({
       next: (res) => {
-        this.plans = this.flattenCollection(res, 'trainingPlans').map(
-          (plan) => ({
-            id: plan.id,
-            name: plan.name,
-            description: plan.description,
-          })
-        );
+        this.plans = this.flattenCollection(res, 'trainingPlans').map((plan) => ({
+          id: plan.id,
+          name: plan.name,
+          description: plan.description,
+        }));
         if (!this.plans.length) {
           this.form.planId = null;
-        } else if (
-          !this.form.planId ||
-          !this.plans.some((p) => p.id === this.form.planId)
-        ) {
+        } else if (!this.form.planId || !this.plans.some((p) => p.id === this.form.planId)) {
           this.form.planId = this.plans[0]?.id ?? null;
         }
         this.loadingPlans = false;
@@ -416,8 +480,8 @@ export class Sessions implements OnInit {
 
     this.http.get<any>(`${this.baseUrl}/training-sessions`).subscribe({
       next: (res) => {
-        this.sessions = this.flattenCollection(res, 'trainingSessions').map(
-          (session) => this.toUiSession(session)
+        this.sessions = this.flattenCollection(res, 'trainingSessions').map((session) =>
+          this.toUiSession(session)
         );
         this.loadingSessions = false;
         this.enrichSessionsWithExerciseNames();
@@ -465,32 +529,24 @@ export class Sessions implements OnInit {
     if (!sessionsWithId.length) return;
 
     const requests = sessionsWithId.map((s) =>
-      this.http.get<any>(`${this.baseUrl}/training-sessions/${s.id}`)
+      this.http.get<any[]>(`${this.baseUrl}/training-sessions/${s.id}/executions`)
     );
 
     forkJoin(requests).subscribe({
-      next: (details) => {
-        details.forEach((detail, index) => {
+      next: (detailsLists) => {
+        detailsLists.forEach((execs, index) => {
           const session = sessionsWithId[index];
-          const execs = detail?.exerciseExecutions ?? [];
 
           const names = execs
-            .map((e: any) =>
-              this.exercises.find((ex) => ex.id === e.exerciseId)?.name
-            )
+            .map((e: any) => this.exercises.find((ex) => ex.id === e.exercise?.id)?.name)
             .filter((n: string | undefined): n is string => !!n);
 
           session.exerciseNames = names;
 
           if (this.selectedSession && this.selectedSession.id === session.id) {
             this.detailSelectedExerciseIds = execs
-              .map(
-                (e: any) => e.exerciseId as number | null | undefined
-              )
-              .filter(
-                (id: number | null | undefined): id is number =>
-                  typeof id === 'number'
-              );
+              .map((e: any) => e.exercise?.id as number | null | undefined)
+              .filter((id: number | null | undefined): id is number => typeof id === 'number');
           }
         });
       },
@@ -502,8 +558,7 @@ export class Sessions implements OnInit {
 
   private flattenCollection(res: any, embeddedKey: string): any[] {
     if (Array.isArray(res)) return res;
-    if (Array.isArray(res?._embedded?.[embeddedKey]))
-      return res._embedded[embeddedKey];
+    if (Array.isArray(res?._embedded?.[embeddedKey])) return res._embedded[embeddedKey];
     if (Array.isArray(res?.content)) return res.content;
     if (Array.isArray(res?.items)) return res.items;
     if (Array.isArray(res?.data)) return res.data;

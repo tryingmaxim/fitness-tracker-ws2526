@@ -2,8 +2,22 @@
 import { CommonModule, NgIf, NgForOf } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
 import { HttpClient, HttpClientModule, HttpParams } from '@angular/common/http';
-import { map } from 'rxjs/operators';
+import { map, switchMap, catchError } from 'rxjs/operators';
+import { forkJoin, of } from 'rxjs';
 import { environment } from '../../../../environment';
+
+interface ExerciseDto {
+  id: number;
+  name: string;
+  description?: string;
+}
+
+interface ExerciseExecutionDto {
+  id: number;
+  orderIndex: number;
+  notes?: string;
+  exercise: ExerciseDto;
+}
 
 interface PlanDto {
   id: number;
@@ -20,8 +34,8 @@ interface SessionDto {
   plannedDate?: string | Date;
   scheduledDate?: string | Date;
   exercisesCount?: number;
-  exercises?: unknown[];
-  exerciseExecutions?: unknown[];
+  exercises?: ExerciseDto[];
+  exerciseExecutions?: ExerciseExecutionDto[];
   status?: string;
 }
 
@@ -220,27 +234,57 @@ export class Plans implements OnInit {
 
   private loadSessions(plan: UiPlan): void {
     plan.sessionsLoaded = false;
-
     plan.loadingSessions = true;
+
     const params = new HttpParams().set('planId', String(plan.id));
+
     this.http
       .get<any>(`${this.baseUrl}/training-sessions`, { params })
+      .pipe(
+        map((res) => this.normalizeSessionsArray(res)),
+        switchMap((sessions: SessionDto[]) => {
+          if (!sessions || sessions.length === 0) {
+            return of([] as SessionDto[]);
+          }
+
+          // für jede Session die ExerciseExecutions nachladen
+          const withExecutions$ = sessions.map((session) =>
+            this.http
+              .get<ExerciseExecutionDto[]>(
+                `${this.baseUrl}/training-sessions/${session.id}/executions`
+              )
+              .pipe(
+                map((executions) => {
+                  const sorted = [...executions].sort(
+                    (a, b) => a.orderIndex - b.orderIndex
+                  );
+                  return {
+                    ...session,
+                    exerciseExecutions: sorted,
+                    exercisesCount: sorted.length,
+                  } as SessionDto;
+                }),
+                catchError((err) => {
+                  console.error(
+                    `Fehler beim Laden der Exercises für Session ${session.id}`,
+                    err
+                  );
+                  return of({
+                    ...session,
+                    exerciseExecutions: [],
+                    exercisesCount: 0,
+                  } as SessionDto);
+                })
+              )
+          );
+
+          return forkJoin(withExecutions$);
+        })
+      )
       .subscribe({
-        next: (res) => {
-          const sessions = this.normalizeSessionsArray(res);
-          plan.sessions =
-            sessions?.map((session) => ({
-              ...session,
-              exercisesCount:
-                typeof session.exercisesCount === 'number'
-                  ? session.exercisesCount
-                  : Array.isArray(session.exercises)
-                  ? session.exercises.length
-                  : Array.isArray(session.exerciseExecutions)
-                  ? session.exerciseExecutions.length
-                  : undefined,
-            })) ?? [];
-          plan.sessionsCount = plan.sessions.length ?? 0;
+        next: (sessionsWithExecutions: SessionDto[]) => {
+          plan.sessions = sessionsWithExecutions;
+          plan.sessionsCount = sessionsWithExecutions.length ?? 0;
           plan.sessionsLoaded = true;
           plan.loadingSessions = false;
         },

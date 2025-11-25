@@ -114,6 +114,14 @@
               </span>
               <span>Status: {{ sessionStatusLabel(session) }}</span>
             </div>
+
+            <!-- Hirt werden die ausgeführten Übungen angezeigt -->
+            <ul class="exercise-list" *ngIf="session.exerciseExecutions?.length">
+              <li *ngFor="let exec of session.exerciseExecutions">
+                {{ exec.orderIndex }}. {{ exec.exercise.name || 'Unbenannte Übung' }}
+                <span *ngIf="exec.notes"> – {{ exec.notes }}</span>
+              </li>
+            </ul>
           </li>
         </ul>
       </section>

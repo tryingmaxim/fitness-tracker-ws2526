@@ -89,7 +89,7 @@
 /* AGB Bereich */
 .terms-container {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   gap: 0.6rem;
   margin-top: 0.2rem;
@@ -174,4 +174,10 @@
   .row {
     flex-direction: column;
   }
+}
+
+.terms-label {
+  display: inline;
+  line-height: 1.25rem;
+  margin-top: 1px;
 }
