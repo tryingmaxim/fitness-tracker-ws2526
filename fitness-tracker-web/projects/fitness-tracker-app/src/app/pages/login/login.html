@@ -1,11 +1,18 @@
 <div class="login-container">
+  <!-- Überschrift und kurze Erklärung -->
   <h1>Anmelden</h1>
   <p>Sie haben bereits ein Konto? Dann melden Sie sich mit Ihrem bestehenden Konto an.</p>
+
+  <!-- Entwicklerhinweis: Nur sichtbar, wenn devBypassEmail gesetzt ist -->
   <p class="dev-hint" *ngIf="devBypassEmail">
     Dev-Shortcut aktiv: melde dich mit <strong>{{ devBypassEmail }}</strong> an (Passwort beliebig).
   </p>
+
   <div class="login-box">
+    <!-- Login-Formular mit Angular ngForm -->
     <form #loginForm="ngForm" (ngSubmit)="onLogin(loginForm)" novalidate>
+
+      <!-- E-Mail Feld -->
       <label for="email">E-Mail:</label>
       <input
         id="email"
@@ -18,6 +25,7 @@
         [disabled]="loading"
       />
 
+      <!-- Passwort Feld -->
       <label for="password">Passwort:</label>
       <input
         id="password"
@@ -30,16 +38,20 @@
         [disabled]="loading"
       />
 
+      <!-- Fehlermeldung, falls vorhanden -->
       <div class="error" *ngIf="error">
         {{ error }}
       </div>
 
-    <button type="submit" [disabled]="loading || loginForm.invalid">
-      {{ loading ? 'Anmeldung laeuft...' : 'Anmelden' }}
-    </button>
+      <!-- Submit-Button: deaktiviert während Loading oder wenn Formular ungültig ist -->
+      <button type="submit" [disabled]="loading || loginForm.invalid">
+        {{ loading ? 'Anmeldung laeuft...' : 'Anmelden' }}
+      </button>
+
     </form>
   </div>
 
+  <!-- Hinweis zur Registrierung -->
   <div class="register-hint">
     Sie haben noch kein Konto?
     <a routerLink="/register">Registrieren Sie sich hier</a>.
