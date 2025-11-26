@@ -1,27 +1,30 @@
 <div class="page profile-page">
-  <!-- HEADER -->
+  <!-- HEADER: Enthält Avatar, Titel des Bereichs und Metadaten -->
   <header class="profile-header">
+    <!-- Avatar des Nutzers, wird durch Initialen ersetzt -->
     <div class="avatar">
       {{ initials }}
     </div>
 
+    <!-- Profil-Titel und kurze Beschreibung -->
     <div class="profile-title">
       <p class="eyebrow">Mein Bereich</p>
       <h1>Mein Profil</h1>
       <p class="sub">Übersicht deiner persönlichen Daten</p>
     </div>
 
+    <!-- Metadaten: Status und E-Mail des Nutzers -->
     <div class="profile-meta">
       <span class="tag">Angemeldet</span>
       <p class="meta-email">{{ user.email }}</p>
     </div>
   </header>
 
-  <!-- NUTZERDATEN -->
+  <!-- NUTZERDATEN SECTION -->
   <section class="profile-section">
     <h2>Nutzerdaten</h2>
 
-    <!-- Anzeige-Modus -->
+    <!-- Anzeige-Modus: Zeigt die Daten des Nutzers an -->
     <div class="profile-grid" *ngIf="!isEditing; else editUserSection">
       <div class="info-card">
         <span class="label">Vorname</span>
@@ -39,7 +42,7 @@
       </div>
     </div>
 
-    <!-- Edit-Modus Nutzerdaten -->
+    <!-- Edit-Modus: Ermöglicht Bearbeitung der Nutzerdaten -->
     <ng-template #editUserSection>
       <div class="profile-grid">
         <div class="info-card">
@@ -72,11 +75,11 @@
     </ng-template>
   </section>
 
-  <!-- KÖRPERDATEN -->
+  <!-- KÖRPERDATEN SECTION -->
   <section class="profile-section">
     <h2>Körperdaten</h2>
 
-    <!-- Anzeige-Modus -->
+    <!-- Anzeige-Modus: Zeigt Alter und Geschlecht an -->
     <div class="profile-grid" *ngIf="!isEditing; else editBodySection">
       <div class="info-card">
         <span class="label">Alter</span>
@@ -91,7 +94,7 @@
       </div>
     </div>
 
-    <!-- Edit-Modus Körperdaten -->
+    <!-- Edit-Modus: Ermöglicht Bearbeitung von Alter und Geschlecht -->
     <ng-template #editBodySection>
       <div class="profile-grid">
         <div class="info-card">
@@ -121,17 +124,20 @@
     </ng-template>
   </section>
 
-  <!-- ACTIONS -->
+  <!-- ACTIONS: Buttons für Bearbeiten, Speichern, Abbrechen und Logout -->
   <footer class="actions">
+    <!-- Anzeige, wenn nicht im Bearbeitungsmodus -->
     <ng-container *ngIf="!isEditing; else editButtons">
       <button class="btn-secondary" (click)="startEdit()">Profil bearbeiten</button>
     </ng-container>
 
+    <!-- Buttons für Bearbeitungsmodus: Abbrechen und Speichern -->
     <ng-template #editButtons>
       <button class="btn-secondary" (click)="cancelEdit()">Abbrechen</button>
       <button class="btn-secondary" (click)="saveEdit()">Änderungen speichern</button>
     </ng-template>
 
+    <!-- Logout-Button -->
     <button class="btn-logout" (click)="logout()">Abmelden</button>
   </footer>
 </div>
