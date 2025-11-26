@@ -1,6 +1,8 @@
+<!-- Überschrift + Startbereich -->
 <div class="heading">
   <h1>FitnessTracker</h1>
 
+  <!-- Start-Button, wird nur angezeigt bevor Login/Registrieren erscheint -->
   <button
     class="start-btn"
     *ngIf="!showLoginButtons"
@@ -10,12 +12,17 @@
     Let’s get started
   </button>
 
+  <!-- Bereich für Login/Registrieren Buttons -->
   <div class="login-buttons" [class.show]="showLoginButtons">
+    <!-- Navigiert zur Login-Seite -->
     <button class="action-btn" routerLink="/login" type="button">
       Anmelden
     </button>
+
+    <!-- Navigiert zur Registrierungs-Seite -->
     <button class="action-btn" routerLink="/register" type="button">
       Registrieren
     </button>
   </div>
 </div>
+ 
