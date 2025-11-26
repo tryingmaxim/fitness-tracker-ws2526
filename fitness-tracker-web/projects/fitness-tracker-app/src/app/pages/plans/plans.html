@@ -1,17 +1,22 @@
 <div class="page">
+  <!-- Titelbereich für die Seite -->
   <h1>Trainingspläne</h1>
   <p class="sub">Strukturiere deine Wochen.</p>
 
+  <!-- Anzeige von Fehler- oder Info-Meldungen -->
   <div class="alerts" *ngIf="error || info">
     <div class="alert error" *ngIf="error">{{ error }}</div>
     <div class="alert info" *ngIf="info">{{ info }}</div>
   </div>
 
+  <!-- Formular zum Erstellen eines neuen Trainingsplans -->
   <section class="panel create-panel">
     <h2>Neuen Trainingsplan anlegen</h2>
     <form class="form" #createForm="ngForm" (ngSubmit)="add(createForm)">
       <input [(ngModel)]="form.name" name="name" placeholder="Plan-Name" required />
       <textarea [(ngModel)]="form.desc" name="desc" placeholder="Beschreibung"></textarea>
+
+      <!-- Button zeigt während Erstellung einen Ladezustand an -->
       <button type="submit" [disabled]="submitting">
         {{ submitting ? 'Wird erstellt...' : 'Plan anlegen' }}
       </button>
@@ -19,31 +24,42 @@
   </section>
 
   <div class="layout">
+    <!-- Linke Seite: Übersicht aller Trainingspläne -->
     <section class="panel overview">
       <div class="overview-head">
         <h2>Übersicht</h2>
+        <!-- Anzahl der vorhandenen Pläne -->
         <span class="count-badge">{{ plans.length }}</span>
       </div>
 
+      <!-- Lade- oder Leermeldungen -->
       <p class="muted" *ngIf="loading">Trainingspläne werden geladen...</p>
       <p class="muted" *ngIf="!loading && !plans.length">Noch keine Trainingspläne vorhanden.</p>
 
+      <!-- Liste aller Pläne -->
       <ul class="list">
         <li
           *ngFor="let p of plans; trackBy: trackByPlan"
           (click)="selectPlan(p)"
           [class.active]="selectedPlan?.id === p.id"
         >
+          <!-- Plan-Infos -->
           <div class="plan-info">
             <div>
               <h3>{{ p.name }}</h3>
+
+              <!-- Beschreibung oder Fallback-Text -->
               <p class="desc" *ngIf="p.description; else noDesc">{{ p.description }}</p>
               <ng-template #noDesc>
                 <p class="desc muted">Keine Beschreibung hinterlegt</p>
               </ng-template>
             </div>
+
+            <!-- Anzahl der Sessions dieses Plans -->
             <div class="session-count">Sessions: {{ p.sessionsCount ?? '–' }}</div>
           </div>
+
+          <!-- Buttons für Details oder Löschen -->
           <div class="plan-actions">
             <button type="button" class="ghost" (click)="selectPlan(p); $event.stopPropagation()">
               Details
@@ -54,6 +70,7 @@
       </ul>
     </section>
 
+    <!-- Rechte Seite: Details eines ausgewählten Plans -->
     <section class="panel details" *ngIf="selectedPlan; else selectHint">
       <div class="details-head">
         <button type="button" class="back" (click)="resetSelection()">
@@ -62,6 +79,7 @@
         <h2>Details: {{ selectedPlan.name }}</h2>
       </div>
 
+      <!-- Bearbeitungsformular für den ausgewählten Plan -->
       <form class="edit-form" (ngSubmit)="saveSelected()">
         <label for="editName">Plan-Name</label>
         <input
@@ -81,8 +99,11 @@
         </button>
       </form>
 
+      <!-- Anzeige aller Sessions des Plans -->
       <section class="sessions">
         <h3>Trainingssessions</h3>
+
+        <!-- Statusmeldungen beim Laden -->
         <p class="muted" *ngIf="selectedPlan.loadingSessions">Sessions werden geladen...</p>
         <p
           class="muted"
@@ -91,9 +112,12 @@
           Noch keine Trainingssessions geplant.
         </p>
 
+        <!-- Liste der Sessions -->
         <ul *ngIf="selectedPlan.sessions?.length">
           <li *ngFor="let session of selectedPlan.sessions; trackBy: trackBySession">
             <strong>{{ session.title || session.name }}</strong>
+
+            <!-- Meta-Infos zur Session -->
             <div class="session-meta">
               <span>
                 Geplantes Datum:
@@ -115,7 +139,7 @@
               <span>Status: {{ sessionStatusLabel(session) }}</span>
             </div>
 
-            <!-- Hirt werden die ausgeführten Übungen angezeigt -->
+            <!-- Liste der ausgeführten Übungen -->
             <ul class="exercise-list" *ngIf="session.exerciseExecutions?.length">
               <li *ngFor="let exec of session.exerciseExecutions">
                 {{ exec.orderIndex }}. {{ exec.exercise.name || 'Unbenannte Übung' }}
@@ -128,6 +152,7 @@
     </section>
   </div>
 
+  <!-- Hinweis, falls kein Plan ausgewählt wurde -->
   <ng-template #selectHint>
     <section class="panel details placeholder">
       <p>Wähle einen Trainingsplan aus der Übersicht, um Details einzusehen.</p>
