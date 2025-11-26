@@ -1,9 +1,12 @@
 <div class="register-container">
+  <!-- Titel und kurze Beschreibung der Registrierung -->
   <h1>Registrieren</h1>
   <p>Erstellen Sie Ihr persönliches FitnessTracker-Konto.</p>
 
   <div class="register-box">
+    <!-- Registrierungsformular -->
     <form>
+      <!-- Zeile für Vorname und Nachname -->
       <div class="row" style="display:flex; gap:1rem;">
         <div class="field" style="flex:1;">
           <label for="firstName">Vorname</label>
@@ -15,9 +18,11 @@
         </div>
       </div>
 
+      <!-- E-Mail-Feld -->
       <label for="email">E-Mail</label>
       <input id="email" name="email" type="email" placeholder="E-Mail-Adresse eingeben" required />
 
+      <!-- Zeile für Alter und Geschlecht -->
       <div class="row" style="display:flex; gap:1rem;">
         <div class="field" style="flex:1;">
           <label for="age">Alter</label>
@@ -34,25 +39,28 @@
         </div>
       </div>
 
+      <!-- Passwortfelder -->
       <label for="password">Passwort</label>
       <input id="password" name="password" type="password" placeholder="Mind. 8 Zeichen" minlength="8" required />
 
       <label for="passwordConfirm">Passwort bestätigen</label>
       <input id="passwordConfirm" name="passwordConfirm" type="password" placeholder="Passwort wiederholen" minlength="8" required />
 
+      <!-- Akzeptanz der Datenschutz- und Nutzungsbedingungen -->
       <div class="terms-container">
         <input type="checkbox" id="terms" name="terms" required />
         <label for="terms" class="terms-label">
             Ich akzeptiere die
-        <a routerLink="/agb">Datenschutzerklärung und die Nutzungsbedingungen.</a>
+            <a routerLink="/agb">Datenschutzerklärung und die Nutzungsbedingungen.</a>
         </label>
       </div>
 
-<button type="submit">Konto erstellen</button>
-
+      <!-- Button zum Abschicken des Formulars -->
+      <button type="submit">Konto erstellen</button>
     </form>
   </div>
 
+  <!-- Hinweis für bereits registrierte Nutzer -->
   <div class="login-hint">
     Sie haben bereits ein Konto?
     <a routerLink="/login">Hier anmelden</a>.
