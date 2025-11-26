@@ -1,5 +1,4 @@
 // src/app/private/exercises/exercises.ts
-// src/app/private/exercises/exercises.ts
 
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';

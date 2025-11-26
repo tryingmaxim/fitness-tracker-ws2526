@@ -1,57 +1,69 @@
 <!-- src/app/private/exercises/exercises.html -->
+
 <div class="page">
   <h1>Übungen</h1>
+  <!-- Untertitel: sagt kurz, was man hier machen kann -->
   <p class="sub">Verwalte deine angelegten Übungen und bearbeite die Details.</p>
 
-  <!-- Meldungen -->
+  <!-- Meldungen: werden nur angezeigt, wenn error oder info gesetzt ist -->
   <div class="alerts" *ngIf="error || info">
     <div class="alert error" *ngIf="error">{{ error }}</div>
     <div class="alert info" *ngIf="info">{{ info }}</div>
   </div>
 
-  <!-- Neue Übung anlegen -->
+  <!-- Bereich zum neue Übungen anlegen -->
   <section class="panel create-panel">
     <h2>Neue Übung anlegen</h2>
+
+    <!-- Kurze Erklärung für den User -->
     <p class="hint">
       Lege hier neue Übungen an. Name, Kategorie und Muskelgruppen sind Pflichtfelder.
     </p>
 
+    <!-- Formular: Beim Absenden wird addExercise() ausgeführt -->
     <form class="form" #createForm="ngForm" (ngSubmit)="addExercise(createForm)">
+      <!-- Eingaben werden mit ngModel direkt an form gebunden -->
       <input [(ngModel)]="form.name" name="name" placeholder="Name (z.B. Bankdrücken)" required />
+
       <input
         [(ngModel)]="form.category"
         name="category"
         placeholder="Kategorie (z.B. Freihantel)"
         required
       />
+
       <input
         [(ngModel)]="form.muscleGroups"
         name="muscleGroups"
         placeholder="Muskelgruppen (z.B.Trizeps)"
         required
       />
+
       <textarea
         [(ngModel)]="form.description"
         name="description"
         placeholder="Beschreibung (optional)"
       ></textarea>
 
+      <!-- Button zeigt während submitting einen Lade-Text -->
       <button type="submit" [disabled]="submitting">
         {{ submitting ? 'Wird angelegt...' : 'Hinzufügen' }}
       </button>
     </form>
   </section>
 
-  <!-- Übersicht + Details Layout -->
+  <!-- Hauptlayout: links Liste, rechts Details -->
   <div class="layout">
-    <!-- Übersicht -->
+
+    <!-- Linke Seite: Übersicht der Übungen -->
     <section class="panel overview">
       <div class="overview-head">
         <h2>Übersicht</h2>
+        <!-- Zeigt, wie viele Übungen vorhanden sind -->
         <span class="count-badge">{{ exercises.length }}</span>
       </div>
 
-      <!--  Live-Suche -->
+      <!-- Live-Suche: filtert die Übungen während der Eingabe -->
       <input
         type="text"
         class="exercise-search"
@@ -60,11 +72,13 @@
         (input)="onExerciseOverviewSearchChange()"
       />
 
+      <!-- Meldungen beim Laden oder wenn leer -->
       <p class="muted" *ngIf="loading">Übungen werden geladen...</p>
       <p class="muted" *ngIf="!loading && !filteredExerciseOverview.length">
         Keine Übung gefunden.
       </p>
 
+      <!-- Liste der gefilterten Übungen -->
       <ul class="list">
         <li
           *ngFor="let ex of filteredExerciseOverview; trackBy: trackByExercise"
@@ -74,10 +88,13 @@
           <div class="exercise-info">
             <div>
               <h3>{{ ex.name }}</h3>
+
               <p class="meta">
                 Kategorie:
                 <strong>{{ ex.category || '–' }}</strong>
               </p>
+
+              <!-- Muskelgruppen oder Ersatztext -->
               <p class="meta" *ngIf="ex.muscleGroups; else noMuscles">
                 Muskelgruppen: {{ ex.muscleGroups }}
               </p>
@@ -85,6 +102,7 @@
                 <p class="meta muted">Keine Muskelgruppen hinterlegt</p>
               </ng-template>
 
+              <!-- Beschreibung oder Ersatztext -->
               <p class="desc" *ngIf="ex.description; else noDesc">
                 {{ ex.description }}
               </p>
@@ -94,6 +112,7 @@
             </div>
           </div>
 
+          <!-- Buttons: Details anzeigen oder löschen -->
           <div class="exercise-actions">
             <button
               type="button"
@@ -102,6 +121,7 @@
             >
               Details
             </button>
+
             <button type="button" class="danger" (click)="deleteExercise(ex, $event)">
               Löschen
             </button>
@@ -110,7 +130,7 @@
       </ul>
     </section>
 
-    <!-- Details / Bearbeitung -->
+    <!-- Rechte Seite: Details der ausgewählten Übung -->
     <section class="panel details" *ngIf="selectedExercise; else selectHint">
       <div class="details-head">
         <button type="button" class="back" (click)="resetSelection()">
@@ -119,7 +139,9 @@
         <h2>Details: {{ selectedExercise.name }}</h2>
       </div>
 
+      <!-- Formular: Änderungen speichern -->
       <form class="edit-form" (ngSubmit)="saveSelected()">
+
         <label for="editName">Name</label>
         <input id="editName" name="editName" [(ngModel)]="editForm.name" required />
 
@@ -137,17 +159,19 @@
         <label for="editDesc">Beschreibung</label>
         <textarea id="editDesc" name="editDesc" [(ngModel)]="editForm.description"></textarea>
 
+        <!-- Button zeigt Lade-Status während saving -->
         <button type="submit" [disabled]="saving">
           {{ saving ? 'Speichern...' : 'Änderungen speichern' }}
         </button>
       </form>
     </section>
 
-    <!-- Platzhalter, wenn keine Übung ausgewählt -->
+    <!-- Hinweis, wenn keine Übung ausgewählt wurde -->
     <ng-template #selectHint>
       <section class="panel details placeholder">
         <p>Wähle eine Übung aus der Übersicht, um Details zu bearbeiten.</p>
       </section>
     </ng-template>
+
   </div>
 </div>
