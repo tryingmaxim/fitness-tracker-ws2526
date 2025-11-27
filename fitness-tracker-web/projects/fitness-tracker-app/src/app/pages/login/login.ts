@@ -13,6 +13,7 @@ import { environment } from '../../../../environment';
   templateUrl: './login.html',
   styleUrl: './login.css',
 })
+//Variablen für das Login
 export class Login {
   email = '';
   password = '';
@@ -34,10 +35,12 @@ export class Login {
     this.loading = true;
 
     this.auth.login(this.email, this.password).subscribe({
+      //login erfolgreich
       next: () => {
         this.loading = false;
         this.router.navigate(['/dashboard']);
       },
+      //login fehlgeschlagen
       error: (err) => {
         this.loading = false;
         this.error =

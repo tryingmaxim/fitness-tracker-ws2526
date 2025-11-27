@@ -9,6 +9,8 @@ import { CommonModule, NgIf, NgForOf } from '@angular/common';
   templateUrl: './layout-public.html',
   styleUrl: './layout-public.css',
 })
+
+//UI Funktionen (Slideshow und Darkmode)
 export class LayoutPublic implements OnInit, OnDestroy {
   slides = [
     'assets/GymBild1.png',
@@ -23,20 +25,21 @@ export class LayoutPublic implements OnInit, OnDestroy {
   current = 0;
   private timer?: number;
 
-  //standardmäßig dunkel
+  //standardmäßig darkmode
   isDarkMode = true;
 
+  //wird ausgeführt wenn Seite geladen wird
   ngOnInit(): void {
-    // 1) Slideshow starten
+    //Slideshow wird gestartet und alle 4 Sekunden wird das Bild gewechselt
     this.timer = window.setInterval(() => {
       this.current = (this.current + 1) % this.slides.length;
     }, 4000);
 
-    // 2) aktuellen Zustand auf <body> anwenden
     document.body.classList.toggle('dark-mode', this.isDarkMode);
     document.body.classList.toggle('light-mode', !this.isDarkMode);
   }
 
+  //wird ausgeführt wenn Nutzer Seite verlässt 
   ngOnDestroy(): void {
     if (this.timer) {
       clearInterval(this.timer);

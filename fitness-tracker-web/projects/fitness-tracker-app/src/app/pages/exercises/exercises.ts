@@ -1,5 +1,3 @@
-// src/app/private/exercises/exercises.ts
-
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
@@ -18,9 +16,9 @@ export interface ExerciseDto {
   selector: 'app-exercises',
   standalone: true,
   imports: [
-    CommonModule,      // für *ngIf, *ngFor, AsyncPipe usw.
-    FormsModule,       // für ngModel
-    HttpClientModule   // für HttpClient
+    CommonModule,      
+    FormsModule,      
+    HttpClientModule   
   ],
   templateUrl: './exercises.html',
   styleUrls: ['./exercises.css'],
@@ -32,7 +30,7 @@ export class Exercises implements OnInit {
   filteredExerciseOverview: ExerciseDto[] = [];
   exerciseOverviewSearch = '';
 
-  // Form für neue Übung
+  //Formular für das Neu anlegen von Übungen
   form = {
     name: '',
     category: '',
@@ -40,7 +38,7 @@ export class Exercises implements OnInit {
     description: '',
   };
 
-  // Form für Bearbeitung
+  //Formular für das Bearbeiten von Übungen
   editForm: {
     name: string;
     category: string;
@@ -68,15 +66,14 @@ export class Exercises implements OnInit {
     this.loadExercises();
   }
 
-  /* ===============================
-     Laden
-  =============================== */
-
+  //Übungsliste wird vom Backend geladen
   private loadExercises(): void {
     this.loading = true;
     this.error = null;
 
+    //GET /exercise Request an Backend
     this.http.get<any>(`${this.baseUrl}/exercises`).subscribe({
+      //Antwort wird in ExerciseDto umgewandelt
       next: (res) => {
         this.exercises = this.normalizeExercisesArray(res);
         this.applyFilter();
@@ -90,6 +87,7 @@ export class Exercises implements OnInit {
     });
   }
 
+  //Vereinheitlicht verschiedene Backend Antworten zu einem ExerciseDto
   private normalizeExercisesArray(res: any): ExerciseDto[] {
     if (!res) return [];
     if (Array.isArray(res)) return res;
@@ -101,22 +99,21 @@ export class Exercises implements OnInit {
     return [];
   }
 
-  /* ===============================
-     Live-Suche
-  =============================== */
-
   onExerciseOverviewSearchChange(): void {
     this.applyFilter();
   }
 
+  //Übungsliste anhand des Suchbegriffs filtern
   private applyFilter(): void {
     const term = this.exerciseOverviewSearch.trim().toLowerCase();
 
+    //Wenn das Suchfeld leer ist komplette Liste anzeigen
     if (!term) {
       this.filteredExerciseOverview = [...this.exercises];
       return;
     }
 
+    //Suchbegriff in allen Kategorien suchen 
     this.filteredExerciseOverview = this.exercises.filter((e) => {
       const name = e.name?.toLowerCase() ?? '';
       const cat = e.category?.toLowerCase() ?? '';
@@ -131,16 +128,13 @@ export class Exercises implements OnInit {
     });
   }
 
-  /* ===============================
-     Neue Übung anlegen
-  =============================== */
-
   addExercise(form?: NgForm): void {
     const name = this.form.name.trim();
     const category = this.form.category.trim();
     const muscles = this.form.muscleGroups.trim();
     const description = this.form.description?.trim() ?? '';
 
+    //Fehlermeldung wenn ein Feld leer ist 
     if (!name || !category || !muscles) {
       this.error = 'Bitte Name, Kategorie und Muskelgruppen angeben.';
       return;
@@ -152,7 +146,9 @@ export class Exercises implements OnInit {
 
     const dto = { name, category, muscleGroups: muscles, description };
 
+    //POST /exercise Request an Backend
     this.http.post<ExerciseDto>(`${this.baseUrl}/exercises`, dto).subscribe({
+      //Bestätigung, Zurücksetzen des Formulars und neuladen der Liste 
       next: () => {
         this.info = 'Übung wurde angelegt.';
         this.submitting = false;
@@ -172,12 +168,11 @@ export class Exercises implements OnInit {
     });
   }
 
-  /* ===============================
-     Auswahl & Edit
-  =============================== */
-
+  //Übung auswählen für Bearbeitung
   selectExercise(ex: ExerciseDto): void {
+    //behält die Originalübung
     this.selectedExercise = ex;
+    //bearbeitbare Kopie der Übung
     this.editForm = {
       name: ex.name ?? '',
       category: ex.category ?? '',
@@ -188,6 +183,7 @@ export class Exercises implements OnInit {
     this.error = null;
   }
 
+  //Auswahl zurücksetzen
   resetSelection(): void {
     this.selectedExercise = null;
     this.editForm = {
@@ -198,6 +194,7 @@ export class Exercises implements OnInit {
     };
   }
 
+  //Bearbeitete Übung speichern 
   saveSelected(): void {
     if (!this.selectedExercise) return;
 
@@ -217,6 +214,7 @@ export class Exercises implements OnInit {
 
     const dto = { name, category, muscleGroups: muscles, description };
 
+    //PUT /exercise Request an Backend
     this.http
       .put<ExerciseDto>(`${this.baseUrl}/exercises/${this.selectedExercise.id}`, dto)
       .subscribe({
@@ -236,15 +234,13 @@ export class Exercises implements OnInit {
         },
       });
   }
-
-  /* ===============================
-     Löschen
-  =============================== */
-
+  
+  //Übung löschen 
   deleteExercise(ex: ExerciseDto, event?: MouseEvent): void {
     event?.stopPropagation();
     if (!window.confirm(`Möchtest du "${ex.name}" wirklich löschen?`)) return;
 
+    //DELETE /exercise Request an Backend
     this.http.delete(`${this.baseUrl}/exercises/${ex.id}`).subscribe({
       next: () => this.loadExercises(),
       error: (err) => {

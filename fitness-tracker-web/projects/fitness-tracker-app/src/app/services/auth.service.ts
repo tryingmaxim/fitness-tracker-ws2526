@@ -5,6 +5,7 @@ import { map } from 'rxjs/operators';
 import { environment } from '../../../environment';
 import { AuthSessionService } from './auth-session.service';
 
+//Login liefert tokem und Benutzername
 interface LoginResult {
   token: string;
   username: string;
@@ -18,6 +19,7 @@ export class AuthService {
 
   constructor(private http: HttpClient, private session: AuthSessionService) {}
 
+  //payload wird erstellt und an das Backend geschickt
   login(email: string, password: string): Observable<LoginResult> {
     const trimmedEmail = email.trim();
     const payload = {
@@ -26,6 +28,7 @@ export class AuthService {
       password,
     };
 
+    //login ohne anmeldedaten durch devBypass
     const devBypass = environment.devAuthBypass;
     if (devBypass?.enabled && trimmedEmail === devBypass.email) {
       const username = devBypass.username ?? trimmedEmail;
@@ -34,6 +37,8 @@ export class AuthService {
       return of({ token, username });
     }
 
+    //POST Request wird an /login geschickt
+    //liest Token und Benutzername aus der Login Antwort raus und gibt diese zurück
     return this.http.post<any>(this.loginUrl, payload, { observe: 'response' }).pipe(
       map((response) => {
         const token = this.extractToken(response);
@@ -48,6 +53,8 @@ export class AuthService {
     );
   }
 
+
+//getter Methoden und Logout
   getToken(): string | null {
     return this.session.getToken();
   }
@@ -68,6 +75,8 @@ export class AuthService {
     this.session.clear();
   }
 
+  //liest das Token aus der login Antwort 
+  //unterstützt verschiedene Backend Formate (token im Header, token im Body,...)
   private extractToken(response: HttpResponse<any>): string | null {
     const header = response.headers.get('Authorization') ?? response.headers.get('authorization');
     if (header?.toLowerCase().startsWith('bearer ')) {
@@ -78,10 +87,12 @@ export class AuthService {
     return body.token ?? body.access_token ?? body.jwt ?? body.jwtToken ?? null;
   }
 
+  //Speicherung der Session Daten 
   private persistSession(token: string, username: string, email: string): void {
     this.session.setSession(token, username, email);
   }
 
+  //Ermittelt Login URL aus der apiBaseUrl durch ausprobieren verschiedener Möglichkeiten 
   private resolveLoginUrl(): string {
     const base = (environment.apiBaseUrl || '').replace(/\/$/, '');
     if (!base) {

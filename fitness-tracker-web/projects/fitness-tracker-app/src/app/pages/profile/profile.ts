@@ -14,7 +14,7 @@ import { AuthService } from '../../services/auth.service';
 export class Profile implements OnInit {
   constructor(private router: Router, private auth: AuthService) {}
 
-  // Platzhalter – später vom Backend / LocalStorage
+  //aktuell noch Platzhalterdaten
   user = {
     firstName: 'Max',
     lastName: 'Mustermann',
@@ -23,13 +23,12 @@ export class Profile implements OnInit {
     gender: '', 
   };
 
-  // Kopie für den Edit-Modus
   editedUser = { ...this.user };
 
   isEditing = false;
 
   ngOnInit(): void {
-    // username + email speichern:
+    //Benutzername wird vom Login geholt
     const username = this.auth.getUsername();
     if (username) {
       const parts = username.split(' ');
@@ -39,16 +38,17 @@ export class Profile implements OnInit {
 
     this.user.email = this.auth.getEmail() || this.user.email;
 
-    // Edit-Kopie initialisieren
     this.editedUser = { ...this.user };
   }
 
+  //Initialien des Benutzers
   get initials(): string {
     const first = this.user.firstName?.[0] ?? '';
     const last = this.user.lastName?.[0] ?? '';
     return (first + last).toUpperCase();
   }
 
+  //Bearbeiten starten und Kopie des Benutzers wird erstellt
   startEdit() {
     this.isEditing = true;
     this.editedUser = { ...this.user };
@@ -60,7 +60,6 @@ export class Profile implements OnInit {
   }
 
   saveEdit() {
-    // später hier Backend-Call einbauen
     this.user = { ...this.editedUser };
     this.isEditing = false;
   }

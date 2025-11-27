@@ -1,4 +1,3 @@
-// src/app/pages/dashboard/dashboard.ts
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -6,6 +5,7 @@ import { RouterModule } from '@angular/router';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { environment } from '../../../../environment';
 
+//definiert Datentypen für die API Antworten
 interface SessionResponse {
   id: number;
   name: string;
@@ -41,18 +41,18 @@ interface PlanDashboardItem {
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
 })
+
 export class Dashboard implements OnInit {
   greeting = this.buildGreeting();
   today = this.buildTodayString();
 
-  // Stats
+  //Variablen der Daten die im UI angezeigt werden
   stats = [
     { label: 'Sessions diese Woche', value: 0, sub: 'inkl. heutigem Tag' },
     { label: 'Übungen gesamt', value: 0, sub: 'gesamt im System' },
     { label: 'Streak', value: '0 Tage', sub: 'ohne Pause (Platzhalter)' },
   ];
 
-  // Panels
   quickSessions: {
     title: string;
     date: string;
@@ -69,22 +69,18 @@ export class Dashboard implements OnInit {
 
   private readonly baseUrl = environment.apiBaseUrl;
 
-  // Rohdaten für Berechnungen
   private sessionsRaw: SessionResponse[] = [];
   private plansRaw: TrainingPlanResponse[] = [];
 
   constructor(private http: HttpClient) {}
 
+  //wird ausgeführt wenn Seite geladen wird
   ngOnInit(): void {
     this.loadData();
   }
 
-  /* =========================================================
-     DATA LOADING
-  ========================================================= */
-
+  //holt Daten vom Backend und verarbeitet sie, damit das Dashboard gefüllt werden kann
   private loadData(): void {
-    // Sessions
     this.http.get<any>(`${this.baseUrl}/training-sessions`).subscribe({
       next: (sessionsRes) => {
         const sessions = this.extractCollection(
@@ -100,7 +96,6 @@ export class Dashboard implements OnInit {
         console.error('Fehler beim Laden der Sessions', err),
     });
 
-    // Exercises
     this.http.get<any>(`${this.baseUrl}/exercises`).subscribe({
       next: (exRes) => {
         const exercises = this.extractCollection(
@@ -113,7 +108,6 @@ export class Dashboard implements OnInit {
         console.error('Fehler beim Laden der Übungen', err),
     });
 
-    // Training Plans
     this.http.get<any>(`${this.baseUrl}/training-plans`).subscribe({
       next: (planRes) => {
         const plans = this.extractCollection(
@@ -129,25 +123,22 @@ export class Dashboard implements OnInit {
     });
   }
 
-  /* =========================================================
-     PROCESS SESSIONS
-  ========================================================= */
-
   private processSessions(sessions: SessionResponse[]): void {
+    //Wenn keine Sessions vorhanden sind wird die Liste und Anzeige im Dashboard auf 0 gesetzt
     if (!sessions.length) {
       this.quickSessions = [];
       this.stats[0].value = 0;
       return;
     }
 
-    // chronologisch nach Datum sortieren
+    //sortiert Sessions nach Datum
     const sorted = [...sessions].sort(
       (a, b) =>
         new Date(a.scheduledDate).getTime() -
         new Date(b.scheduledDate).getTime()
     );
 
-    // nur heutige + zukünftige Sessions
+    //nur zukünftige Sessions
     const upcoming = sorted.filter((s) => {
       const d = new Date(s.scheduledDate);
       d.setHours(0, 0, 0, 0);
@@ -158,7 +149,7 @@ export class Dashboard implements OnInit {
       return d.getTime() >= today.getTime();
     });
 
-    // Karten für Dashboard (max. 5)
+    //zeigt die nächsten 5 Sessions in der Liste an 
     this.quickSessions = upcoming.slice(0, 5).map((s) => ({
       title: s.name,
       date: this.formatSessionDate(s.scheduledDate),
@@ -166,41 +157,36 @@ export class Dashboard implements OnInit {
       focus: 'Geplante Einheit',
     }));
 
-    // Sessions in aktueller Woche für Statistik
     const now = new Date();
     const start = this.startOfWeek(now);
     const end = this.endOfWeek(now);
 
+    //Anzahl der Trainingspläne in dieser Woche
     this.stats[0].value = sorted.filter((s) => {
       const t = new Date(s.scheduledDate).getTime();
       return t >= start.getTime() && t <= end.getTime();
     }).length;
   }
 
-  /* =========================================================
-     PROCESS EXERCISES
-  ========================================================= */
-
   private processExercises(exercises: ExerciseResponse[]): void {
+    //Anzeige der gesamten Übungen 
     this.stats[1].value = exercises.length;
 
-    // „Letzte Übungen“ –  ersten 4 Einträge (alphabetisch / wie geliefert)
+    //die letzten 4 Übungen werden angezeigt
     this.lastExercises = exercises.slice(0, 4).map((e) => ({
       name: e.name,
       category: e.muscleGroups || e.category || 'Kategorie unbekannt',
     }));
   }
 
-  /* =========================================================
-     BUILD PLANS PANEL
-  ========================================================= */
-
   private buildPlansDashboard(): void {
+    //Wenn keine Sessions vorhanden sind wird die Liste und Anzeige im Dashboard auf 0 gesetzt
     if (!this.plansRaw.length) {
       this.plansDashboard = [];
       return;
     }
 
+    //Anzahl der Sessions für jeden Trainingsplan
     this.plansDashboard = this.plansRaw.map((p) => {
       const sessionsForPlan = this.sessionsRaw.filter(
         (s) => s.planId === p.id
@@ -214,10 +200,7 @@ export class Dashboard implements OnInit {
     });
   }
 
-  /* =========================================================
-     HELPERS
-  ========================================================= */
-
+  //Vereinheitlicht unterschiedliche Formate zu einem Array
   private extractCollection(res: any, embeddedKey: string): any[] {
     if (Array.isArray(res)) return res;
     if (Array.isArray(res?._embedded?.[embeddedKey]))
@@ -231,8 +214,8 @@ export class Dashboard implements OnInit {
 
   private startOfWeek(date: Date): Date {
     const d = new Date(date);
-    const day = d.getDay(); // 0 = Sonntag
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Montag als Wochenstart
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); 
     return new Date(d.setDate(diff));
   }
 

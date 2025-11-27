@@ -5,6 +5,7 @@ import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { environment } from '../../../../environment';
 import { forkJoin } from 'rxjs';
 
+//Strukturen der Pläne, Sessions,...
 interface TrainingPlan {
   id: number;
   name: string;
@@ -40,12 +41,14 @@ export class Sessions implements OnInit {
   plans: TrainingPlan[] = [];
   sessions: TrainingSession[] = [];
 
+  //Formular zum Anlegen einer neuen Session
   form = {
     planId: null as number | null,
     name: '',
     date: '',
   };
 
+  //Formular zum Bearbeiten einer vorhandenen Session
   detailForm = {
     id: null as number | null,
     planId: null as number | null,
@@ -65,6 +68,7 @@ export class Sessions implements OnInit {
   detailSelectedExerciseIds: number[] = [];
   detailExerciseSearch = '';
 
+  //Verschiedene Ladeanzeigen
   loadingPlans = false;
   loadingSessions = false;
   loadingExercises = false;
@@ -86,12 +90,14 @@ export class Sessions implements OnInit {
     this.loadExercises();
   }
 
+  //Liefert die Session Liste gefiltern nach dme Suchbegriff
   get filteredSessionsForOverview(): TrainingSession[] {
     const term = this.sessionSearch.trim().toLowerCase();
     if (!term) return this.sessions;
     return this.sessions.filter((s) => (s.name ?? '').toLowerCase().includes(term));
   }
 
+  //Neue Session anlegen 
   add(): void {
     this.errorMsg = '';
     this.infoMsg = '';
@@ -110,6 +116,7 @@ export class Sessions implements OnInit {
 
     this.creating = true;
 
+    //POST /training-session Request an Backend
     this.http.post<any>(`${this.baseUrl}/training-sessions`, payload).subscribe({
       next: (createdSession) => {
         const sessionId = createdSession?.id;
@@ -119,6 +126,7 @@ export class Sessions implements OnInit {
           return;
         }
 
+        //POST /training-session/{id}/executions Request an Backend
         const requests = this.selectedExerciseIds.map((exerciseId, index) =>
           this.http.post(`${this.baseUrl}/training-sessions/${sessionId}/executions`, {
             exerciseId,
@@ -147,6 +155,7 @@ export class Sessions implements OnInit {
     });
   }
 
+  //zurücksetzen der Formular Felder, ausgewählten Übungen,... nach erfolgreichem Anlegen der Session
   private afterCreateSuccess(): void {
     this.infoMsg = 'Session wurde hinzugefügt.';
     this.form.name = '';
@@ -159,6 +168,7 @@ export class Sessions implements OnInit {
     this.creating = false;
   }
 
+  //Datum auswählen
   openDatePicker(input: HTMLInputElement): void {
     const anyInput = input as any;
 
@@ -169,6 +179,7 @@ export class Sessions implements OnInit {
     }
   }
 
+  //ermittelt den Plan eines Namens
   getPlanName(planId: number | null, fallback?: string): string {
     if (fallback) {
       return fallback;
@@ -177,6 +188,7 @@ export class Sessions implements OnInit {
     return plan?.name ?? '-';
   }
 
+  //erzeugt eine Liste der Übungen, die in der Session enthalten sind
   joinExerciseNames(session: TrainingSession): string {
     return (session.exerciseNames ?? []).join(', ');
   }
@@ -184,6 +196,7 @@ export class Sessions implements OnInit {
   trackBySession = (_: number, session: TrainingSession) =>
     session.id ?? `${session.name}-${session.date}`;
 
+  //Session auswählen
   selectSession(session: TrainingSession): void {
     if (!session.id) return;
 
@@ -192,6 +205,7 @@ export class Sessions implements OnInit {
     this.errorMsg = '';
     this.infoMsg = '';
 
+    //Daten werden in das Detail Formular übertragen
     const date = (session.date as string) ?? '';
     const planId = session.planId ?? null;
 
@@ -202,6 +216,7 @@ export class Sessions implements OnInit {
       planId,
     };
 
+    //GET /training-sessions/{id}/executions Request an Backend
     this.http.get<any[]>(`${this.baseUrl}/training-sessions/${session.id}/executions`).subscribe({
       next: (execs) => {
         this.detailSelectedExerciseIds = execs
@@ -219,6 +234,7 @@ export class Sessions implements OnInit {
     });
   }
 
+  //Detailübersicht wird zurückgesetzt
   clearSelection(): void {
     this.selectedSession = null;
     this.detailSelectedExerciseIds = [];
@@ -231,6 +247,7 @@ export class Sessions implements OnInit {
     };
   }
 
+  //Session updaten ähnlich wie beim Anlegen
   updateSelectedSession(): void {
     if (!this.detailForm.id) return;
 
@@ -252,6 +269,7 @@ export class Sessions implements OnInit {
 
     const id = this.detailForm.id;
 
+    //PATCH /training-sessions Request an Backend
     this.http.patch<any>(`${this.baseUrl}/training-sessions/${id}`, payload).subscribe({
       next: (updated) => {
         const s = this.sessions.find((sess) => sess.id === id);
@@ -262,12 +280,14 @@ export class Sessions implements OnInit {
           s.planName = this.getPlanName(s.planId, s.planName);
         }
 
+        //Falls die Session gleichzeitig ausgewählt ist, wird auch die selectedSession geupdated
         if (this.selectedSession && this.selectedSession.id === id) {
           this.selectedSession.name = s?.name ?? trimmedName;
           this.selectedSession.date = s?.date ?? this.detailForm.date;
           this.selectedSession.planId = s?.planId ?? this.detailForm.planId;
         }
 
+        //GET /training-sessions/{id}/executions Request an Backend
         this.http.get<any[]>(`${this.baseUrl}/training-sessions/${id}/executions`).subscribe({
           next: (execs) => {
             const desiredIds = [...this.detailSelectedExerciseIds];
@@ -279,11 +299,13 @@ export class Sessions implements OnInit {
               }
             });
 
+            //Übungen die nicht mehr drin sind werden entfernt
             const toDelete = execs.filter((e: any) => {
               const exId = e.exercise?.id;
               return typeof exId === 'number' && !desiredIds.includes(exId);
             });
 
+            //Übungen die noch nicht als Execution sind werden hinzugefügt
             const toAddIds = desiredIds.filter((id) => !existingByExerciseId.has(id));
 
             let maxOrder = execs.reduce(
@@ -292,10 +314,12 @@ export class Sessions implements OnInit {
               0
             );
 
+            //alte Zuordnungen werden gelöscht
             const deleteReqs = toDelete.map((e: any) =>
               this.http.delete(`${this.baseUrl}/training-sessions/${id}/executions/${e.id}`)
             );
 
+            //neue Zuordnungen werden hinzugefügt
             const addReqs = toAddIds.map((exerciseId) =>
               this.http.post(`${this.baseUrl}/training-sessions/${id}/executions`, {
                 exerciseId,
@@ -350,6 +374,7 @@ export class Sessions implements OnInit {
     });
   }
 
+  //Session löschen 
   deleteSession(session: TrainingSession, event?: MouseEvent): void {
     if (event) event.stopPropagation();
     if (!session.id) return;
@@ -362,6 +387,7 @@ export class Sessions implements OnInit {
     this.deleting = true;
     this.deleteId = session.id;
 
+    //DELETE /training-sessions Request an Backend
     this.http.delete(`${this.baseUrl}/training-sessions/${session.id}`).subscribe({
       next: () => {
         this.deleting = false;
@@ -382,6 +408,7 @@ export class Sessions implements OnInit {
     });
   }
 
+  //Übungen werden geladen 
   private loadExercises(): void {
     this.loadingExercises = true;
     this.http.get<any>(`${this.baseUrl}/exercises`).subscribe({
@@ -403,6 +430,7 @@ export class Sessions implements OnInit {
     });
   }
 
+  //Übungsliste filtern anhand des Suchbegriffs
   onExerciseSearchChange(): void {
     const term = this.exerciseSearch.trim().toLowerCase();
     if (!term) {
@@ -412,6 +440,7 @@ export class Sessions implements OnInit {
     this.filteredExercises = this.exercises.filter((e) => e.name.toLowerCase().includes(term));
   }
 
+  //aus- und abwählen von Übungen
   toggleExercise(ex: Exercise): void {
     const idx = this.selectedExerciseIds.indexOf(ex.id);
     if (idx >= 0) {
@@ -425,11 +454,13 @@ export class Sessions implements OnInit {
     return this.selectedExerciseIds.includes(ex.id);
   }
 
+  //Übungen die aktuell der Session zugeorndet sind für die Detail Liste 
   getDetailExercises(): Exercise[] {
     if (!this.detailSelectedExerciseIds.length) return [];
     return this.exercises.filter((e) => this.detailSelectedExerciseIds.includes(e.id));
   }
 
+  //noch nicht zugeordneten Übungen 
   getAvailableDetailExercises(): Exercise[] {
     const term = this.detailExerciseSearch.trim().toLowerCase();
     return this.exercises.filter((e) => {
@@ -439,17 +470,19 @@ export class Sessions implements OnInit {
     });
   }
 
+  //Übung zur Detailauswahl hinzufügen 
   addExerciseToDetail(ex: Exercise): void {
     if (!this.detailSelectedExerciseIds.includes(ex.id)) {
       this.detailSelectedExerciseIds.push(ex.id);
     }
     this.detailExerciseSearch = '';
   }
-
+  //Übung von Detailauswahl entfernen 
   removeExerciseFromDetail(ex: Exercise): void {
     this.detailSelectedExerciseIds = this.detailSelectedExerciseIds.filter((id) => id !== ex.id);
   }
 
+  //lädt alle Pläne 
   private loadPlans(): void {
     this.loadingPlans = true;
     this.http.get<any>(`${this.baseUrl}/training-plans`).subscribe({
@@ -474,6 +507,7 @@ export class Sessions implements OnInit {
     });
   }
 
+  //lädt alle Sessions 
   private loadSessions(): void {
     this.loadingSessions = true;
     const previouslySelectedId = this.selectedSession?.id ?? null;
@@ -503,6 +537,7 @@ export class Sessions implements OnInit {
     });
   }
 
+  //verschiedene Feldnamen werden auf ein gemeinsames Format abgebildet
   private toUiSession(session: any): TrainingSession {
     const planId = session?.planId ?? session?.plan?.id ?? null;
     const date =
@@ -522,6 +557,7 @@ export class Sessions implements OnInit {
     };
   }
 
+  //für jede Session werden die zugehörigen Übungen geladen  
   private enrichSessionsWithExerciseNames(): void {
     if (!this.sessions.length || !this.exercises.length) return;
 
@@ -556,6 +592,7 @@ export class Sessions implements OnInit {
     });
   }
 
+  //Vereinheitlicht verschiedene Backend Antworten zu einem Array
   private flattenCollection(res: any, embeddedKey: string): any[] {
     if (Array.isArray(res)) return res;
     if (Array.isArray(res?._embedded?.[embeddedKey])) return res._embedded[embeddedKey];

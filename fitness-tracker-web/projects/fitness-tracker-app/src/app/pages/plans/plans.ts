@@ -6,6 +6,7 @@ import { map, switchMap, catchError } from 'rxjs/operators';
 import { forkJoin, of } from 'rxjs';
 import { environment } from '../../../../environment';
 
+//Datenmodelle für Übungen, Pläne und Sessions 
 interface ExerciseDto {
   id: number;
   name: string;
@@ -52,6 +53,7 @@ type UiPlan = PlanDto & {
   templateUrl: './plans.html',
   styleUrls: ['./plans.css'],
 })
+
 export class Plans implements OnInit {
   plans: UiPlan[] = [];
 
@@ -75,23 +77,26 @@ export class Plans implements OnInit {
 
   baseUrl = environment.apiBaseUrl;
 
+  //Pläne werden vom Backend geladen
   private loadPlans(): void {
     this.loading = true;
     this.error = null;
 
+    //GET /training-plans Request an Backend
     this.http
       .get<any>(`${this.baseUrl}/training-plans`)
       .pipe(map((res) => this.normalizePlansArray(res)))
       .subscribe({
         next: (list) => {
           const previousSelectionId = this.selectedPlan?.id;
-          // Map to UiPlan
+          
+          //UIPlan wird erstellt
           this.plans = list.map((p: any): UiPlan => {
             const normalized: UiPlan = {
               id: p.id,
               name: p.name,
               description: p.description ?? '',
-              // if backend did not send sessionsCount but sent sessions, compute it:
+              
               sessionsCount:
                 typeof p.sessionsCount === 'number'
                   ? p.sessionsCount
@@ -102,6 +107,7 @@ export class Plans implements OnInit {
             return normalized;
           });
 
+          //vorher ausgewählter Plan und die dazugehörigen Session Daten bleiben erhalten
           if (previousSelectionId) {
             const refreshedPlan = this.plans.find(
               (plan) => plan.id === previousSelectionId
@@ -132,6 +138,7 @@ export class Plans implements OnInit {
       });
   }
 
+  //neuen Plan anlegen
   add(f?: NgForm): void {
     if (!this.form.name.trim()) {
       this.error = 'Bitte einen Namen fürr den Trainingsplan angeben.';
@@ -147,6 +154,7 @@ export class Plans implements OnInit {
       description: this.form.desc?.trim() ?? '',
     };
 
+    //POST /training-plans Request an Backend
     this.http.post(`${this.baseUrl}/training-plans`, dto).subscribe({
       next: () => {
         this.info = 'Trainingsplan wurde erstellt.';
@@ -163,6 +171,7 @@ export class Plans implements OnInit {
     });
   }
 
+  //Plan auswählen für Bearbeitung
   selectPlan(plan: UiPlan): void {
     const alreadySelected = this.selectedPlan?.id === plan.id;
     if (!alreadySelected) {
@@ -179,12 +188,14 @@ export class Plans implements OnInit {
     }
   }
 
+  //Auswahl zurücksetzen 
   resetSelection(): void {
     this.selectedPlan = null;
     this.editForm = { name: '', desc: '' };
     this.editErrors = {};
   }
 
+  //Ausgewählten Plan speichern 
   saveSelected(): void {
     if (!this.selectedPlan) return;
 
@@ -202,6 +213,7 @@ export class Plans implements OnInit {
       description: this.editForm.desc?.trim() ?? '',
     };
 
+    //PUT /training-plans Request an Backend
     this.http
       .put<PlanDto>(
         `${this.baseUrl}/training-plans/${this.selectedPlan.id}`,
@@ -232,12 +244,14 @@ export class Plans implements OnInit {
       });
   }
 
+  //Sessions zu dem Plan laden 
   private loadSessions(plan: UiPlan): void {
     plan.sessionsLoaded = false;
     plan.loadingSessions = true;
 
     const params = new HttpParams().set('planId', String(plan.id));
 
+    //GET /training-sessions Request an Backend
     this.http
       .get<any>(`${this.baseUrl}/training-sessions`, { params })
       .pipe(
@@ -247,7 +261,7 @@ export class Plans implements OnInit {
             return of([] as SessionDto[]);
           }
 
-          // für jede Session die ExerciseExecutions nachladen
+          //GET /training-sessions/{id}/executions Request an Backend für alle Übungen innerhalb der Session
           const withExecutions$ = sessions.map((session) =>
             this.http
               .get<ExerciseExecutionDto[]>(
@@ -255,6 +269,7 @@ export class Plans implements OnInit {
               )
               .pipe(
                 map((executions) => {
+                  //sortiert nach Reihenfolge im Trainingsplan
                   const sorted = [...executions].sort(
                     (a, b) => a.orderIndex - b.orderIndex
                   );
@@ -281,6 +296,7 @@ export class Plans implements OnInit {
           return forkJoin(withExecutions$);
         })
       )
+      //Sessions und deren Übungen werden im Plan gespeichert
       .subscribe({
         next: (sessionsWithExecutions: SessionDto[]) => {
           plan.sessions = sessionsWithExecutions;
@@ -297,6 +313,7 @@ export class Plans implements OnInit {
       });
   }
 
+  //Plan löschen 
   delete(plan: UiPlan, e?: MouseEvent): void {
     e?.stopPropagation();
     if (!window.confirm(`Möchte Sie ${plan.name} wirklich löschen?`)) return;
@@ -315,7 +332,9 @@ export class Plans implements OnInit {
   trackByPlan = (_: number, p: UiPlan) => p.id;
   trackBySession = (_: number, s: SessionDto) => s.id;
 
+  //Status Label für den Benutzer berechnen (Abgeschlossen, Geplant, Unbekannt)
   sessionStatusLabel(session: SessionDto): string {
+    //Status aus dem Datum herauskriegen 
     const rawDate = session.plannedDate ?? session.scheduledDate;
     if (rawDate) {
       const date = new Date(rawDate);
@@ -329,6 +348,7 @@ export class Plans implements OnInit {
       }
     }
 
+    //Status aus dem Text herauskriegen
     const status = session.status;
     if (!status) return 'Unbekannt';
     const normalized = status.toLowerCase();
@@ -348,21 +368,23 @@ export class Plans implements OnInit {
     return status;
   }
 
+  //Vereinheitlicht verschiedene Backend Antworten zu einem Array
   private normalizePlansArray(res: any): any[] {
     if (Array.isArray(res)) return res;
     if (
       res?._embedded?.trainingPlans &&
       Array.isArray(res._embedded.trainingPlans)
     ) {
-      return res._embedded.trainingPlans; // Spring Data REST
+      return res._embedded.trainingPlans; 
     }
-    if (Array.isArray(res?.content)) return res.content; // Page<TrainingPlan>
+    if (Array.isArray(res?.content)) return res.content; 
     if (Array.isArray(res?.items)) return res.items;
     if (Array.isArray(res?.data)) return res.data;
-    if (res && typeof res === 'object') return [res]; // single object
+    if (res && typeof res === 'object') return [res]; 
     return [];
   }
 
+  //Vereinheitlicht verschiedene Backend Antworten zu einem Array
   private normalizeSessionsArray(res: any): SessionDto[] {
     if (Array.isArray(res)) return res;
     if (
