@@ -1,24 +1,24 @@
 .content-wrapper {
-  position: relative;
-  z-index: 2;
+  position: relative; /* liegt über der Slideshow / dem Hintergrund */
+  z-index: 2; /* stellt sicher, dass Inhalt vor Overlay & Hintergrund steht */
   display: flex;
-  justify-content: center;
+  justify-content: center; /* horizontale Zentrierung */
   align-items: flex-start;
   padding: 5rem 1.5rem;
-  min-height: 100vh;
+  min-height: 100vh; /* füllt gesamte Höhe des Bildschirms */
 }
 
-/* Box wie Dashboard-Wrapper */
+/* Box */
 .content-box {
-  background: var(--panel);
-  color: var(--text);
+  background: var(--panel); /* dynamische Theme-Farbe */
+  color: var(--text); /* wird vom Theme gesetzt */
   padding: 2.2rem 2.4rem;
   border-radius: 1.4rem;
   box-shadow: 0 18px 45px rgba(0, 0, 0, 0.5);
   max-width: 900px;
   width: 100%;
   line-height: 1.7;
-  box-sizing: border-box;
+  box-sizing: border-box; /* Padding in Gesamtbreite einrechnen */
   transition: background 0.3s ease, color 0.3s ease, border 0.3s ease;
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.03);
@@ -68,7 +68,7 @@ p {
 
 @media (max-width: 700px) {
   .content-box {
-    padding: 1.6rem 1.5rem;
+    padding: 1.6rem 1.5rem; /* kompakter auf kleinen Screens */
   }
   h1 {
     font-size: 1.6rem;

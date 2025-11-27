@@ -1,9 +1,9 @@
 :host {
-  display: flex;
-  justify-content: center;
+  display: flex; /* zentriert den Dashboard-Wrapper horizontal */
+  justify-content: center;  /* Abstand rund ums Dashboard */
   padding: 4.5rem 1.5rem 3.5rem;
   width: 100%;
-  box-sizing: border-box;
+  box-sizing: border-box; /* Padding wird in Gesamtbreite einbezogen */
 }
 
 /* =========================================================
@@ -16,23 +16,23 @@
   border-radius: 1.4rem;
   padding: 1.8rem 2rem 2rem;
   box-shadow: 0 18px 45px rgba(0, 0, 0, 0.5);
-  width: min(1150px, 100%);
+  width: min(1150px, 100%); 
   max-width: 100%;
-  min-height: calc(100vh - 8rem);
+  min-height: calc(100vh - 8rem); /* mind. volle Höhe abzüglich Header-Padding */
   box-sizing: border-box;
   transition: background 0.3s ease, color 0.3s ease;
 }
 
 /* Darkmode */
 :host-context(.dark-mode) .dashboard-wrapper {
-  background: rgba(5, 5, 5, 0.88);
+  background: rgba(5, 5, 5, 0.88); /* dunkles Glas */
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 /* Lightmode */
 :host-context(.light-mode) .dashboard-wrapper {
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.9); /* helles Glas */
   backdrop-filter: blur(10px);
   border: 1px solid rgba(15, 23, 42, 0.05);
   color: #0f172a;
@@ -43,7 +43,7 @@
    ========================================================= */
 
 .header-row {
-  display: flex;
+  display: flex; /* Header-Layout: links Titel, rechts Aktionen */
   align-items: flex-start;
   justify-content: space-between;
   gap: 1.5rem;
@@ -51,7 +51,7 @@
 }
 
 .eyebrow {
-  text-transform: uppercase;
+  text-transform: uppercase; /* kleine Kategorie-Beschriftung */
   font-size: 0.7rem;
   letter-spacing: 0.14em;
   opacity: 0.7;
@@ -72,7 +72,7 @@ h1 {
 .header-right {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 1rem; /* Abstand zwischen Datum / Buttons */
 }
 
 .today-pill {
@@ -185,7 +185,7 @@ h1 {
    ========================================================= */
 
 .stats-row {
-  display: grid;
+  display: grid; /* flexible Statistik-Kacheln */
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 0.9rem;
   margin-bottom: 1.7rem;
@@ -198,7 +198,7 @@ h1 {
     circle at top left,
     rgba(34, 197, 94, 0.15),
     rgba(15, 23, 42, 0.9)
-  );
+  ); /* dunkles Panel mit Grünverlauf */
   border: 1px solid rgba(148, 163, 184, 0.35);
 }
 
@@ -280,7 +280,7 @@ h1 {
   font-size: 0.7rem;
   background: rgba(148, 163, 184, 0.18);
   border-radius: 999px;
-  padding: 0.2rem 0.55rem;
+  padding: 0.2rem 0.55rem; /* kleine Info-Badge */
 }
 
 /* Lightmode Panels */
@@ -297,7 +297,7 @@ h1 {
 .plans-row {
   display: flex;
   gap: 0.8rem;
-  overflow-x: auto;
+  overflow-x: auto; /* horizontales Scrolling */
   padding-bottom: 0.2rem;
 }
 
@@ -320,7 +320,7 @@ h1 {
   flex-direction: column;
   gap: 0.4rem;
   transition: transform 0.15s ease, box-shadow 0.15s ease,
-    border-color 0.15s ease;
+    border-color 0.15s ease; /* Hover-Feedback */
 }
 
 .plan-card:hover {
@@ -517,7 +517,7 @@ h1 {
 
 @media (max-width: 1024px) {
   :host {
-    padding: 4rem 1rem 3rem;
+    padding: 4rem 1rem 3rem; /* kompakter */
   }
 
   .dashboard-wrapper {
@@ -530,7 +530,7 @@ h1 {
 
 @media (max-width: 860px) {
   .header-row {
-    flex-direction: column;
+    flex-direction: column; /* Header stackt */
     align-items: flex-start;
   }
 
@@ -558,7 +558,7 @@ h1 {
   }
 
   .stats-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr; /* Stats untereinander */
   }
 
   .actions {
@@ -569,12 +569,12 @@ h1 {
 
   .plans-row,
   .sessions-row {
-    scroll-snap-type: x mandatory;
+    scroll-snap-type: x mandatory; /* Snap-Scrolling */
   }
 
   .plan-card,
   .session-card {
     scroll-snap-align: start;
-    flex: 0 0 85%;
-  }
+    flex: 0 0 85%;/* größere Karten auf Mobile */
+  } 
 }

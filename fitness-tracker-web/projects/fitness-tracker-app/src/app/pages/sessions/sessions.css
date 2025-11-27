@@ -1,23 +1,22 @@
-/* ============================
-   Sessions-Seite Wrapper
-   ============================ */
+/* Sessions-Seite Wrapper*/
 
 .sessions-page {
-  position: relative;
-  z-index: 2;
+  position: relative; /* liegt über Slideshow/Background */
+  z-index: 2; /* über dem Hintergrund */
   max-width: 1100px;
   margin: 4rem auto 3rem;
   padding: 2.2rem 2.4rem;
   border-radius: 1.2rem;
 
-  background: rgba(5, 5, 5, 0.85);
-  backdrop-filter: blur(12px);
+  background: rgba(5, 5, 5, 0.85); /* dunkles Glas-Panel */
+  backdrop-filter: blur(12px); /* starker Glas-Effekt */
   box-shadow: 0 25px 50px rgba(0, 0, 0, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.08);
 
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 2rem;  /* Abstand zwischen den Sektionen */
+
 }
 
 :host-context(.light-mode) .sessions-page {
@@ -49,33 +48,32 @@
 
 .alert.error {
   background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.55);
+  border: 1px solid rgba(239, 68, 68, 0.55); /* roter Hintergrund */
 }
 
 .alert.info {
   background: rgba(34, 197, 94, 0.12);
-  border: 1px solid rgba(34, 197, 94, 0.55);
+  border: 1px solid rgba(34, 197, 94, 0.55); /* grüner Hintergrund */
 }
 
-/* ============================
-   Oberes Grid
-   ============================ */
+/* Oberes Grid */
 
 .top-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
   gap: 1.6rem;
-  align-items: stretch;
+  align-items: stretch; /* Karten gleiche Höhe */
 }
 
 .top-grid > .session-card,
 .top-grid > .exercise-card {
-  height: 100%;
+  height: 100%; /* Karte füllt die jeweilige Grid-Zeile */
+
 }
 
 @media (max-width: 900px) {
   .top-grid {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr); /* untereinander auf kleineren Screens */
   }
 
   .top-grid > .session-card,
@@ -84,9 +82,7 @@
   }
 }
 
-/* ============================
-   Karten allgemein
-   ============================ */
+/*Karten allgemein */
 
 .session-card,
 .exercise-card,
@@ -101,7 +97,7 @@
 
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
+  gap: 0.9rem; /* Abstand zwischen Titel/Content */
 }
 
 :host-context(.light-mode) .session-card,
@@ -124,14 +120,12 @@
   opacity: 0.75;
 }
 
-/* ============================
-   FORM
-   ============================ */
+/* Form */
 
 .form {
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
+  gap: 0.7rem; /* Abstand zwischen Formfeldern */
 }
 
 .form label {
@@ -148,9 +142,7 @@
   border: 1px solid rgba(15, 23, 42, 0.12);
 }
 
-/* ============================
-   Date Input + Icon
-   ============================ */
+/* Date Input + Icon */
 
 .date-field {
   position: relative;
@@ -164,12 +156,12 @@
 }
 
 .date-field input[type='date']::-webkit-calendar-picker-indicator {
-  opacity: 0;
+  opacity: 0; /* Standard-Icon unsichtbar machen */
 }
 
 .date-icon {
   position: absolute;
-  right: 0.7rem;
+  right: 0.7rem; /* Icon über Input rechts */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -201,9 +193,7 @@
   color-scheme: light;
 }
 
-/* ============================
-   Übungsauswahl oben rechts
-   ============================ */
+/* Übungsauswahl oben rechts */
 
 .exercise-card-header {
   display: flex;
@@ -228,7 +218,7 @@
   border-radius: 0.7rem;
   border: 1px solid rgba(148, 163, 184, 0.35);
   max-height: 230px;
-  overflow-y: auto;
+  overflow-y: auto; /* scrollbare Liste */
   margin-top: 0.4rem;
 }
 
@@ -249,11 +239,11 @@
   align-items: center;
   justify-content: space-between;
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.12s ease;
+  transition: background 0.15s ease, transform 0.12s ease; /* Hover-Effekt */
 }
 
 .exercise-item + .exercise-item {
-  border-top: 1px solid rgba(30, 41, 59, 0.85);
+  border-top: 1px solid rgba(30, 41, 59, 0.85); /* Trennlinie */
 }
 
 .exercise-item:hover {
@@ -302,6 +292,7 @@
   opacity: 1 !important;
 }
 
+/* Lightmode Overrides für Übungsliste */
 :host-context(.light-mode) .exercise-item,
 :host-context(.light-mode) .exercise-name,
 :host-context(.light-mode) .exercise-meta {
@@ -323,20 +314,18 @@
   opacity: 1 !important;
 }
 
-/* ============================
-   Sessions-Übersicht + Details
-   ============================ */
+/* Sessions-Übersicht + Details */
 
 .sessions-bottom-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); /* links Liste, rechts Details */
   gap: 1.6rem;
   align-items: stretch;
 }
 
 @media (max-width: 900px) {
   .sessions-bottom-grid {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr); /* untereinander */
   }
 }
 
@@ -361,7 +350,7 @@
 
 .sessions-search-input:focus {
   border-color: #22c55e;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25); /* Fokus-Outline */
 }
 
 :host-context(.light-mode) .sessions-search-input {
@@ -393,7 +382,6 @@
 }
 
 /* Session-Karte */
-
 .sessions-list .session-item {
   width: 100%;
   border-radius: 0.9rem;
@@ -472,7 +460,6 @@ button.btn-danger:hover {
 }
 
 /* Detail-Bereich */
-
 .sessions-detail-header {
   display: flex;
   flex-direction: column;
@@ -502,7 +489,7 @@ button.btn-danger:hover {
 }
 
 .sessions-detail-exercises {
-  min-height: 60px;
+  min-height: 60px; /* Bereich sichtbar auch ohne Übungen */
   padding: 0.5rem 0.6rem;
   border-radius: 0.6rem;
   border: 1px dashed rgba(148, 163, 184, 0.6);
@@ -543,9 +530,7 @@ button.btn-danger:hover {
   background: rgba(248, 250, 252, 0.96);
 }
 
-/* ============================
-   FIX: Lightmode Chips wie Darkmode
-   ============================ */
+/* FIX: Lightmode Chips wie Darkmode */
 
 :host-context(.light-mode) .sessions-detail-exercises-list .exercise-chip {
   background: #22c55e !important;
@@ -560,7 +545,6 @@ button.btn-danger:hover {
 }
 
 /* kleine Textklassen */
-
 .muted {
   font-size: 0.86rem;
   opacity: 0.8;
@@ -571,7 +555,6 @@ button.btn-danger:hover {
 }
 
 /* Responsive */
-
 @media (max-width: 1024px) {
   .sessions-page {
     max-width: 100%;
@@ -584,6 +567,6 @@ button.btn-danger:hover {
   .sessions-page {
     padding: 1.4rem 1.2rem 1.6rem;
     border-radius: 0.9rem;
-    min-height: calc(100vh - 6rem);
+    min-height: calc(100vh - 6rem); /* etwas weniger Höhe auf Mobile */
   }
 }

@@ -1,17 +1,17 @@
 :host {
-  display: block;
+  display: block; /* Host-Element nimmt gesamten Block ein */
 }
 
 .register-container {
-  position: absolute;
+  position: absolute; /* zentriert über dem Hintergrund/Slideshow */
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 2;
+  z-index: 2; /* vor dem Hintergrund */
   text-align: center;
   color: #fff;
   width: 100%;
-  max-width: 620px;
+  max-width: 620px; /* Registrierung in einer moderaten Breite */
 }
 
 .register-container h1 {
@@ -19,31 +19,31 @@
 }
 
 .register-container p {
-  margin-bottom: 0.8rem;
+  margin-bottom: 0.8rem; /* kurzer Subtext unter dem Titel */
 }
 
 /* Box */
 .register-box {
-  background: var(--panel);
-  color: var(--text);
+  background: var(--panel); /* Theme-basierter Hintergrund */
+  color: var(--text); /* Textfarbe je nach Theme */
   padding: 2rem 2.2rem;
   border-radius: 1.2rem;
   box-shadow: 0 18px 45px rgba(0, 0, 0, 0.5);
-  text-align: left;
-  backdrop-filter: blur(8px);
+  text-align: left; /* Formularinhalte linksbündig */
+  backdrop-filter: blur(8px); /* Glas-Effekt */
   border: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 /* Darkmode */
 :host-context(.dark-mode) .register-box {
-  background: rgba(5, 5, 5, 0.88);
+  background: rgba(5, 5, 5, 0.88); /* dunkles Glas im Darkmode */
   color: var(--text);
   border: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 /* Lightmode */
 :host-context(.light-mode) .register-box {
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.9); /* helle Box im Lightmode */
   backdrop-filter: blur(10px);
   border: 1px solid rgba(15, 23, 42, 0.05);
   color: #0f172a;
@@ -70,7 +70,7 @@
 }
 
 .register-box input::placeholder {
-  opacity: 0.65;
+  opacity: 0.65; /* dezent sichtbarer Placeholder */
 }
 
 /* Lightmode Inputs */
@@ -89,7 +89,7 @@
 /* AGB Bereich */
 .terms-container {
   display: flex;
-  align-items: flex-start;
+  align-items: flex-start; /* Checkbox und Text oben ausgerichtet */
   justify-content: center;
   gap: 0.6rem;
   margin-top: 0.2rem;
@@ -97,19 +97,19 @@
   font-size: 0.95rem;
   text-align: center;
   color: inherit;
-  flex-wrap: wrap;
+  flex-wrap: wrap; /* Text kann umbrechen */
 }
 
 .terms-container input[type='checkbox'] {
   width: 18px;
   height: 18px;
-  accent-color: var(--primary);
+  accent-color: var(--primary); /* Checkbox-Farbe entsprechend Theme */
   cursor: pointer;
   flex-shrink: 0;
 }
 
 .terms-container a {
-  color: #2563eb;
+  color: #2563eb; /* Linkfarbe im AGB-Text */
   text-decoration: underline;
   font-weight: 600;
 }
@@ -145,12 +145,12 @@
 }
 
 .login-hint a {
-  color: #a8c7ff;
+  color: #a8c7ff; /* blauer Link für "Einloggen" */
   text-decoration: underline;
 }
 
 :host-context(.dark-mode) .login-hint a:hover {
-  color: #dbeafe;
+  color: #dbeafe; /* helleres Blau im Hover */
 }
 
 /* Simple Flex-Row */
@@ -169,15 +169,15 @@
     padding: 0 1rem;
   }
   .register-box {
-    padding: 1.6rem 1.4rem;
+    padding: 1.6rem 1.4rem;  /* kompakter auf kleineren Screens */
   }
   .row {
-    flex-direction: column;
+    flex-direction: column; /* Felder untereinander statt nebeneinander */
   }
 }
 
 .terms-label {
   display: inline;
   line-height: 1.25rem;
-  margin-top: 1px;
+  margin-top: 1px;  /* optische Ausrichtung zur Checkbox */
 }

@@ -1,24 +1,23 @@
 :host {
-  display: flex;
+  display: flex; /* zentriert den Page-Container horizontal */
   justify-content: center;
-  padding: 4.5rem 1.5rem 3.5rem;
+  padding: 4.5rem 1.5rem 3.5rem; /* Abstand oben/seitlich/unten */
   width: 100%;
 }
 
-/* ========= Haupt-Box  ========= */
-
+/* Haupt-Box */
 .page {
-  background: rgba(5, 5, 5, 0.85);
+  background: rgba(5, 5, 5, 0.85);  /* dunkles Glas über Slideshow/Hintergrund */
   color: var(--text);
-  border-radius: 1.2rem;
+  border-radius: 1.2rem; /* abgerundete Ecken */
   padding: 1.8rem 2rem 2rem;
   width: min(1050px, 100%);
-  min-height: calc(100vh - 8rem);
+  min-height: calc(100vh - 8rem); /* fast volle Bildschirmhöhe */
   box-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px); /* Glas-Effekt */
   position: relative;
-  z-index: 5;
+  z-index: 5; /* liegt über Hintergrund/Overlay */
 }
 
 :host-context(.light-mode) .page {
@@ -27,8 +26,7 @@
   color: #0f172a;
 }
 
-/* HEADER */
-
+/* Header */
 h1 {
   margin: 0 0 0.2rem;
 }
@@ -39,7 +37,6 @@ h1 {
 }
 
 /* Alerts */
-
 .alerts {
   display: flex;
   flex-direction: column;
@@ -53,6 +50,7 @@ h1 {
   font-size: 0.9rem;
 }
 
+/* Fehler-Alert */
 .alert.error {
   background: rgba(248, 113, 113, 0.14);
   border: 1px solid #f87171;
@@ -66,7 +64,6 @@ h1 {
 }
 
 /* Lightmode-Overrides für Alerts */
-
 :host-context(.light-mode) .alert.error {
   background: #fee2e2;
   color: #b91c1c;
@@ -80,7 +77,6 @@ h1 {
 }
 
 /* Panels */
-
 .panel {
   background: rgba(11, 15, 24, 0.96);
   border-radius: 1rem;
@@ -96,11 +92,10 @@ h1 {
 }
 
 .create-panel {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.5rem; /* Abstand zu Layout darunter */
 }
 
 /* Create-Panel Typo */
-
 .create-panel h2 {
   margin: 0 0 0.35rem;
   line-height: 1.25;
@@ -112,17 +107,16 @@ h1 {
   opacity: 0.85;
 }
 
-/* ========= CREATE-FORM (Plan-Name + Beschreibung) ========= */
+/*  Create-FORM (Plan-Name + Beschreibung)  */
 
 .form {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: wrap; /* bei wenig Platz umbrechen */
   gap: 0.6rem;
   align-items: stretch;
 }
 
 /* gemeinsame Optik für Input + Textarea */
-
 .form input,
 .form textarea {
   flex: 1 1 220px;
@@ -144,7 +138,6 @@ h1 {
 }
 
 /* Lightmode für die Felder */
-
 :host-context(.light-mode) .form input,
 :host-context(.light-mode) .form textarea {
   background: #ffffff;
@@ -152,7 +145,6 @@ h1 {
 }
 
 /* Fokuszustand */
-
 .form input:focus,
 .form textarea:focus {
   border-color: #22c55e;
@@ -160,7 +152,6 @@ h1 {
 }
 
 /* Create-Button */
-
 .form button {
   border-radius: 0.6rem;
   border: none;
@@ -169,8 +160,8 @@ h1 {
   background: #22c55e;
   color: #041007;
   cursor: pointer;
-  white-space: nowrap;
-  align-self: stretch;
+  white-space: nowrap; /* nicht umbrechen */
+  align-self: stretch; /* Höhe an Inputs angepasst */
 }
 
 .form button:disabled {
@@ -179,15 +170,13 @@ h1 {
 }
 
 /* Layout */
-
 .layout {
   display: grid;
   gap: 1.5rem;
-  grid-template-columns: minmax(260px, 1fr) minmax(320px, 1fr);
+  grid-template-columns: minmax(260px, 1fr) minmax(320px, 1fr); /* Übersicht | Details */
 }
 
 /* Übersicht-Liste */
-
 .overview-head {
   display: flex;
   align-items: center;
@@ -245,7 +234,7 @@ h1 {
   display: flex;
   justify-content: space-between;
   gap: 0.75rem;
-  flex-wrap: wrap;
+  flex-wrap: wrap; /* bricht auf kleine Geräte um */
 }
 
 .plan-info h3 {
@@ -283,7 +272,6 @@ h1 {
 }
 
 /* Details / Edit-Form */
-
 .details-head {
   display: flex;
   flex-direction: column;
@@ -299,7 +287,7 @@ h1 {
   padding: 0;
   font-size: 0.95rem;
   text-align: left;
-  text-decoration: underline;
+  text-decoration: underline; /* Link-Optik */
 }
 
 .edit-form {
@@ -343,13 +331,12 @@ h1 {
 }
 
 .validation {
-  color: #f87171;
+  color: #f87171; /* roter Hinweistext */
   margin: -0.35rem 0 0;
   font-size: 0.85rem;
 }
 
 /* Sessions-Liste im Detail */
-
 .sessions ul {
   list-style: none;
   margin: 0;
@@ -374,7 +361,6 @@ h1 {
 }
 
 /* Typo */
-
 .muted {
   color: rgba(148, 163, 184, 0.85);
   font-size: 0.87rem;
@@ -384,7 +370,7 @@ h1 {
   color: rgba(15, 23, 42, 0.65);
 }
 
-/* ========= RESPONSIVE ========= */
+/*  RESPONSIVE  */
 
 @media (max-width: 1024px) {
   :host {
@@ -404,17 +390,17 @@ h1 {
 
 @media (max-width: 900px) {
   .layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr; /* Übersicht & Details untereinander */
   }
 
   .overview-head {
-    flex-direction: row;
+    flex-direction: row; /* bleibt nebeneinander, falls vorher mal anders */
   }
 }
 
 @media (max-width: 700px) {
   .form {
-    flex-direction: column;
+    flex-direction: column; /* Form-Felder stapeln sich */
   }
 }
 

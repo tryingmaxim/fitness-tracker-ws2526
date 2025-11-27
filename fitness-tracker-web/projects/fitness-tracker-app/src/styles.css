@@ -1,34 +1,34 @@
-/* === 1. Reset === */
+/* Reset */
 * {
-  margin: 0;
+  margin: 0;  /* Standardabstände zurücksetzen */
   padding: 0;
-  box-sizing: border-box;
+  box-sizing: border-box; /* Padding/Border in Breite/Höhe einrechnen */
 }
 
 html,
 body {
   height: 100%;
   width: 100%;
-  overflow: auto;      
+  overflow: auto;       /* normale Scrollbarkeit */
   font-family: "Poppins", system-ui, sans-serif;
-  background: #000;
+  background: #000;  /* Fallback-Hintergrund */
 }
 
-/* === 2. Farb-Variablen (global) === */
+/* Farb-Variablen (global) */
 :root {
-  --bg: #ffffff;
-  --text: #0f172a;
-  --panel: #ffffff;
-  --primary: #22c55e;
-  --secondary: #2563eb;
+  --bg: #ffffff; /* Standard-Hintergrundfarbe */
+  --text: #0f172a; /* Standard-Textfarbe */
+  --panel: #ffffff; /* Standard-Panelfarbe */
+  --primary: #22c55e; /* Primärfarbe (Buttons, Akzente) */
+  --secondary: #2563eb; /* Sekundärfarbe (Links, Akzente) */
 }
 
-/* === 3. Dark Mode – globale Variante === */
+/* Dark Mode – globale Variante */
 .dark-mode {
-  --bg: #1a1a1a;
-  --text: #f1f1f1;
-  --panel: rgba(40, 40, 40, 0.75);
-  --blur: 10px;
+  --bg: #1a1a1a; /* dunkler Hintergrund */
+  --text: #f1f1f1; /* helle Schrift */
+  --panel: rgba(40, 40, 40, 0.75); /* dunkle Panel-Fläche */
+  --blur: 10px; /* Blur-Wert für Glas-Effekte */
   --primary: #22c55e;
   --secondary: #ffffff;
 }
@@ -36,39 +36,36 @@ body {
 .light-mode {
   --bg: #ffffff;
   --text: #0f172a;
-  --panel: rgba(255, 255, 255, 0.92);
+  --panel: rgba(255, 255, 255, 0.92); /* leicht transparente Panels */
 }
 
 /* Body soll auf Variablen hören */
 body {
-  background-color: var(--bg);
-  color: var(--text);
-  transition: background-color 0.4s ease, color 0.4s ease;
+  background-color: var(--bg); /* nutzt Theme-Variable */
+  color: var(--text);  /* nutzt Theme-Variable */
+  transition: background-color 0.4s ease, color 0.4s ease; /* weicher Theme-Wechsel */
   min-height: 100vh; /* wichtig für mobile */
 }
 
 /* Scroll-Verhalten global belassen */
 html {
-  scroll-behavior: smooth;
+  scroll-behavior: smooth; /* smooth scrollen bei Ankern */
 }
 
 /* kleine allgemeine Sachen */
 button:active {
-  transform: scale(0.96);
+  transform: scale(0.96); /* kleiner Klick-Effekt */
   opacity: 0.9;
 }
 
-/* =====================================================
-   PRIVATE AREA – gemeinsame Box-Optik
-   (Dashboard, Übungen, Pläne, Sessions, Profil)
-   ===================================================== */
+/* PRIVATE PAGES – gemeinsame Box-Optik (Dashboard, Übungen, Pläne, Sessions, Profil) */
 .dashboard-wrapper,
 .page,
 .sessions-page {
-  border-radius: 1.2rem;
+  border-radius: 1.2rem; /* globale Rundung der Haupt-Boxen */
 }
 
-/* ---------- FELDER: Basis (gilt für beide Modes) ---------- */
+/* FELDER: Basis (gilt für beide Modes) */
 .dashboard-wrapper input,
 .dashboard-wrapper select,
 .dashboard-wrapper textarea,
@@ -78,8 +75,8 @@ button:active {
 .sessions-page input,
 .sessions-page select,
 .sessions-page textarea {
-  width: auto;
-  background: rgba(248, 250, 252, 0.9);
+  width: auto; /* Breite abhängig vom Container */
+  background: rgba(248, 250, 252, 0.9); /* helles Input-Background */
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 0.5rem;
   padding: 0.4rem 0.6rem;
@@ -102,7 +99,7 @@ button:active {
   background: #fff;
 }
 
-/* ---------- FELDER: Darkmode-Override ---------- */
+/*  FELDER: Darkmode-Override  */
 .dark-mode .dashboard-wrapper input,
 .dark-mode .dashboard-wrapper select,
 .dark-mode .dashboard-wrapper textarea,
@@ -125,11 +122,11 @@ button:active {
   color: #0f172a;
 }
 
-/* ---------- BUTTONS: Basis ---------- */
+/*  BUTTONS: Basis  */
 .dashboard-wrapper button,
 .page button,
 .sessions-page button {
-  background: #22c55e;
+  background: #22c55e; /* Standard-Button-Grün */
   color: #fff;
   border: none;
   border-radius: 0.55rem;
@@ -146,7 +143,7 @@ button:active {
   box-shadow: 0 12px 20px rgba(34, 197, 94, 0.25);
 }
 
-/* ---------- Buttons: Lightmode explizit ---------- */
+/*  Buttons: Lightmode explizit  */
 .light-mode .dashboard-wrapper button,
 .light-mode .page button,
 .light-mode .sessions-page button {
@@ -154,7 +151,7 @@ button:active {
   color: #fff;
 }
 
-/* ---------- Buttons: Darkmode explizit ---------- */
+/*  Buttons: Darkmode explizit  */
 .dark-mode .dashboard-wrapper button,
 .dark-mode .page button,
 .dark-mode .sessions-page button {
