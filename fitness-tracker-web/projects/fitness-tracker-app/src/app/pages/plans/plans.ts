@@ -141,7 +141,7 @@ export class Plans implements OnInit {
   //neuen Plan anlegen
   add(f?: NgForm): void {
     if (!this.form.name.trim()) {
-      this.error = 'Bitte einen Namen fürr den Trainingsplan angeben.';
+      this.error = 'Bitte einen Namen für den Trainingsplan angeben.';
       return;
     }
 
