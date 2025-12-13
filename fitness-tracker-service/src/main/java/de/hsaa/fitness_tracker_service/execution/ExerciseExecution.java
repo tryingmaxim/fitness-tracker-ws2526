@@ -1,86 +1,121 @@
 package de.hsaa.fitness_tracker_service.execution;
 
 import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSession;
+import de.hsaa.fitness_tracker_service.exercise.Exercise;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 
-import de.hsaa.fitness_tracker_service.exercise.Exercise;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
-//@Entity=Join-Tabelle zwischen TrainingSession und Exercise
 @Entity
-//@Table=Eindeutigkeit in einer Session:jede Position und jede Übung darf nur einmal vorkommen
-@Table(name = "exercise_executions", uniqueConstraints = {
-		@UniqueConstraint(columnNames = { "session_id", "order_index" }),
-		@UniqueConstraint(columnNames = { "session_id", "exercise_id" }) })
+@Table(
+    name = "exercise_executions",
+    uniqueConstraints = {
+        @UniqueConstraint(columnNames = { "session_id", "order_index" }),
+        @UniqueConstraint(columnNames = { "session_id", "exercise_id" })
+    }
+)
 public class ExerciseExecution {
 
-	// @Id=Primärschlüssel,automatisch generiert
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-	// @ManyToOne=gehört zu genau einer Session
-	@ManyToOne(optional = false)
-	@JoinColumn(name = "session_id", nullable = false)
-	@JsonBackReference("session-executions")
-	private TrainingSession session;
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "session_id", nullable = false)
+    @JsonBackReference("session-executions")
+    private TrainingSession session;
 
-	// @ManyToOne=verweist auf genau eine Übung
-	@ManyToOne(optional = false)
-	@JoinColumn(name = "exercise_id", nullable = false)
-	private Exercise exercise;
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "exercise_id", nullable = false)
+    private Exercise exercise;
 
-	// @orderIndex=Reihenfolge in der Session(ab 1)
-	@NotNull
-	@Min(1)
-	@Column(name = "order_index", nullable = false)
-	private Integer orderIndex;
+    @NotNull
+    @Min(1)
+    @Column(name = "order_index", nullable = false)
+    private Integer orderIndex;
 
-	// @notes=optionale Notizen zur Ausführung
-	@Column(length = 1000)
-	private String notes;
+    @NotNull
+    @Min(1)
+    @Column(nullable = false)
+    private Integer plannedSets;
 
-	// Getter/Setter
-	public Long getId() {
-		return id;
-	}
+    @NotNull
+    @Min(1)
+    @Column(nullable = false)
+    private Integer plannedReps;
 
-	public void setId(Long id) {
-		this.id = id;
-	}
+    @NotNull
+    @Min(0)
+    @Column(nullable = false)
+    private Double plannedWeightKg;
 
-	public TrainingSession getSession() {
-		return session;
-	}
+    @Column(length = 1000)
+    private String notes;
 
-	public void setSession(TrainingSession session) {
-		this.session = session;
-	}
+    public Long getId() {
+        return id;
+    }
 
-	public Exercise getExercise() {
-		return exercise;
-	}
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-	public void setExercise(Exercise exercise) {
-		this.exercise = exercise;
-	}
+    public TrainingSession getSession() {
+        return session;
+    }
 
-	public Integer getOrderIndex() {
-		return orderIndex;
-	}
+    public void setSession(TrainingSession session) {
+        this.session = session;
+    }
 
-	public void setOrderIndex(Integer orderIndex) {
-		this.orderIndex = orderIndex;
-	}
+    public Exercise getExercise() {
+        return exercise;
+    }
 
-	public String getNotes() {
-		return notes;
-	}
+    public void setExercise(Exercise exercise) {
+        this.exercise = exercise;
+    }
 
-	public void setNotes(String notes) {
-		this.notes = notes;
-	}
+    public Integer getOrderIndex() {
+        return orderIndex;
+    }
+
+    public void setOrderIndex(Integer orderIndex) {
+        this.orderIndex = orderIndex;
+    }
+
+    public Integer getPlannedSets() {
+        return plannedSets;
+    }
+
+    public void setPlannedSets(Integer plannedSets) {
+        this.plannedSets = plannedSets;
+    }
+
+    public Integer getPlannedReps() {
+        return plannedReps;
+    }
+
+    public void setPlannedReps(Integer plannedReps) {
+        this.plannedReps = plannedReps;
+    }
+
+    public Double getPlannedWeightKg() {
+        return plannedWeightKg;
+    }
+
+    public void setPlannedWeightKg(Double plannedWeightKg) {
+        this.plannedWeightKg = plannedWeightKg;
+    }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
+    }
 }

@@ -4,19 +4,19 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
-import java.time.LocalDate;
+
 import java.util.Optional;
 
-//@Repository = DB-Zugriffe
 public interface TrainingSessionRepository extends JpaRepository<TrainingSession, Long> {
 
-	boolean existsByPlanIdAndNameIgnoreCaseAndScheduledDate(Long planId, String name, LocalDate date);
+    boolean existsByPlanIdAndOrderInPlan(Long planId, Integer orderInPlan);
 
-	boolean existsByPlanIdAndNameIgnoreCaseAndScheduledDateAndIdNot(Long planId, String name, LocalDate date, Long id);
+    boolean existsByPlanIdAndOrderInPlanAndIdNot(Long planId, Integer orderInPlan, Long id);
 
-	Page<TrainingSession> findAllByPlanId(Long planId, Pageable pageable);
+    long countByPlanId(Long planId);
 
-	// Detail: lade Executions + deren Exercises mit
-	@EntityGraph(attributePaths = { "exerciseExecutions", "exerciseExecutions.exercise", "plan" })
-	Optional<TrainingSession> findWithExecutionsById(Long id);
+    Page<TrainingSession> findAllByPlanId(Long planId, Pageable pageable);
+
+    @EntityGraph(attributePaths = { "exerciseExecutions", "exerciseExecutions.exercise", "plan" })
+    Optional<TrainingSession> findWithExecutionsById(Long id);
 }

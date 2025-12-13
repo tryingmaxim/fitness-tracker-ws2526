@@ -8,84 +8,96 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.time.LocalDate;
 
 @Service
 @Transactional
 public class TrainingSessionService {
 
-	private final TrainingSessionRepository repo;
-	private final TrainingPlanRepository planRepo;
+    private final TrainingSessionRepository repo;
+    private final TrainingPlanRepository planRepo;
 
-	public TrainingSessionService(TrainingSessionRepository repo, TrainingPlanRepository planRepo) {
-		this.repo = repo;
-		this.planRepo = planRepo;
-	}
+    public TrainingSessionService(TrainingSessionRepository repo, TrainingPlanRepository planRepo) {
+        this.repo = repo;
+        this.planRepo = planRepo;
+    }
 
-	// Create
-	public TrainingSession create(Long planId, String name, LocalDate date) {
-		var plan = requirePlan(planId);
-		var normName = normalize(name);
-		if (repo.existsByPlanIdAndNameIgnoreCaseAndScheduledDate(plan.getId(), normName, date)) {
-			throw new DataIntegrityViolationException("session duplicate for plan+name+date");
-		}
-		var s = new TrainingSession();
-		s.setPlan(plan);
-		s.setName(normName);
-		s.setScheduledDate(date);
-		return repo.save(s);
-	}
+    public TrainingSession create(Long planId, String name, Integer orderInPlan) {
+        var plan = requirePlan(planId);
 
-	// List all
-	@Transactional(readOnly = true)
-	public Page<TrainingSession> list(Pageable pageable) {
-		return repo.findAll(pageable);
-	}
+        if (orderInPlan == null || orderInPlan < 1 || orderInPlan > 30) {
+            throw new IllegalArgumentException("orderInPlan must be between 1 and 30");
+        }
 
-	// List by plan
-	@Transactional(readOnly = true)
-	public Page<TrainingSession> listByPlan(Long planId, Pageable pageable) {
-		requirePlan(planId);
-		return repo.findAllByPlanId(planId, pageable);
-	}
+        if (repo.countByPlanId(planId) >= 30) {
+            throw new IllegalArgumentException("max 30 sessions per plan");
+        }
 
-	// Get detail (mit Executions)
-	@Transactional(readOnly = true)
-	public TrainingSession get(Long id) {
-		return repo.findWithExecutionsById(id).orElseThrow(() -> new EntityNotFoundException("session not found"));
-	}
+        if (repo.existsByPlanIdAndOrderInPlan(planId, orderInPlan)) {
+            throw new DataIntegrityViolationException("orderInPlan already used");
+        }
 
-	// Update
-	public TrainingSession update(Long id, Long planId, String name, LocalDate date) {
-		var current = get(id);
-		if (planId != null && !planId.equals(current.getPlan().getId())) {
-			TrainingPlan p = requirePlan(planId);
-			current.setPlan(p);
-		}
-		if (name != null)
-			current.setName(normalize(name));
-		if (date != null)
-			current.setScheduledDate(date);
+        var s = new TrainingSession();
+        s.setPlan(plan);
+        s.setName(normalize(name));
+        s.setOrderInPlan(orderInPlan);
+        return repo.save(s);
+    }
 
-		if (repo.existsByPlanIdAndNameIgnoreCaseAndScheduledDateAndIdNot(current.getPlan().getId(), current.getName(),
-				current.getScheduledDate(), id)) {
-			throw new DataIntegrityViolationException("session duplicate for plan+name+date");
-		}
-		return current;
-	}
+    @Transactional(readOnly = true)
+    public Page<TrainingSession> list(Pageable pageable) {
+        return repo.findAll(pageable);
+    }
 
-	public void delete(Long id) {
-		if (!repo.existsById(id))
-			throw new EntityNotFoundException("session not found");
-		repo.deleteById(id);
-	}
+    @Transactional(readOnly = true)
+    public Page<TrainingSession> listByPlan(Long planId, Pageable pageable) {
+        requirePlan(planId);
+        return repo.findAllByPlanId(planId, pageable);
+    }
 
-	// Hilfen
-	private TrainingPlan requirePlan(Long planId) {
-		return planRepo.findById(planId).orElseThrow(() -> new EntityNotFoundException("plan not found"));
-	}
+    @Transactional(readOnly = true)
+    public TrainingSession get(Long id) {
+        return repo.findWithExecutionsById(id)
+            .orElseThrow(() -> new EntityNotFoundException("session not found"));
+    }
 
-	private static String normalize(String s) {
-		return s == null ? null : s.trim();
-	}
+    public TrainingSession update(Long id, Long planId, String name, Integer orderInPlan) {
+        var current = get(id);
+
+        if (planId != null && !planId.equals(current.getPlan().getId())) {
+            TrainingPlan p = requirePlan(planId);
+            current.setPlan(p);
+        }
+
+        if (name != null) {
+            current.setName(normalize(name));
+        }
+
+        if (orderInPlan != null) {
+            if (orderInPlan < 1 || orderInPlan > 30) {
+                throw new IllegalArgumentException("orderInPlan must be between 1 and 30");
+            }
+            if (repo.existsByPlanIdAndOrderInPlanAndIdNot(current.getPlan().getId(), orderInPlan, id)) {
+                throw new DataIntegrityViolationException("orderInPlan already used");
+            }
+            current.setOrderInPlan(orderInPlan);
+        }
+
+        return current;
+    }
+
+    public void delete(Long id) {
+        if (!repo.existsById(id)) {
+            throw new EntityNotFoundException("session not found");
+        }
+        repo.deleteById(id);
+    }
+
+    private TrainingPlan requirePlan(Long planId) {
+        return planRepo.findById(planId)
+            .orElseThrow(() -> new EntityNotFoundException("plan not found"));
+    }
+
+    private static String normalize(String s) {
+        return s == null ? null : s.trim();
+    }
 }

@@ -1,0 +1,65 @@
+[33mcommit f6d25845879376b00c814e4f081c1f89ff7252d0[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: Maxim <maximwerner6schule6@gmail.com>
+Date:   Fri Nov 7 11:29:32 2025 +0100
+
+    Fix: add @JsonBackReference("session-executions") to resolve serialization issue
+
+[33mcommit c78b0b2199b56c2eda3ec392bc235caef1c49b24[m
+Author: KK2605 <kerimd2605@web.de>
+Date:   Fri Nov 7 10:46:19 2025 +0100
+
+    Update data.sql + application.properties
+
+[33mcommit f1c50fb55bc5f7bdbd0c70c76d1d5d81ca525f70[m
+Author: Maxim <maximwerner6schule6@gmail.com>
+Date:   Thu Nov 6 23:43:16 2025 +0100
+
+    Sprint 1
+
+[33mcommit b5a1425e041c0c68f9ca2be1eaf68c394e39c4f2[m
+Author: KK2605 <kerimd2605@web.de>
+Date:   Thu Nov 6 17:14:00 2025 +0100
+
+    refactor names, finalized exercise and trainingsplan
+
+[33mcommit d8abdd708601217b1dd8d702fb61bd3ad000a6bc[m
+Author: KK2605 <kerimd2605@web.de>
+Date:   Thu Nov 6 17:09:22 2025 +0100
+
+    refactor names, finalized exercise and trainingsplan
+
+[33mcommit 27ad48f3a939eb424a1bcd200a34b10b6ce85630[m
+Author: KK2605 <kerimd2605@web.de>
+Date:   Thu Oct 30 12:43:00 2025 +0100
+
+    Added backend base structure and H2 setup (Closes #6)
+
+[33mcommit cef511800545387a8265f73ab2f9089e2410f875[m
+Merge: d574980 f6950fa
+Author: 05Danny <152648752+05Danny@users.noreply.github.com>
+Date:   Thu Oct 30 12:15:46 2025 +0100
+
+    Merge pull request #3 from tryingmaxim/main
+    
+    sync main develop
+
+[33mcommit f6950faf55bfd575d499cc763dfaf91fee1e6ef1[m
+Merge: d574980 912a8ac
+Author: Maxim <91869710+tryingmaxim@users.noreply.github.com>
+Date:   Thu Oct 30 11:57:06 2025 +0100
+
+    Merge pull request #2 from tryingmaxim/task/general
+    
+    Add Docker setup+properties+pom adjustments
+
+[33mcommit 912a8ac6738da62ef6da3d93fe5c540a2064e314[m[33m ([m[1;31morigin/aufgabe/allgemein[m[33m, [m[1;32maufgabe/allgemein[m[33m)[m
+Author: Maxim <maximwerner6schule6@gmail.com>
+Date:   Thu Oct 30 11:52:42 2025 +0100
+
+    Add Docker setup+properties+pom adjustments
+
+[33mcommit d5749804d69f32ab88961a2badf01d87fc6fc0f8[m
+Author: Maxim <maximwerner6schule6@gmail.com>
+Date:   Mon Oct 13 12:33:38 2025 +0200
+
+    Initial commit
