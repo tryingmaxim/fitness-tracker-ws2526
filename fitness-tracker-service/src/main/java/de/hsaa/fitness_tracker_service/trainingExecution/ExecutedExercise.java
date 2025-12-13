@@ -27,6 +27,21 @@ public class ExecutedExercise {
     private Exercise exercise;
 
     @NotNull
+    @Min(1)
+    @Column(name = "planned_sets", nullable = false)
+    private Integer plannedSets;
+
+    @NotNull
+    @Min(1)
+    @Column(name = "planned_reps", nullable = false)
+    private Integer plannedReps;
+
+    @NotNull
+    @Min(0)
+    @Column(name = "planned_weight_kg", nullable = false)
+    private Double plannedWeightKg;
+
+    @NotNull
     @Min(0)
     @Column(name = "actual_sets", nullable = false)
     private Integer actualSets;
@@ -69,6 +84,30 @@ public class ExecutedExercise {
 
     public void setExercise(Exercise exercise) {
         this.exercise = exercise;
+    }
+
+    public Integer getPlannedSets() {
+        return plannedSets;
+    }
+
+    public void setPlannedSets(Integer plannedSets) {
+        this.plannedSets = plannedSets;
+    }
+
+    public Integer getPlannedReps() {
+        return plannedReps;
+    }
+
+    public void setPlannedReps(Integer plannedReps) {
+        this.plannedReps = plannedReps;
+    }
+
+    public Double getPlannedWeightKg() {
+        return plannedWeightKg;
+    }
+
+    public void setPlannedWeightKg(Double plannedWeightKg) {
+        this.plannedWeightKg = plannedWeightKg;
     }
 
     public Integer getActualSets() {

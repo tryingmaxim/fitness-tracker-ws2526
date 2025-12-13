@@ -42,12 +42,8 @@ public class TrainingSession {
     @Column(name = "order_in_plan", nullable = false)
     private Integer orderInPlan;
 
-    @OneToMany(
-        mappedBy = "session",
-        cascade = CascadeType.ALL,
-        orphanRemoval = true,
-        fetch = FetchType.LAZY
-    )
+    @OrderBy("orderIndex ASC")
+    @OneToMany(mappedBy = "session", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @JsonManagedReference("session-executions")
     private List<ExerciseExecution> exerciseExecutions = new ArrayList<>();
 

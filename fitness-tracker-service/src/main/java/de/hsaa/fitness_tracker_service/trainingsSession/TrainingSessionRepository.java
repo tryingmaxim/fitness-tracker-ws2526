@@ -15,6 +15,10 @@ public interface TrainingSessionRepository extends JpaRepository<TrainingSession
 
     long countByPlanId(Long planId);
 
+    @EntityGraph(attributePaths = { "plan" })
+    Page<TrainingSession> findAll(Pageable pageable);
+
+    @EntityGraph(attributePaths = { "plan" })
     Page<TrainingSession> findAllByPlanId(Long planId, Pageable pageable);
 
     @EntityGraph(attributePaths = { "exerciseExecutions", "exerciseExecutions.exercise", "plan" })

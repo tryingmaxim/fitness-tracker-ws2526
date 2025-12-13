@@ -35,6 +35,9 @@ public class TrainingExecutionController {
     public record ExecutedExerciseResponse(
         Long id,
         Long exerciseId,
+        Integer plannedSets,
+        Integer plannedReps,
+        Double plannedWeightKg,
         Integer actualSets,
         Integer actualReps,
         Double actualWeightKg,
@@ -70,6 +73,9 @@ public class TrainingExecutionController {
         return new ExecutedExerciseResponse(
             e.getId(),
             e.getExercise() != null ? e.getExercise().getId() : null,
+            e.getPlannedSets(),
+            e.getPlannedReps(),
+            e.getPlannedWeightKg(),
             e.getActualSets(),
             e.getActualReps(),
             e.getActualWeightKg(),
@@ -91,11 +97,6 @@ public class TrainingExecutionController {
     @GetMapping("/{id}")
     public TrainingExecutionResponse get(@PathVariable Long id) {
         return toDto(service.get(id));
-    }
-
-    @GetMapping("/{id}/exercises")
-    public List<ExecutedExerciseResponse> listExercises(@PathVariable Long id) {
-        return service.get(id).getExecutedExercises().stream().map(TrainingExecutionController::toDto).toList();
     }
 
     @PutMapping("/{id}/exercises")

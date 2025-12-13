@@ -15,8 +15,8 @@ public class TrainingExecution {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "session_id", nullable = false)
+    @ManyToOne(optional = true)
+    @JoinColumn(name = "session_id", nullable = true)
     private TrainingSession session;
 
     @Enumerated(EnumType.STRING)

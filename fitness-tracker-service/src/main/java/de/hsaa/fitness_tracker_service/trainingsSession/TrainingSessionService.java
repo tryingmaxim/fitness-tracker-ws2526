@@ -2,6 +2,8 @@ package de.hsaa.fitness_tracker_service.trainingsSession;
 
 import de.hsaa.fitness_tracker_service.trainingsPlan.TrainingPlan;
 import de.hsaa.fitness_tracker_service.trainingsPlan.TrainingPlanRepository;
+import de.hsaa.fitness_tracker_service.trainingExecution.TrainingExecution;
+import de.hsaa.fitness_tracker_service.trainingExecution.TrainingExecutionRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -15,10 +17,16 @@ public class TrainingSessionService {
 
     private final TrainingSessionRepository repo;
     private final TrainingPlanRepository planRepo;
+    private final TrainingExecutionRepository trainingExecutionRepo;
 
-    public TrainingSessionService(TrainingSessionRepository repo, TrainingPlanRepository planRepo) {
+    public TrainingSessionService(
+        TrainingSessionRepository repo,
+        TrainingPlanRepository planRepo,
+        TrainingExecutionRepository trainingExecutionRepo
+    ) {
         this.repo = repo;
         this.planRepo = planRepo;
+        this.trainingExecutionRepo = trainingExecutionRepo;
     }
 
     public TrainingSession create(Long planId, String name, Integer orderInPlan) {
@@ -89,6 +97,11 @@ public class TrainingSessionService {
         if (!repo.existsById(id)) {
             throw new EntityNotFoundException("session not found");
         }
+
+        for (TrainingExecution te : trainingExecutionRepo.findBySessionId(id)) {
+            te.setSession(null);
+        }
+
         repo.deleteById(id);
     }
 

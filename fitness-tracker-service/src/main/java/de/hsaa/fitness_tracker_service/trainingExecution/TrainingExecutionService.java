@@ -46,6 +46,9 @@ public class TrainingExecutionService {
             ExecutedExercise ee = new ExecutedExercise();
             ee.setTrainingExecution(te);
             ee.setExercise(planned.getExercise());
+            ee.setPlannedSets(planned.getPlannedSets());
+            ee.setPlannedReps(planned.getPlannedReps());
+            ee.setPlannedWeightKg(planned.getPlannedWeightKg());
             ee.setActualSets(0);
             ee.setActualReps(0);
             ee.setActualWeightKg(0.0);
@@ -91,7 +94,7 @@ public class TrainingExecutionService {
         Exercise ex = requireExercise(exerciseId);
 
         ExecutedExercise target = te.getExecutedExercises().stream()
-            .filter(e -> e.getExercise().getId().equals(exerciseId))
+            .filter(e -> e.getExercise() != null && e.getExercise().getId().equals(exerciseId))
             .findFirst()
             .orElseThrow(() -> new EntityNotFoundException("exercise not part of this execution"));
 
