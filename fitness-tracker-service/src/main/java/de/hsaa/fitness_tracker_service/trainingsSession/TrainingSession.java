@@ -2,32 +2,24 @@ package de.hsaa.fitness_tracker_service.trainingsSession;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
-
-import de.hsaa.fitness_tracker_service.trainingsPlan.TrainingPlan;
 import de.hsaa.fitness_tracker_service.execution.ExerciseExecution;
+import de.hsaa.fitness_tracker_service.trainingsPlan.TrainingPlan;
+import de.hsaa.fitness_tracker_service.trainingsSessionDay.SessionDay;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 @Entity
-@Table(
-    name = "training_sessions",
-    uniqueConstraints = {
-        @UniqueConstraint(columnNames = { "plan_id", "order_in_plan" })
-    }
-)
+@Table(name = "training_sessions")
 public class TrainingSession {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "plan_id", nullable = false)
     @JsonBackReference
     private TrainingPlan plan;
@@ -36,23 +28,18 @@ public class TrainingSession {
     @Column(nullable = false)
     private String name;
 
-    @NotNull
-    @Min(1)
-    @Max(30)
-    @Column(name = "order_in_plan", nullable = false)
-    private Integer orderInPlan;
+    @OrderBy("day ASC")
+    @OneToMany(mappedBy = "session", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonManagedReference
+    private Set<SessionDay> days = new LinkedHashSet<>();
 
     @OrderBy("orderIndex ASC")
     @OneToMany(mappedBy = "session", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @JsonManagedReference("session-executions")
-    private List<ExerciseExecution> exerciseExecutions = new ArrayList<>();
+    private Set<ExerciseExecution> exerciseExecutions = new LinkedHashSet<>();
 
     public Long getId() {
         return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
     }
 
     public TrainingPlan getPlan() {
@@ -71,19 +58,31 @@ public class TrainingSession {
         this.name = name;
     }
 
-    public Integer getOrderInPlan() {
-        return orderInPlan;
+    public Set<SessionDay> getDays() {
+        return days;
     }
 
-    public void setOrderInPlan(Integer orderInPlan) {
-        this.orderInPlan = orderInPlan;
+    public void setDays(Set<SessionDay> days) {
+        this.days.clear();
+        if (days != null) {
+            for (SessionDay d : days) {
+                d.setSession(this);
+            }
+            this.days.addAll(days);
+        }
     }
 
-    public List<ExerciseExecution> getExerciseExecutions() {
+    public Set<ExerciseExecution> getExerciseExecutions() {
         return exerciseExecutions;
     }
 
-    public void setExerciseExecutions(List<ExerciseExecution> exerciseExecutions) {
-        this.exerciseExecutions = exerciseExecutions;
+    public void setExerciseExecutions(Set<ExerciseExecution> exerciseExecutions) {
+        this.exerciseExecutions.clear();
+        if (exerciseExecutions != null) {
+            for (ExerciseExecution e : exerciseExecutions) {
+                e.setSession(this);
+            }
+            this.exerciseExecutions.addAll(exerciseExecutions);
+        }
     }
 }

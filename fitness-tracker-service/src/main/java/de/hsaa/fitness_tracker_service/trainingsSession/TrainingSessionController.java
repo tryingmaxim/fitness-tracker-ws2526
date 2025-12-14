@@ -3,11 +3,14 @@ package de.hsaa.fitness_tracker_service.trainingsSession;
 import de.hsaa.fitness_tracker_service.execution.ExerciseExecution;
 import de.hsaa.fitness_tracker_service.execution.ExerciseExecutionRepository;
 import de.hsaa.fitness_tracker_service.trainingExecution.TrainingExecutionRepository;
+import de.hsaa.fitness_tracker_service.trainingsSessionDay.SessionDay;
+
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -40,13 +43,13 @@ public class TrainingSessionController {
     public record CreateSessionRequest(
         @NotNull Long planId,
         @NotBlank String name,
-        @NotNull @Min(1) @Max(30) Integer orderInPlan
+        @NotNull List<@Min(1) @Max(30) Integer> days
     ) {}
 
     public record UpdateSessionRequest(
         Long planId,
         String name,
-        @Min(1) @Max(30) Integer orderInPlan
+        List<@Min(1) @Max(30) Integer> days
     ) {}
 
     public record PlannedExerciseResponse(
@@ -67,7 +70,7 @@ public class TrainingSessionController {
         String name,
         Long planId,
         String planName,
-        Integer orderInPlan,
+        List<Integer> days,
         long exerciseCount,
         long performedCount,
         List<PlannedExerciseResponse> exerciseExecutions
@@ -89,6 +92,16 @@ public class TrainingSessionController {
         );
     }
 
+    private static List<Integer> mapDays(TrainingSession s) {
+        if (s.getDays() == null) return List.of();
+        return s.getDays().stream()
+            .map(SessionDay::getDay)
+            .filter(Objects::nonNull)
+            .distinct()
+            .sorted()
+            .toList();
+    }
+
     private TrainingSessionResponse toDto(
         TrainingSession s,
         boolean includeExercises,
@@ -105,7 +118,7 @@ public class TrainingSessionController {
             s.getName(),
             s.getPlan() != null ? s.getPlan().getId() : null,
             s.getPlan() != null ? s.getPlan().getName() : null,
-            s.getOrderInPlan(),
+            mapDays(s),
             exerciseCount,
             performedCount,
             execs
@@ -117,6 +130,7 @@ public class TrainingSessionController {
         Page<TrainingSession> page = service.list(pageable);
         Map<Long, Long> performed = loadPerformedCounts(page.getContent());
         Map<Long, Long> exerciseCounts = loadExerciseCounts(page.getContent());
+
         return page.map(s -> toDto(
             s,
             false,
@@ -133,6 +147,7 @@ public class TrainingSessionController {
         Page<TrainingSession> page = service.listByPlan(planId, pageable);
         Map<Long, Long> performed = loadPerformedCounts(page.getContent());
         Map<Long, Long> exerciseCounts = loadExerciseCounts(page.getContent());
+
         return page.map(s -> toDto(
             s,
             false,
@@ -154,26 +169,36 @@ public class TrainingSessionController {
         @Valid @RequestBody CreateSessionRequest req,
         UriComponentsBuilder uri
     ) {
-        var saved = service.create(req.planId(), req.name(), req.orderInPlan());
-        var location = uri.path("/api/v1/training-sessions/{id}").buildAndExpand(saved.getId()).toUri();
-        long performedCount = 0L;
-        long exerciseCount = 0L;
-        return ResponseEntity.created(location).body(toDto(saved, true, exerciseCount, performedCount));
+        var saved = service.create(req.planId(), req.name(), req.days());
+        var location = uri.path("/api/v1/training-sessions/{id}")
+            .buildAndExpand(saved.getId()).toUri();
+        return ResponseEntity.created(location)
+            .body(toDto(saved, true, 0L, 0L));
     }
 
     @PutMapping("/{id}")
-    public TrainingSessionResponse put(@PathVariable Long id, @Valid @RequestBody UpdateSessionRequest req) {
-        var updated = service.update(id, req.planId(), req.name(), req.orderInPlan());
+    public TrainingSessionResponse put(
+        @PathVariable Long id,
+        @Valid @RequestBody UpdateSessionRequest req
+    ) {
+        var updated = service.update(id, req.planId(), req.name(), req.days());
         long performedCount = trainingExecutionRepo.countBySessionId(id);
-        long exerciseCount = updated.getExerciseExecutions() != null ? updated.getExerciseExecutions().size() : 0L;
+        long exerciseCount = updated.getExerciseExecutions() != null
+            ? updated.getExerciseExecutions().size()
+            : 0L;
         return toDto(updated, true, exerciseCount, performedCount);
     }
 
     @PatchMapping("/{id}")
-    public TrainingSessionResponse patch(@PathVariable Long id, @RequestBody UpdateSessionRequest req) {
-        var updated = service.update(id, req.planId(), req.name(), req.orderInPlan());
+    public TrainingSessionResponse patch(
+        @PathVariable Long id,
+        @RequestBody UpdateSessionRequest req
+    ) {
+        var updated = service.update(id, req.planId(), req.name(), req.days());
         long performedCount = trainingExecutionRepo.countBySessionId(id);
-        long exerciseCount = updated.getExerciseExecutions() != null ? updated.getExerciseExecutions().size() : 0L;
+        long exerciseCount = updated.getExerciseExecutions() != null
+            ? updated.getExerciseExecutions().size()
+            : 0L;
         return toDto(updated, true, exerciseCount, performedCount);
     }
 
@@ -184,16 +209,24 @@ public class TrainingSessionController {
     }
 
     private Map<Long, Long> loadPerformedCounts(List<TrainingSession> sessions) {
-        List<Long> ids = sessions.stream().map(TrainingSession::getId).filter(Objects::nonNull).toList();
+        List<Long> ids = sessions.stream()
+            .map(TrainingSession::getId)
+            .filter(Objects::nonNull)
+            .toList();
         if (ids.isEmpty()) return Map.of();
         List<Object[]> rows = trainingExecutionRepo.countBySessionIds(ids);
-        return rows.stream().collect(Collectors.toMap(r -> (Long) r[0], r -> (Long) r[1]));
+        return rows.stream()
+            .collect(Collectors.toMap(r -> (Long) r[0], r -> (Long) r[1]));
     }
 
     private Map<Long, Long> loadExerciseCounts(List<TrainingSession> sessions) {
-        List<Long> ids = sessions.stream().map(TrainingSession::getId).filter(Objects::nonNull).toList();
+        List<Long> ids = sessions.stream()
+            .map(TrainingSession::getId)
+            .filter(Objects::nonNull)
+            .toList();
         if (ids.isEmpty()) return Map.of();
         List<Object[]> rows = exerciseExecutionRepo.countBySessionIds(ids);
-        return rows.stream().collect(Collectors.toMap(r -> (Long) r[0], r -> (Long) r[1]));
+        return rows.stream()
+            .collect(Collectors.toMap(r -> (Long) r[0], r -> (Long) r[1]));
     }
 }

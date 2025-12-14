@@ -4,12 +4,18 @@ import de.hsaa.fitness_tracker_service.trainingsPlan.TrainingPlan;
 import de.hsaa.fitness_tracker_service.trainingsPlan.TrainingPlanRepository;
 import de.hsaa.fitness_tracker_service.trainingExecution.TrainingExecution;
 import de.hsaa.fitness_tracker_service.trainingExecution.TrainingExecutionRepository;
+import de.hsaa.fitness_tracker_service.trainingsSessionDay.SessionDay;
+import de.hsaa.fitness_tracker_service.trainingsSessionDay.SessionDayRepository;
+
 import jakarta.persistence.EntityNotFoundException;
+
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.*;
 
 @Service
 @Transactional
@@ -18,36 +24,41 @@ public class TrainingSessionService {
     private final TrainingSessionRepository repo;
     private final TrainingPlanRepository planRepo;
     private final TrainingExecutionRepository trainingExecutionRepo;
+    private final SessionDayRepository sessionDayRepo;
 
     public TrainingSessionService(
         TrainingSessionRepository repo,
         TrainingPlanRepository planRepo,
-        TrainingExecutionRepository trainingExecutionRepo
+        TrainingExecutionRepository trainingExecutionRepo,
+        SessionDayRepository sessionDayRepo
     ) {
         this.repo = repo;
         this.planRepo = planRepo;
         this.trainingExecutionRepo = trainingExecutionRepo;
+        this.sessionDayRepo = sessionDayRepo;
     }
 
-    public TrainingSession create(Long planId, String name, Integer orderInPlan) {
-        var plan = requirePlan(planId);
+    public TrainingSession create(Long planId, String name, List<Integer> days) {
+        TrainingPlan plan = requirePlan(planId);
+        List<Integer> normalizedDays = normalizeDays(days);
 
-        if (orderInPlan == null || orderInPlan < 1 || orderInPlan > 30) {
-            throw new IllegalArgumentException("orderInPlan must be between 1 and 30");
+        for (Integer d : normalizedDays) {
+            if (sessionDayRepo.existsByPlanIdAndDay(planId, d)) {
+                throw new DataIntegrityViolationException("day already used in plan: " + d);
+            }
         }
 
-        if (repo.countByPlanId(planId) >= 30) {
-            throw new IllegalArgumentException("max 30 sessions per plan");
-        }
-
-        if (repo.existsByPlanIdAndOrderInPlan(planId, orderInPlan)) {
-            throw new DataIntegrityViolationException("orderInPlan already used");
-        }
-
-        var s = new TrainingSession();
+        TrainingSession s = new TrainingSession();
         s.setPlan(plan);
         s.setName(normalize(name));
-        s.setOrderInPlan(orderInPlan);
+
+        for (Integer d : normalizedDays) {
+            SessionDay sd = new SessionDay();
+            sd.setDay(d);
+            sd.setSession(s);
+            s.getDays().add(sd);
+        }
+
         return repo.save(s);
     }
 
@@ -68,26 +79,34 @@ public class TrainingSessionService {
             .orElseThrow(() -> new EntityNotFoundException("session not found"));
     }
 
-    public TrainingSession update(Long id, Long planId, String name, Integer orderInPlan) {
-        var current = get(id);
+    public TrainingSession update(Long id, Long planId, String name, List<Integer> days) {
+        TrainingSession current = get(id);
 
         if (planId != null && !planId.equals(current.getPlan().getId())) {
-            TrainingPlan p = requirePlan(planId);
-            current.setPlan(p);
+            current.setPlan(requirePlan(planId));
         }
 
         if (name != null) {
             current.setName(normalize(name));
         }
 
-        if (orderInPlan != null) {
-            if (orderInPlan < 1 || orderInPlan > 30) {
-                throw new IllegalArgumentException("orderInPlan must be between 1 and 30");
+        if (days != null) {
+            List<Integer> normalizedDays = normalizeDays(days);
+            Long effectivePlanId = current.getPlan().getId();
+
+            for (Integer d : normalizedDays) {
+                if (sessionDayRepo.existsByPlanIdAndDayAndSessionIdNot(effectivePlanId, d, id)) {
+                    throw new DataIntegrityViolationException("day already used in plan: " + d);
+                }
             }
-            if (repo.existsByPlanIdAndOrderInPlanAndIdNot(current.getPlan().getId(), orderInPlan, id)) {
-                throw new DataIntegrityViolationException("orderInPlan already used");
+
+            current.getDays().clear();
+            for (Integer d : normalizedDays) {
+                SessionDay sd = new SessionDay();
+                sd.setDay(d);
+                sd.setSession(current);
+                current.getDays().add(sd);
             }
-            current.setOrderInPlan(orderInPlan);
         }
 
         return current;
@@ -112,5 +131,24 @@ public class TrainingSessionService {
 
     private static String normalize(String s) {
         return s == null ? null : s.trim();
+    }
+
+    private static List<Integer> normalizeDays(List<Integer> days) {
+        if (days == null || days.isEmpty()) {
+            throw new IllegalArgumentException("days must not be empty");
+        }
+
+        List<Integer> distinct = days.stream()
+            .filter(Objects::nonNull)
+            .distinct()
+            .toList();
+
+        for (Integer d : distinct) {
+            if (d < 1 || d > 30) {
+                throw new IllegalArgumentException("day must be between 1 and 30");
+            }
+        }
+
+        return distinct;
     }
 }

@@ -9,18 +9,19 @@ import java.util.Optional;
 
 public interface TrainingSessionRepository extends JpaRepository<TrainingSession, Long> {
 
-    boolean existsByPlanIdAndOrderInPlan(Long planId, Integer orderInPlan);
-
-    boolean existsByPlanIdAndOrderInPlanAndIdNot(Long planId, Integer orderInPlan, Long id);
-
     long countByPlanId(Long planId);
 
-    @EntityGraph(attributePaths = { "plan" })
+    @EntityGraph(attributePaths = { "plan", "days" })
     Page<TrainingSession> findAll(Pageable pageable);
 
-    @EntityGraph(attributePaths = { "plan" })
+    @EntityGraph(attributePaths = { "plan", "days" })
     Page<TrainingSession> findAllByPlanId(Long planId, Pageable pageable);
 
-    @EntityGraph(attributePaths = { "exerciseExecutions", "exerciseExecutions.exercise", "plan" })
+    @EntityGraph(attributePaths = {
+        "plan",
+        "days",
+        "exerciseExecutions",
+        "exerciseExecutions.exercise"
+    })
     Optional<TrainingSession> findWithExecutionsById(Long id);
 }
