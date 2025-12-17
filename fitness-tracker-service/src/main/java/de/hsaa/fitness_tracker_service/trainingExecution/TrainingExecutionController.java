@@ -54,6 +54,9 @@ public class TrainingExecutionController {
         List<ExecutedExerciseResponse> executedExercises
     ) {}
 
+    // ✅ NEU: Dashboard Streak Response
+    public record StreakResponse(int streakDays) {}
+
     private static TrainingExecutionResponse toDto(TrainingExecution te) {
         List<ExecutedExerciseResponse> execs = List.of();
         if (te.getExecutedExercises() != null) {
@@ -113,6 +116,21 @@ public class TrainingExecutionController {
             body.done(),
             body.notes()
         ));
+    }
+
+    
+    @GetMapping
+    public List<TrainingExecutionResponse> listBySession(@RequestParam Long sessionId) {
+        return service.listBySession(sessionId).stream()
+            .map(TrainingExecutionController::toDto)
+            .toList();
+    }
+
+    // NEU: Streak fürs Dashboard (nur COMPLETED)
+    @GetMapping("/stats/streak")
+    public StreakResponse streak() {
+        int days = service.calculateCompletedStreakDays();
+        return new StreakResponse(days);
     }
 
     @PostMapping("/{id}/complete")

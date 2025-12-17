@@ -1,5 +1,6 @@
 package de.hsaa.fitness_tracker_service.trainingExecution;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -23,4 +24,9 @@ public interface TrainingExecutionRepository extends JpaRepository<TrainingExecu
 
     @Query("select te.session.id, count(te) from TrainingExecution te where te.session.id in :ids group by te.session.id")
     List<Object[]> countBySessionIds(@Param("ids") List<Long> ids);
+
+    //NEU: nur COMPLETED, newest first (für Streak)
+    @Query(" select te from TrainingExecution te where te.status = de.hsaa.fitness_tracker_service.trainingExecution.TrainingExecution.Status.COMPLETED and te.completedAt is not null order by te.completedAt desc ")
+    List<TrainingExecution> findRecentCompleted(Pageable pageable);
 }
+

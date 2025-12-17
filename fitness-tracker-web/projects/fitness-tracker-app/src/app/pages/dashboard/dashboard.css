@@ -1,14 +1,10 @@
 :host {
-  display: flex; /* zentriert den Dashboard-Wrapper horizontal */
-  justify-content: center;  /* Abstand rund ums Dashboard */
+  display: flex;
+  justify-content: center;
   padding: 4.5rem 1.5rem 3.5rem;
   width: 100%;
-  box-sizing: border-box; /* Padding wird in Gesamtbreite einbezogen */
+  box-sizing: border-box;
 }
-
-/* =========================================================
-   MAIN WRAPPER
-   ========================================================= */
 
 .dashboard-wrapper {
   background: var(--panel);
@@ -16,34 +12,29 @@
   border-radius: 1.4rem;
   padding: 1.8rem 2rem 2rem;
   box-shadow: 0 18px 45px rgba(0, 0, 0, 0.5);
-  width: min(1150px, 100%); 
+  width: min(1350px, 100%);
   max-width: 100%;
-  min-height: calc(100vh - 8rem); /* mind. volle Höhe abzüglich Header-Padding */
+  min-height: calc(100vh - 8rem);
   box-sizing: border-box;
   transition: background 0.3s ease, color 0.3s ease;
 }
 
-/* Darkmode */
 :host-context(.dark-mode) .dashboard-wrapper {
-  background: rgba(5, 5, 5, 0.88); /* dunkles Glas */
+  background: rgba(5, 5, 5, 0.88);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.03);
 }
 
-/* Lightmode */
 :host-context(.light-mode) .dashboard-wrapper {
-  background: rgba(255, 255, 255, 0.9); /* helles Glas */
+  background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(15, 23, 42, 0.05);
   color: #0f172a;
 }
 
-/* =========================================================
-   HEADER
-   ========================================================= */
-
+/* HEADER */
 .header-row {
-  display: flex; /* Header-Layout: links Titel, rechts Aktionen */
+  display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 1.5rem;
@@ -51,7 +42,7 @@
 }
 
 .eyebrow {
-  text-transform: uppercase; /* kleine Kategorie-Beschriftung */
+  text-transform: uppercase;
   font-size: 0.7rem;
   letter-spacing: 0.14em;
   opacity: 0.7;
@@ -72,7 +63,7 @@ h1 {
 .header-right {
   display: flex;
   align-items: center;
-  gap: 1rem; /* Abstand zwischen Datum / Buttons */
+  gap: 1rem;
 }
 
 .today-pill {
@@ -85,24 +76,15 @@ h1 {
   gap: 0.1rem;
 }
 
-.today-pill span {
-  opacity: 0.7;
-}
+.today-pill span { opacity: 0.7; }
+.today-pill strong { font-size: 0.85rem; }
 
-.today-pill strong {
-  font-size: 0.85rem;
-}
-
-/* Lightmode Datum */
 :host-context(.light-mode) .today-pill {
   background: rgba(15, 23, 42, 0.04);
   border: 1px solid rgba(148, 163, 184, 0.35);
 }
 
-/* =========================================================
-   BUTTONS
-   ========================================================= */
-
+/* BUTTONS */
 .actions {
   display: flex;
   gap: 0.5rem;
@@ -127,11 +109,6 @@ h1 {
   font-weight: 600;
 }
 
-.mini-btn.ghost {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-}
-
 .mini-btn.tiny {
   padding: 0.25rem 0.6rem;
   font-size: 0.75rem;
@@ -143,28 +120,12 @@ h1 {
   background: rgba(255, 255, 255, 0.08);
 }
 
-.mini-btn.primary:hover {
-  background: #16a34a;
-}
-
-/* Lightmode Buttons */
+.mini-btn.primary:hover { background: #16a34a; }
 
 :host-context(.light-mode) .mini-btn.primary {
   background: #22c55e;
   color: #041007;
 }
-
-:host-context(.light-mode) .mini-btn.ghost {
-  background: rgba(255, 255, 255, 0.9);
-  border-color: rgba(148, 163, 184, 0.5);
-  color: #0f172a;
-}
-
-:host-context(.light-mode) .mini-btn.ghost:hover {
-  background: #ffffff;
-}
-
-/* Link-Button */
 
 .link-btn {
   border: none;
@@ -176,16 +137,11 @@ h1 {
   text-underline-offset: 2px;
 }
 
-:host-context(.light-mode) .link-btn {
-  color: #0f172a;
-}
+:host-context(.light-mode) .link-btn { color: #0f172a; }
 
-/* =========================================================
-   STATS
-   ========================================================= */
-
+/* STATS */
 .stats-row {
-  display: grid; /* flexible Statistik-Kacheln */
+  display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 0.9rem;
   margin-bottom: 1.7rem;
@@ -194,51 +150,22 @@ h1 {
 .stat-card {
   padding: 0.75rem 1rem;
   border-radius: 0.9rem;
-  background: radial-gradient(
-    circle at top left,
-    rgba(34, 197, 94, 0.15),
-    rgba(15, 23, 42, 0.9)
-  ); /* dunkles Panel mit Grünverlauf */
+  background: radial-gradient(circle at top left, rgba(34, 197, 94, 0.15), rgba(15, 23, 42, 0.9));
   border: 1px solid rgba(148, 163, 184, 0.35);
 }
 
-.stat-label {
-  font-size: 0.75rem;
-  opacity: 0.7;
-  margin-bottom: 0.15rem;
-}
-
-.stat-value {
-  font-size: 1.2rem;
-  font-weight: 600;
-}
-
-.stat-sub {
-  font-size: 0.7rem;
-  opacity: 0.7;
-  margin-top: 0.1rem;
-}
-
-/* Lightmode Stats */
+.stat-label { font-size: 0.75rem; opacity: 0.7; margin-bottom: 0.15rem; }
+.stat-value { font-size: 1.2rem; font-weight: 600; }
+.stat-sub { font-size: 0.7rem; opacity: 0.7; margin-top: 0.1rem; }
 
 :host-context(.light-mode) .stat-card {
-  background: radial-gradient(
-    circle at top left,
-    rgba(34, 197, 94, 0.15),
-    rgba(248, 250, 252, 0.98)
-  );
+  background: radial-gradient(circle at top left, rgba(34, 197, 94, 0.15), rgba(248, 250, 252, 0.98));
   border-color: rgba(148, 163, 184, 0.6);
 }
 
-:host-context(.light-mode) .stat-label {
-  color: #475569;
-  opacity: 1;
-}
+:host-context(.light-mode) .stat-label { color: #475569; opacity: 1; }
 
-/* =========================================================
-   PANELS & LAYOUT
-   ========================================================= */
-
+/* PANELS */
 .grid {
   display: flex;
   flex-direction: column;
@@ -253,9 +180,7 @@ h1 {
   border: 1px solid rgba(148, 163, 184, 0.25);
 }
 
-.panel.wide {
-  width: 100%;
-}
+.panel.wide { width: 100%; }
 
 .panel-header {
   display: flex;
@@ -265,25 +190,15 @@ h1 {
   margin-bottom: 0.75rem;
 }
 
-.panel h2 {
-  font-size: 1.1rem;
-  margin: 0;
-}
-
-.panel-sub {
-  font-size: 0.85rem;
-  opacity: 0.8;
-  margin: 0 0 0.7rem;
-}
+.panel h2 { font-size: 1.1rem; margin: 0; }
+.panel-sub { font-size: 0.85rem; opacity: 0.8; margin: 0 0 0.7rem; }
 
 .panel-chip {
   font-size: 0.7rem;
   background: rgba(148, 163, 184, 0.18);
   border-radius: 999px;
-  padding: 0.2rem 0.55rem; /* kleine Info-Badge */
+  padding: 0.2rem 0.55rem;
 }
-
-/* Lightmode Panels */
 
 :host-context(.light-mode) .panel {
   background: rgba(248, 250, 252, 0.96);
@@ -291,24 +206,243 @@ h1 {
 }
 
 /* =========================================================
-   TRAININGSPLÄNE
+   TRAININGSKALENDER
    ========================================================= */
 
+.calendar-panel { margin-bottom: 1.2rem; }
+
+/* Planfarben */
+.plan-color-0 { --plan-accent: #22c55e; }
+.plan-color-1 { --plan-accent: #38bdf8; }
+.plan-color-2 { --plan-accent: #a78bfa; }
+.plan-color-3 { --plan-accent: #fb7185; }
+.plan-color-4 { --plan-accent: #f59e0b; }
+.plan-color-5 { --plan-accent: #34d399; }
+.plan-color-6 { --plan-accent: #60a5fa; }
+.plan-color-7 { --plan-accent: #f472b6; }
+
+.plan-tabs {
+  display: flex;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+  margin-bottom: 0.9rem;
+}
+
+/* Tabs: Outline + Text, aktiv = gefüllt */
+.plan-tab {
+  border-radius: 999px;
+  padding: 0.65rem 1.2rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+
+  border: 2px solid color-mix(in srgb, var(--plan-accent) 70%, rgba(148, 163, 184, 0.35));
+  background: transparent;
+  color: color-mix(in srgb, var(--plan-accent) 85%, #ffffff);
+
+  transition: transform 0.12s ease, box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.plan-tab:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--plan-accent) 8%, rgba(255, 255, 255, 0.04));
+  border-color: color-mix(in srgb, var(--plan-accent) 85%, rgba(148, 163, 184, 0.2));
+}
+
+.plan-tab.active {
+  background: var(--plan-accent);
+  border-color: var(--plan-accent);
+  color: #041007;
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.35);
+}
+
+:host-context(.light-mode) .plan-tab {
+  color: color-mix(in srgb, var(--plan-accent) 75%, #0f172a);
+  background: transparent;
+  border-color: color-mix(in srgb, var(--plan-accent) 70%, rgba(148, 163, 184, 0.45));
+}
+
+:host-context(.light-mode) .plan-tab:hover {
+  background: color-mix(in srgb, var(--plan-accent) 14%, #ffffff);
+  border-color: color-mix(in srgb, var(--plan-accent) 82%, rgba(148, 163, 184, 0.35));
+}
+
+:host-context(.light-mode) .plan-tab.active {
+  background: var(--plan-accent);
+  border-color: var(--plan-accent);
+  color: #041007;
+}
+
+.days-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.85rem;
+}
+
+@media (max-width: 1024px) {
+  .days-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+}
+@media (max-width: 700px) {
+  .days-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+}
+@media (max-width: 520px) {
+  .days-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+}
+
+.day-card {
+  border-radius: 0.95rem;
+  border: 2px solid rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.92);
+  padding: 0.85rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-height: 165px;
+}
+
+:host-context(.light-mode) .day-card {
+  background: rgba(248, 250, 252, 0.98);
+  border-color: rgba(148, 163, 184, 0.55);
+}
+
+.day-card.has-session {
+  border-color: rgba(34, 197, 94, 0.55);
+}
+
+/* HEUTE-Markierung */
+.day-card.today {
+  border-color: rgba(34, 197, 94, 0.95);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.16);
+}
+
+:host-context(.light-mode) .day-card.today {
+  border-color: rgba(34, 197, 94, 0.95);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
+}
+
+.day-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.day-label { font-weight: 650; font-size: 0.92rem; }
+
+/* HEUTE Badge */
+.today-badge {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 197, 94, 0.75);
+  background: rgba(34, 197, 94, 0.18);
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.day-count {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  background: rgba(148, 163, 184, 0.18);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.day-sessions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.session-chip {
+  position: relative;
+  border-radius: 0.85rem;
+  border: 2px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.96);
+  padding: 0.65rem 0.75rem 0.7rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  overflow: hidden;
+}
+
+.session-chip::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background: var(--plan-accent);
+  opacity: 0.9;
+}
+
+:host-context(.light-mode) .session-chip {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: rgba(148, 163, 184, 0.6);
+}
+
+.session-chip.plan-color-0,
+.session-chip.plan-color-1,
+.session-chip.plan-color-2,
+.session-chip.plan-color-3,
+.session-chip.plan-color-4,
+.session-chip.plan-color-5,
+.session-chip.plan-color-6,
+.session-chip.plan-color-7 {
+  border-color: color-mix(in srgb, var(--plan-accent) 78%, rgba(148, 163, 184, 0.35));
+}
+
+.chip-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  padding-left: 0.4rem;
+}
+
+.chip-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.15;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.chip-meta {
+  font-size: 0.75rem;
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.session-chip .mini-btn { width: 100%; }
+
+.empty { margin-top: 0.25rem; opacity: 0.65; }
+
+/* TRAININGSPLÄNE */
 .plans-row {
   display: flex;
   gap: 0.8rem;
-  overflow-x: auto; /* horizontales Scrolling */
+  overflow-x: auto;
   padding-bottom: 0.2rem;
 }
 
-.plans-row::-webkit-scrollbar {
-  height: 6px;
-}
-
-.plans-row::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.6);
-  border-radius: 999px;
-}
+.plans-row::-webkit-scrollbar { height: 6px; }
+.plans-row::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.6); border-radius: 999px; }
 
 .plan-card {
   flex: 0 0 260px;
@@ -319,8 +453,7 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  transition: transform 0.15s ease, box-shadow 0.15s ease,
-    border-color 0.15s ease; /* Hover-Feedback */
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .plan-card:hover {
@@ -336,10 +469,7 @@ h1 {
   gap: 0.5rem;
 }
 
-.plan-title {
-  font-size: 0.98rem;
-  margin: 0;
-}
+.plan-title { font-size: 0.98rem; margin: 0; }
 
 .plan-sessions {
   font-size: 0.75rem;
@@ -348,19 +478,9 @@ h1 {
   padding: 0.15rem 0.6rem;
 }
 
-.plan-description {
-  font-size: 0.8rem;
-  opacity: 0.85;
-  margin: 0;
-}
+.plan-description { font-size: 0.8rem; opacity: 0.85; margin: 0; }
 
-.plan-footer {
-  margin-top: 0.45rem;
-  display: flex;
-  justify-content: flex-end;
-}
-
-/* Lightmode Pläne */
+.plan-footer { margin-top: 0.45rem; display: flex; justify-content: flex-end; }
 
 :host-context(.light-mode) .plan-card {
   background: rgba(248, 250, 252, 0.98);
@@ -372,10 +492,7 @@ h1 {
   color: #166534;
 }
 
-/* =========================================================
-   SESSIONS
-   ========================================================= */
-
+/* SESSIONS */
 .sessions-row {
   display: flex;
   gap: 0.8rem;
@@ -383,14 +500,8 @@ h1 {
   padding-bottom: 0.2rem;
 }
 
-.sessions-row::-webkit-scrollbar {
-  height: 6px;
-}
-
-.sessions-row::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.6);
-  border-radius: 999px;
-}
+.sessions-row::-webkit-scrollbar { height: 6px; }
+.sessions-row::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.6); border-radius: 999px; }
 
 .session-card {
   flex: 0 0 260px;
@@ -401,8 +512,7 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  transition: transform 0.15s ease, box-shadow 0.15s ease,
-    border-color 0.15s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .session-card:hover {
@@ -430,38 +540,17 @@ h1 {
   color: #166534;
 }
 
-.session-plan {
-  opacity: 0.8;
-}
-
-.session-title {
-  font-size: 1rem;
-  margin: 0.15rem 0 0;
-}
-
-.session-meta {
-  margin: 0;
-  font-size: 0.8rem;
-  opacity: 0.75;
-}
-
-.session-footer {
-  margin-top: 0.4rem;
-  display: flex;
-  justify-content: flex-end;
-}
-
-/* Lightmode Sessions */
+.session-plan { opacity: 0.8; }
+.session-title { font-size: 1rem; margin: 0.15rem 0 0; }
+.session-meta { margin: 0; font-size: 0.8rem; opacity: 0.75; }
+.session-footer { margin-top: 0.4rem; display: flex; justify-content: flex-end; }
 
 :host-context(.light-mode) .session-card {
   background: rgba(248, 250, 252, 0.98);
   border-color: rgba(148, 163, 184, 0.5);
 }
 
-/* =========================================================
-   LIST / LETZTE ÜBUNGEN
-   ========================================================= */
-
+/* LIST */
 .list {
   list-style: none;
   padding: 0;
@@ -479,11 +568,7 @@ h1 {
   padding: 0.45rem 0.1rem;
 }
 
-.list-main {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-}
+.list-main { display: flex; align-items: center; gap: 0.45rem; }
 
 .dot {
   width: 8px;
@@ -492,34 +577,15 @@ h1 {
   background: #22c55e;
 }
 
-.list-title {
-  font-size: 0.9rem;
-}
+.list-title { font-size: 0.9rem; }
+.list-meta { font-size: 0.75rem; opacity: 0.75; }
 
-.list-meta {
-  font-size: 0.75rem;
-  opacity: 0.75;
-}
+.muted { opacity: 0.7; }
+.small { font-size: 0.8rem; }
 
-/* Kleine Helfer */
-
-.muted {
-  opacity: 0.7;
-}
-
-.small {
-  font-size: 0.8rem;
-}
-
-/* =========================================================
-   RESPONSIVE
-   ========================================================= */
-
+/* RESPONSIVE */
 @media (max-width: 1024px) {
-  :host {
-    padding: 4rem 1rem 3rem; /* kompakter */
-  }
-
+  :host { padding: 4rem 1rem 3rem; }
   .dashboard-wrapper {
     width: 100%;
     max-width: 100%;
@@ -529,20 +595,12 @@ h1 {
 }
 
 @media (max-width: 860px) {
-  .header-row {
-    flex-direction: column; /* Header stackt */
-    align-items: flex-start;
-  }
-
-  .header-right {
-    align-items: flex-start;
-  }
+  .header-row { flex-direction: column; align-items: flex-start; }
+  .header-right { align-items: flex-start; }
 }
 
 @media (max-width: 600px) {
-  :host {
-    padding: 3.5rem 0.75rem 2.75rem;
-  }
+  :host { padding: 3.5rem 0.75rem 2.75rem; }
 
   .dashboard-wrapper {
     width: 100%;
@@ -553,13 +611,8 @@ h1 {
     overflow-x: hidden;
   }
 
-  h1 {
-    font-size: 1.5rem;
-  }
-
-  .stats-row {
-    grid-template-columns: 1fr; /* Stats untereinander */
-  }
+  h1 { font-size: 1.5rem; }
+  .stats-row { grid-template-columns: 1fr; }
 
   .actions {
     width: 100%;
@@ -569,12 +622,17 @@ h1 {
 
   .plans-row,
   .sessions-row {
-    scroll-snap-type: x mandatory; /* Snap-Scrolling */
+    scroll-snap-type: x mandatory;
   }
 
   .plan-card,
   .session-card {
     scroll-snap-align: start;
-    flex: 0 0 85%;/* größere Karten auf Mobile */
-  } 
+    flex: 0 0 85%;
+  }
 }
+
+/* Hard-Override falls irgendwo nochmal background gesetzt wird */
+.plan-tab { background: transparent !important; }
+:host-context(.light-mode) .plan-tab { background: transparent !important; }
+.plan-tab.active { background: var(--plan-accent) !important; }

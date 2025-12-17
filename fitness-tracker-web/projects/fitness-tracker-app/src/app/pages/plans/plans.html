@@ -117,16 +117,12 @@
           <li *ngFor="let session of selectedPlan.sessions; trackBy: trackBySession">
             <strong>{{ session.title || session.name }}</strong>
 
-            <!-- Meta-Infos zur Session -->
+            <!-- Meta-Infos zur Session: Tage + Übungen + Durchführungen -->
             <div class="session-meta">
               <span>
-                Geplantes Datum:
-                {{
-                  session.plannedDate || session.scheduledDate
-                    ? ((session.plannedDate || session.scheduledDate) | date : 'dd.MM.yyyy')
-                    : 'Noch kein Datum'
-                }}
+                Tage: {{ formatDays(session.days) }}
               </span>
+
               <span>
                 Übungen:
                 {{
@@ -136,10 +132,13 @@
                     ?? 0
                 }}
               </span>
-              <span>Status: {{ sessionStatusLabel(session) }}</span>
+
+              <span>
+                Durchführungen: {{ session.performedCount ?? 0 }}
+              </span>
             </div>
 
-            <!-- Liste der ausgeführten Übungen -->
+            <!-- Liste der Übungen (aus ExerciseExecution) -->
             <ul class="exercise-list" *ngIf="session.exerciseExecutions?.length">
               <li *ngFor="let exec of session.exerciseExecutions">
                 {{ exec.orderIndex }}. {{ exec.exercise.name || 'Unbenannte Übung' }}

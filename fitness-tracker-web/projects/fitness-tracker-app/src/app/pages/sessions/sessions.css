@@ -16,7 +16,6 @@
   display: flex;
   flex-direction: column;
   gap: 2rem;  /* Abstand zwischen den Sektionen */
-
 }
 
 :host-context(.light-mode) .sessions-page {
@@ -68,7 +67,6 @@
 .top-grid > .session-card,
 .top-grid > .exercise-card {
   height: 100%; /* Karte füllt die jeweilige Grid-Zeile */
-
 }
 
 @media (max-width: 900px) {
@@ -142,55 +140,98 @@
   border: 1px solid rgba(15, 23, 42, 0.12);
 }
 
-/* Date Input + Icon */
+/* --- Tage Buttons (1-30) --- */
 
-.date-field {
-  position: relative;
+.days-toolbar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  margin-top: -0.25rem;
 }
 
-.date-field input[type='date'] {
-  width: 100%;
-  padding-right: 2.4rem;
-}
-
-.date-field input[type='date']::-webkit-calendar-picker-indicator {
-  opacity: 0; /* Standard-Icon unsichtbar machen */
-}
-
-.date-icon {
-  position: absolute;
-  right: 0.7rem; /* Icon über Input rechts */
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.days-clear {
+  font-size: 0.78rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 0.6rem;
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.35);
   cursor: pointer;
-  pointer-events: auto;
 }
 
-.date-icon-svg {
-  width: 18px;
-  height: 18px;
+.days-clear:hover {
+  background: rgba(148, 163, 184, 0.18);
 }
 
-:host-context(.dark-mode) .date-icon {
-  color: #ffffff;
+.days-grid {
+  margin-top: 0.3rem;
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 0.45rem;
 }
 
-:host-context(.light-mode) .date-icon {
+@media (max-width: 900px) {
+  .days-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .days-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.days-grid.disabled {
+  opacity: 0.85;
+}
+
+.day-btn {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.96);
+  color: inherit;
+  border-radius: 0.65rem;
+  padding: 0.45rem 0;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.day-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(34, 197, 94, 0.7);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.day-btn.selected {
+  background: rgba(34, 197, 94, 0.22);
+  border-color: rgba(34, 197, 94, 0.9);
+}
+
+.day-btn.blocked {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-style: dashed;
+}
+
+.day-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+:host-context(.light-mode) .day-btn {
+  background: #ffffff;
+  border-color: rgba(148, 163, 184, 0.6);
   color: #0f172a;
 }
 
-:host-context(.dark-mode) .sessions-page input[type='date'] {
-  color-scheme: dark;
-  background: rgba(15, 23, 42, 0.9);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+:host-context(.light-mode) .day-btn.selected {
+  background: #dcfce7;
+  border-color: #22c55e;
 }
 
-:host-context(.light-mode) .sessions-page input[type='date'] {
-  color-scheme: light;
+:host-context(.light-mode) .day-btn.blocked {
+  opacity: 0.5;
 }
 
 /* Übungsauswahl oben rechts */
@@ -358,14 +399,22 @@
   border-color: rgba(148, 163, 184, 0.6);
 }
 
+/* FIX (nur Übersicht): wichtig für flex + overflow */
+.sessions-overview-card {
+  min-height: 0; /* erlaubt dem inneren Scrollcontainer korrekt zu schrumpfen/wachsen */
+}
+
 /* Scrollbare Liste */
 .sessions-list {
   border-radius: 0.7rem;
   border: 1px solid rgba(148, 163, 184, 0.35);
-  max-height: 260px;
-  overflow-y: auto;
-  margin-top: 0.7rem;
 
+  /*  FIX: statt fixer max-height -> wächst mit der äußeren Box */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+
+  margin-top: 0.7rem;
   padding: 0.6rem 0.55rem;
   display: flex;
   flex-direction: column;
@@ -488,60 +537,146 @@ button.btn-danger:hover {
   margin-top: 0.5rem;
 }
 
-.sessions-detail-exercises {
-  min-height: 60px; /* Bereich sichtbar auch ohne Übungen */
-  padding: 0.5rem 0.6rem;
-  border-radius: 0.6rem;
-  border: 1px dashed rgba(148, 163, 184, 0.6);
-  font-size: 0.82rem;
-  opacity: 0.95;
+/* ---------------------------
+   UX: Exercise Execution Config
+--------------------------- */
+
+.exec-config-card {
+  margin-top: 0.6rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  background: rgba(15, 23, 42, 0.75);
+  padding: 0.85rem 0.9rem;
 }
 
-.sessions-detail-exercises-list {
+:host-context(.light-mode) .exec-config-card {
+  background: rgba(248, 250, 252, 0.92);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+}
+
+.exec-config-header {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
 }
 
-.exercise-chip {
+.exec-config-title {
+  font-size: 0.92rem;
+  font-weight: 650;
+  margin: 0;
+}
+
+.exec-config-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.exec-config-row {
+  border-radius: 0.8rem;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.9);
+  padding: 0.7rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+:host-context(.light-mode) .exec-config-row {
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+.exec-name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.exec-name-text {
+  font-weight: 650;
+  font-size: 0.92rem;
+}
+
+/* FIX: X mittig */
+.exec-remove {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.25rem 0.6rem;
+  justify-content: center;
+
+  width: 28px;
+  height: 28px;
+  padding: 0;
+
   border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.7);
-  background: rgba(15, 23, 42, 0.9);
-  font-size: 0.8rem;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(148, 163, 184, 0.12);
+
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.12s ease;
-}
 
-.exercise-chip:hover {
-  background: rgba(220, 38, 38, 0.12);
-  transform: translateY(-1px);
-}
-
-.exercise-chip-remove {
+  font-size: 1.05rem;
   font-weight: 700;
-  font-size: 0.9rem;
+  line-height: 1;
 }
 
-:host-context(.light-mode) .exercise-chip {
-  background: rgba(248, 250, 252, 0.96);
+.exec-remove:hover {
+  background: rgba(220, 38, 38, 0.12);
+  border-color: rgba(220, 38, 38, 0.55);
 }
 
-/* FIX: Lightmode Chips wie Darkmode */
-
-:host-context(.light-mode) .sessions-detail-exercises-list .exercise-chip {
-  background: #22c55e !important;
-  border-color: #16a34a !important;
-  color: #ffffff !important;
+.exec-fields {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55rem;
 }
 
-:host-context(.light-mode) .sessions-detail-exercises-list .exercise-chip:hover {
-  background: #16a34a !important;
-  color: #ffffff !important;
-  transform: translateY(-1px);
+@media (max-width: 520px) {
+  .exec-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.exec-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.mini-label {
+  font-size: 0.72rem;
+  opacity: 0.78;
+}
+
+.exec-field input,
+.exec-notes input {
+  width: 100%;
+  border-radius: 0.6rem;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  padding: 0.45rem 0.55rem;
+  background: rgba(15, 23, 42, 0.96);
+  color: inherit;
+  outline: none;
+  font-size: 0.85rem;
+}
+
+.exec-field input:focus,
+.exec-notes input:focus {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+}
+
+:host-context(.light-mode) .exec-field input,
+:host-context(.light-mode) .exec-notes input {
+  background: #ffffff;
+  border-color: rgba(148, 163, 184, 0.6);
+  color: #0f172a;
+}
+
+.exec-notes {
+  margin-top: 0.05rem;
 }
 
 /* kleine Textklassen */
@@ -567,6 +702,29 @@ button.btn-danger:hover {
   .sessions-page {
     padding: 1.4rem 1.2rem 1.6rem;
     border-radius: 0.9rem;
-    min-height: calc(100vh - 6rem); /* etwas weniger Höhe auf Mobile */
+    min-height: calc(100vh - 6rem);
   }
+}
+
+
+/* ================================
+   FIX: Select Dropdown Optionen (Darkmode)
+   ================================ */
+
+/* geöffnete Optionen */
+.sessions-page select option {
+  color: #0f172a;        /* schwarzer Text */
+  background: #ffffff;  /* weißer Hintergrund */
+}
+
+/* ausgewählte Option */
+.sessions-page select option:checked {
+  background: #e5e7eb;
+  color: #0f172a;
+}
+
+/* Hover */
+.sessions-page select option:hover {
+  background: #e5e7eb;
+  color: #0f172a;
 }

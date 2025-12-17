@@ -1,3 +1,4 @@
+
 package de.hsaa.fitness_tracker_service.trainingExecution;
 
 import de.hsaa.fitness_tracker_service.exercise.Exercise;

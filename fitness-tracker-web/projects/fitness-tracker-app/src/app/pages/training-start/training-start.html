@@ -1,0 +1,243 @@
+<div class="training-shell">
+
+  <div class="training-wrapper-card">
+
+    <!-- Toast -->
+    <div class="toast" *ngIf="toast"
+         [class.success]="toast.type==='success'"
+         [class.error]="toast.type==='error'"
+         [class.info]="toast.type==='info'">
+      {{ toast.text }}
+    </div>
+
+    <ng-container *ngIf="state !== 'loading'; else loadingTpl">
+
+      <!-- Header -->
+      <header class="page-header" *ngIf="session; else headerFallback">
+        <div class="header-left">
+          <p class="eyebrow">Training</p>
+          <h1 class="title">{{ session.name }}</h1>
+
+          <p class="subtitle">
+            Plan: <strong>{{ session.planName || '—' }}</strong>
+            <span class="sep">•</span>
+            {{ session.days?.length ? ('Tage: ' + session.days.join(', ')) : 'Keine Tage zugeordnet' }}
+            <span class="sep">•</span>
+            Durchgeführt: <strong>{{ session.performedCount }}</strong>x
+          </p>
+        </div>
+
+        <div class="header-right">
+          <div class="progress">
+            <div class="progress-top">
+              <span class="muted">Fortschritt</span>
+              <strong>{{ doneCount }}/{{ totalCount }}</strong>
+              <span class="muted">({{ percent }}%)</span>
+            </div>
+
+            <div class="progress-bar" aria-hidden="true">
+              <div class="progress-fill" [style.width.%]="percent"></div>
+            </div>
+          </div>
+
+          <button class="btn ghost" type="button" routerLink="/dashboard">
+            Zurück
+          </button>
+        </div>
+      </header>
+
+      <ng-template #headerFallback>
+        <header class="page-header">
+          <div class="header-left">
+            <p class="eyebrow">Training</p>
+            <h1 class="title">Training</h1>
+            <p class="subtitle muted">Session wird geladen…</p>
+          </div>
+
+          <div class="header-right">
+            <button class="btn ghost" type="button" routerLink="/dashboard">Zurück</button>
+          </div>
+        </header>
+      </ng-template>
+
+      <!-- Error -->
+      <section class="card error" *ngIf="state === 'error'">
+        <h2 class="card-title">Fehler</h2>
+        <p class="muted">{{ errorMessage }}</p>
+        <div class="card-actions">
+          <button class="btn primary" type="button" routerLink="/sessions">Zur Sessions-Übersicht</button>
+        </div>
+      </section>
+
+      <!-- Hero / Controls -->
+      <section class="card hero" *ngIf="state === 'ready' && session">
+        <div class="hero-main">
+          <div class="hero-badge">
+            <span class="dot" aria-hidden="true"></span>
+            <span *ngIf="!executionStatus">Nicht gestartet</span>
+            <span *ngIf="executionStatus==='IN_PROGRESS'">Läuft</span>
+            <span *ngIf="executionStatus==='COMPLETED'">Abgeschlossen</span>
+          </div>
+
+          <div class="hero-title">Heute wird geliefert 💥</div>
+          <div class="hero-sub">
+            Trag deine tatsächlichen Werte ein, speichere zwischendurch und schließe am Ende ab.
+          </div>
+
+          <div class="meta-row">
+            <div class="meta-chip" *ngIf="startedAt">
+              <span class="muted">Start</span>
+              <strong>{{ startedAt | date:'HH:mm' }}</strong>
+            </div>
+
+            <div class="meta-chip" *ngIf="completedAt">
+              <span class="muted">Ende</span>
+              <strong>{{ completedAt | date:'HH:mm' }}</strong>
+            </div>
+
+            <div class="meta-chip" *ngIf="executionId">
+              <span class="muted">Run</span>
+              <strong>#{{ executionId }}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="hero-actions">
+          <button class="btn xl primary" type="button"
+                  (click)="startTraining()"
+                  [disabled]="starting || isCompleted || isInProgress">
+            {{ isInProgress ? 'Training läuft' : (starting ? 'Starte…' : 'Training starten') }}
+          </button>
+
+          <button class="btn xl" type="button"
+                  (click)="saveProgress()"
+                  [disabled]="saving || !isInProgress || isCompleted">
+            {{ saving ? 'Speichere…' : 'Zwischenspeichern' }}
+          </button>
+
+          <button class="btn xl danger" type="button"
+                  (click)="cancelTraining()"
+                  [disabled]="isCompleted">
+            Abbrechen / Löschen
+          </button>
+        </div>
+      </section>
+
+      <!-- Exercises -->
+      <section class="card" *ngIf="state === 'ready' && session">
+        <div class="card-head">
+          <div>
+            <h2 class="card-title">Übungen</h2>
+            <p class="card-sub muted" *ngIf="session.exerciseExecutions.length">
+              Tipp: Markiere „Erledigt“, sobald du die Übung abgeschlossen hast.
+            </p>
+          </div>
+
+          <span class="chip">{{ session.exerciseExecutions.length }} Übungen</span>
+        </div>
+
+        <p class="muted" *ngIf="!session.exerciseExecutions.length">
+          Diese Session hat noch keine Übungen. Bitte zuerst Übungen hinzufügen.
+        </p>
+
+        <div class="exercise-grid" *ngIf="session.exerciseExecutions.length">
+          <article class="exercise-card" *ngFor="let ex of session.exerciseExecutions">
+            <div class="ex-top">
+              <div class="ex-left">
+                <div class="ex-name">{{ ex.exerciseName }}</div>
+                <div class="ex-meta muted">{{ ex.category || 'Kategorie' }} • #{{ ex.orderIndex }}</div>
+              </div>
+
+              <label class="toggle" [class.disabled]="!isInProgress || isCompleted">
+                <input type="checkbox"
+                       [checked]="actual[ex.exerciseId]?.done"
+                       (change)="onToggleDone(ex.exerciseId, $any($event.target).checked)"
+                       [disabled]="!isInProgress || isCompleted">
+                <span>Erledigt</span>
+              </label>
+            </div>
+
+            <div class="planned">
+              <span class="muted">Geplant</span>
+              <strong>{{ ex.plannedSets }} × {{ ex.plannedReps }} × {{ ex.plannedWeightKg }}kg</strong>
+            </div>
+
+            <div class="fields">
+              <div class="field">
+                <label>Sätze</label>
+                <input type="number" min="0"
+                       [disabled]="!isInProgress || isCompleted"
+                       [(ngModel)]="actual[ex.exerciseId].actualSets"
+                       (ngModelChange)="onNumberChange(ex.exerciseId)"
+                       placeholder="0">
+              </div>
+
+              <div class="field">
+                <label>Wdh.</label>
+                <input type="number" min="0"
+                       [disabled]="!isInProgress || isCompleted"
+                       [(ngModel)]="actual[ex.exerciseId].actualReps"
+                       (ngModelChange)="onNumberChange(ex.exerciseId)"
+                       placeholder="0">
+              </div>
+
+              <div class="field">
+                <label>kg</label>
+                <input type="number" min="0" step="0.5"
+                       [disabled]="!isInProgress || isCompleted"
+                       [(ngModel)]="actual[ex.exerciseId].actualWeightKg"
+                       (ngModelChange)="onNumberChange(ex.exerciseId)"
+                       placeholder="0">
+              </div>
+            </div>
+
+            <div class="note">
+              <label>Notiz (optional)</label>
+              <textarea rows="2"
+                        [disabled]="!isInProgress || isCompleted"
+                        [(ngModel)]="actual[ex.exerciseId].notes"
+                        (ngModelChange)="onNotesChange(ex.exerciseId)"
+                        placeholder="z.B. schwer / sauber / nächstes Mal +2.5kg…"></textarea>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- Sticky footer -->
+      <footer class="sticky" *ngIf="state === 'ready' && session">
+        <div class="sticky-inner">
+          <div class="sticky-left">
+            <div class="sticky-title">Finish strong.</div>
+            <div class="sticky-sub muted">
+              {{ doneCount }}/{{ totalCount }} erledigt • zuerst speichern, dann abschließen
+            </div>
+          </div>
+
+          <div class="sticky-actions">
+            <button class="btn" type="button"
+                    (click)="saveProgress()"
+                    [disabled]="saving || !isInProgress || isCompleted">
+              {{ saving ? 'Speichere…' : 'Speichern' }}
+            </button>
+
+            <button class="btn primary" type="button"
+                    (click)="finishTraining()"
+                    [disabled]="finishing || !isInProgress || isCompleted">
+              {{ finishing ? 'Schließe ab…' : 'Training abschließen' }}
+            </button>
+          </div>
+        </div>
+      </footer>
+
+    </ng-container>
+
+    <ng-template #loadingTpl>
+      <div class="card">
+        <div class="sk-title"></div>
+        <div class="sk-line"></div>
+        <div class="sk-line short"></div>
+      </div>
+    </ng-template>
+
+  </div>
+</div>

@@ -6,19 +6,16 @@
   <div class="header-row">
     <div>
       <p class="eyebrow">Dashboard</p>
-      <!-- Dynamische Begrüßung, z.B. "Guten Morgen Alex" -->
       <h1>{{ greeting }}</h1>
       <p class="subtitle">Dein Überblick über Sessions, Übungen und Trainingspläne.</p>
     </div>
 
-    <!-- Rechte Seite: Datum + Schnell-Aktionen -->
     <div class="header-right">
       <div class="today-pill">
         <span>Heute</span>
         <strong>{{ today }}</strong>
       </div>
 
-      <!-- Buttons zum schnellen Erstellen -->
       <div class="actions">
         <button class="mini-btn primary" type="button" routerLink="/sessions">
           + Session
@@ -33,9 +30,76 @@
     </div>
   </div>
 
+  <!-- Trainingskalender -->
+  <section class="panel wide calendar-panel">
+    <div class="panel-header">
+      <div>
+        <h2>Trainingskalender (Tag 1–30)</h2>
+        <p class="panel-sub">
+          Wähle einen Trainingsplan aus. Pro Tag siehst du die zugehörige Session – inkl. „Training starten“.
+        </p>
+      </div>
+    </div>
+
+    <p class="panel-sub" *ngIf="!planTabs.length">
+      Du hast noch keine Trainingspläne angelegt. Erstelle zuerst einen Plan, dann erscheint hier automatisch der Kalender.
+    </p>
+
+    <!-- Tabs: bekommen immer ihre Planfarbe -->
+    <div class="plan-tabs" *ngIf="planTabs.length">
+      <button
+        *ngFor="let p of planTabs"
+        type="button"
+        class="plan-tab"
+        [class.active]="p.id === selectedPlanId"
+        [ngClass]="p.colorClass"
+        (click)="selectPlan(p.id)">
+        {{ p.name }}
+      </button>
+    </div>
+
+    <!-- Tage als Kalender-Grid -->
+    <div class="days-grid" *ngIf="planTabs.length">
+      <div
+        class="day-card"
+        *ngFor="let d of selectedPlanDays"
+        [class.has-session]="d.sessions.length"
+        [class.today]="isTodayCalendarDay(d.day)"
+      >
+        <div class="day-top">
+          <div class="day-label">Tag {{ d.day }}</div>
+
+          <!-- HEUTE Badge -->
+          <div class="today-badge" *ngIf="isTodayCalendarDay(d.day)">HEUTE</div>
+
+          <div class="day-count" *ngIf="d.sessions.length">{{ d.sessions.length }}</div>
+        </div>
+
+        <div class="day-sessions" *ngIf="d.sessions.length; else emptyDay">
+          <div class="session-chip" *ngFor="let s of d.sessions" [ngClass]="selectedPlanColorClass">
+            <div class="chip-main">
+              <div class="chip-title">{{ s.name }}</div>
+              <div class="chip-meta muted small">{{ s.planName || '' }}</div>
+            </div>
+
+            <button
+              class="mini-btn primary tiny"
+              type="button"
+              [routerLink]="['/training/start', s.id]">
+              Training
+            </button>
+          </div>
+        </div>
+
+        <ng-template #emptyDay>
+          <div class="empty muted small">—</div>
+        </ng-template>
+      </div>
+    </div>
+  </section>
+
   <!-- STATISTIK-KARTEN -->
   <div class="stats-row">
-    <!-- Jede Karte wird dynamisch aus dem Array "stats" erzeugt -->
     <div class="stat-card" *ngFor="let stat of stats">
       <div class="stat-label">{{ stat.label }}</div>
       <div class="stat-value">{{ stat.value }}</div>
@@ -60,19 +124,15 @@
         </button>
       </div>
 
-      <!-- Pläne anzeigen, wenn welche existieren -->
       <div class="plans-row" *ngIf="plansDashboard.length; else noPlans">
         <article class="plan-card" *ngFor="let p of plansDashboard">
           <header class="plan-header">
             <h3 class="plan-title">{{ p.name }}</h3>
-
-            <!-- Anzahl Sessions pro Plan -->
             <span class="plan-sessions">
               {{ p.sessionCount }} Session{{ p.sessionCount === 1 ? '' : 's' }}
             </span>
           </header>
 
-          <!-- Beschreibung, falls vorhanden -->
           <p class="plan-description" *ngIf="p.description; else noDesc">
             {{ p.description }}
           </p>
@@ -89,7 +149,6 @@
         </article>
       </div>
 
-      <!-- Hinweis, wenn keine Pläne existieren -->
       <ng-template #noPlans>
         <p class="muted small">
           Du hast noch keine Trainingspläne angelegt. Starte mit einem neuen Plan über
@@ -107,12 +166,10 @@
         </button>
       </div>
 
-      <!-- Wenn keine Sessions geplant sind -->
       <p class="panel-sub" *ngIf="!quickSessions.length">
         Aktuell sind keine zukünftigen Sessions geplant. Lege oben eine neue Session an.
       </p>
 
-      <!-- Liste der nächsten Sessions -->
       <div class="sessions-row" *ngIf="quickSessions.length">
         <article class="session-card" *ngFor="let s of quickSessions">
           <div class="session-header">
@@ -136,16 +193,13 @@
     <section class="panel wide">
       <div class="panel-header">
         <h2>Letzte Übungen</h2>
-        <!-- Anzahl der letzten Übungen -->
         <span class="panel-chip">{{ lastExercises.length }} Übungen</span>
       </div>
 
-      <!-- Hinweis, wenn keine Übungen angelegt sind -->
       <p class="panel-sub" *ngIf="!lastExercises.length">
         Noch keine Übungen angelegt. Lege dir einen Übungspool über <strong>+ Übung</strong> an.
       </p>
 
-      <!-- Liste der letzten Übungen -->
       <ul class="list" *ngIf="lastExercises.length">
         <li class="list-item" *ngFor="let ex of lastExercises">
           <div class="list-main">

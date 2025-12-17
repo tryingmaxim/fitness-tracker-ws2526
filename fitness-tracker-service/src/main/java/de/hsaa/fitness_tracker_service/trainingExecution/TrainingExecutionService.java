@@ -6,10 +6,15 @@ import de.hsaa.fitness_tracker_service.execution.ExerciseExecution;
 import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSession;
 import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSessionRepository;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 @Service
 @Transactional
@@ -128,6 +133,38 @@ public class TrainingExecutionService {
         }
 
         repo.delete(te);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TrainingExecution> listBySession(Long sessionId) {
+        return repo.findBySessionId(sessionId);
+    }
+
+    //NEU: Streak (nur COMPLETED)
+    @Transactional(readOnly = true)
+    public int calculateCompletedStreakDays() {
+        List<TrainingExecution> recent = repo.findRecentCompleted(PageRequest.of(0, 365));
+
+        Set<LocalDate> trainedDays = new HashSet<>();
+        for (TrainingExecution te : recent) {
+            if (te.getCompletedAt() == null) continue;
+            trainedDays.add(te.getCompletedAt().toLocalDate());
+        }
+
+        if (trainedDays.isEmpty()) return 0;
+
+        LocalDate today = LocalDate.now();
+
+        // Streak startet bei heute, wenn heute completed vorhanden ist,
+        // sonst startet sie bei gestern.
+        LocalDate cursor = trainedDays.contains(today) ? today : today.minusDays(1);
+
+        int streak = 0;
+        while (trainedDays.contains(cursor)) {
+            streak++;
+            cursor = cursor.minusDays(1);
+        }
+        return streak;
     }
 
     private TrainingSession requireSessionWithPlannedExercises(Long id) {

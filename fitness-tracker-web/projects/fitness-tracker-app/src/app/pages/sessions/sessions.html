@@ -1,12 +1,10 @@
 <div class="sessions-page">
-  <!-- Haupttitel und Untertitel -->
   <h1>Sessions planen</h1>
   <p class="sub">
     Ordne neue Trainingseinheiten einem vorhandenen Plan zu, damit sie im
     Übersicht-Modul erscheinen.
   </p>
 
-  <!-- Fehler- und Info-Meldungen -->
   <div class="alert error" *ngIf="errorMsg">
     {{ errorMsg }}
   </div>
@@ -14,18 +12,15 @@
     {{ infoMsg }}
   </div>
 
-  <!-- Oberes Grid: links Formular für neue Session, rechts Übungsauswahl -->
   <div class="top-grid">
-    <!-- Session-Formular -->
     <div class="session-card">
       <h2 class="card-title">Neue Session anlegen</h2>
       <p class="card-sub">
-        Wähle einen Plan, vergib einen Namen und plane das Datum deiner
+        Wähle einen Plan, vergib einen Namen und wähle die Tage (1–30) für deine
         Trainingseinheit.
       </p>
 
-      <form class="form" (ngSubmit)="add()">
-        <!-- Auswahl des Trainingsplans -->
+      <form class="form" (ngSubmit)="add()" novalidate>
         <label for="planSelect">Trainingsplan</label>
         <select
           id="planSelect"
@@ -42,7 +37,6 @@
           </option>
         </select>
 
-        <!-- Name der neuen Session -->
         <label for="sessionName">Session-Name</label>
         <input
           id="sessionName"
@@ -53,52 +47,52 @@
           required
         />
 
-        <!-- Datum der Session -->
-        <label for="sessionDate">Datum</label>
-        <div class="date-field">
-          <input
-            #sessionDateInput
-            id="sessionDate"
-            [(ngModel)]="form.date"
-            name="date"
-            type="date"
-            [disabled]="creating"
-            required
-          />
-          <!-- Icon zum Öffnen des Datepickers -->
-          <span class="date-icon" aria-hidden="true" (click)="openDatePicker(sessionDateInput)">
-            <svg viewBox="0 0 24 24" class="date-icon-svg" xmlns="http://www.w3.org/2000/svg">
-              <!-- Kalender-Icon -->
-              <rect x="3.5" y="4.5" width="17" height="16" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="1.6"></rect>
-              <line x1="3.5" y1="9" x2="20.5" y2="9" stroke="currentColor" stroke-width="1.5"></line>
-              <line x1="9" y1="3" x2="9" y2="7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></line>
-              <line x1="15" y1="3" x2="15" y2="7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></line>
-              <rect x="9.2" y="11.2" width="2.6" height="2.6" rx="0.6" ry="0.6" fill="currentColor"></rect>
-            </svg>
-          </span>
+        <label>Tage (1–30)</label>
+        <div class="days-toolbar">
+          <button
+            type="button"
+            class="days-clear"
+            (click)="clearDaysCreate()"
+            [disabled]="creating || !form.days.length"
+          >
+            Auswahl löschen
+          </button>
+          <span class="muted small">Ausgewählt: {{ formatDays(form.days) }}</span>
         </div>
 
-        <!-- Button zum Anlegen der Session -->
+        <div class="days-grid" [class.disabled]="creating">
+          <button
+            type="button"
+            class="day-btn"
+            *ngFor="let d of dayOptions"
+            (click)="toggleDayCreate(d)"
+            [class.selected]="isDaySelectedCreate(d)"
+            [class.blocked]="isDayBlockedCreate(d)"
+            [disabled]="creating || isDayBlockedCreate(d)"
+            [attr.title]="isDayBlockedCreate(d) ? 'Dieser Tag ist im Plan schon belegt' : null"
+            [attr.aria-pressed]="isDaySelectedCreate(d)"
+          >
+            {{ d }}
+          </button>
+        </div>
+
         <button type="submit" [disabled]="creating || !plans.length">
           {{ creating ? 'Session wird angelegt...' : 'Session hinzufügen' }}
         </button>
       </form>
     </div>
 
-    <!-- Übungsauswahl für neue Session -->
     <div class="exercise-card">
       <div class="exercise-card-header">
         <div>
           <h2 class="card-title">Übungen für diese Session</h2>
           <p class="card-sub">
-            Wähle hier Übungen aus deinem Übungspool aus. Die Suche filtert automatisch während der Eingabe.
+            Wähle hier Übungen aus deinem Übungspool aus. Danach kannst du Priorität, Sätze, Wdh und Gewicht anpassen.
           </p>
         </div>
-        <!-- Anzahl der ausgewählten Übungen -->
-        <span class="badge">{{ selectedExerciseIds.length }}</span>
+        <span class="badge">{{ selectedExecutions.length }}</span>
       </div>
 
-      <!-- Suche nach Übungen -->
       <input
         type="text"
         placeholder="Übung nach Name filtern..."
@@ -108,7 +102,6 @@
         [disabled]="loadingExercises"
       />
 
-      <!-- Liste gefilterter Übungen -->
       <div class="exercise-list" *ngIf="!loadingExercises && filteredExercises.length">
         <button type="button" class="exercise-item" *ngFor="let ex of filteredExercises" (click)="toggleExercise(ex)">
           <div class="exercise-main">
@@ -124,38 +117,74 @@
         </button>
       </div>
 
-      <!-- Hinweise, wenn keine Übungen gefunden werden oder gerade geladen werden -->
       <p class="muted small" *ngIf="!loadingExercises && !filteredExercises.length">
         Keine Übung gefunden. Passe deinen Suchbegriff an.
       </p>
       <p class="muted small" *ngIf="loadingExercises">
         Übungen werden geladen...
       </p>
+
+      <div class="exec-config-card" *ngIf="selectedExecutions.length">
+        <div class="exec-config-header">
+          <h3 class="exec-config-title">Ausgewählte Übungen</h3>
+          <span class="muted small">Tip: Priorität = Reihenfolge in der Session</span>
+        </div>
+
+        <div class="exec-config-list">
+          <div class="exec-config-row" *ngFor="let d of selectedExecutions">
+            <div class="exec-name">
+              <span class="exec-name-text">{{ getExerciseName(d.exerciseId) }}</span>
+              <button type="button" class="exec-remove" (click)="removeExecutionDraftCreate(d.exerciseId)">×</button>
+            </div>
+
+            <div class="exec-fields">
+              <div class="exec-field">
+                <label class="mini-label">Prio</label>
+                <input type="number" min="1" [(ngModel)]="d.orderIndex" name="c_order_{{d.exerciseId}}" />
+              </div>
+
+              <div class="exec-field">
+                <label class="mini-label">Sätze</label>
+                <input type="number" min="1" [(ngModel)]="d.plannedSets" name="c_sets_{{d.exerciseId}}" />
+              </div>
+
+              <div class="exec-field">
+                <label class="mini-label">Wdh</label>
+                <input type="number" min="1" [(ngModel)]="d.plannedReps" name="c_reps_{{d.exerciseId}}" />
+              </div>
+
+              <div class="exec-field">
+                <label class="mini-label">Kg</label>
+                <input type="number" min="0" step="0.5" [(ngModel)]="d.plannedWeightKg" name="c_kg_{{d.exerciseId}}" />
+              </div>
+            </div>
+
+            <div class="exec-notes">
+              <input type="text" placeholder="Notiz (optional)" [(ngModel)]="d.notes" name="c_notes_{{d.exerciseId}}" />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- Untere Sessions-Übersicht + Detail-Ansicht -->
   <p class="muted small" *ngIf="loadingSessions">Sessions werden geladen...</p>
   <p class="muted small" *ngIf="!loadingSessions && !sessions.length">
     Noch keine Sessions geplant. Erfasse oben deine erste Session.
   </p>
 
-  <!-- Übersicht und Details, wenn Sessions vorhanden sind -->
   <div class="sessions-bottom-grid" *ngIf="!loadingSessions && sessions.length">
-    <!-- Übersicht geplante Sessions -->
     <div class="sessions-overview-card">
       <div class="sessions-list-header">
         <div>
           <h2 class="card-title">Übersicht</h2>
-          <p class="card-sub">Deine geplanten Sessions mit Datum, Plan und hinterlegten Übungen.</p>
+          <p class="card-sub">Deine geplanten Sessions mit Tagen, Plan und hinterlegten Übungen.</p>
         </div>
         <span class="badge">{{ filteredSessionsForOverview.length }}</span>
       </div>
 
-      <!-- Suche innerhalb der Sessions -->
       <input class="sessions-search-input" type="text" placeholder="Session suchen..." [(ngModel)]="sessionSearch" name="sessionSearch" />
 
-      <!-- Liste der Sessions -->
       <div class="sessions-list">
         <button
           type="button"
@@ -166,13 +195,17 @@
         >
           <div class="session-main">
             <span class="session-name">{{ s.name }}</span>
-            <span class="session-meta"><strong>Datum:</strong> <span *ngIf="s.date; else noDate">{{ s.date | date : 'dd.MM.yyyy' }}</span><ng-template #noDate>-</ng-template></span>
+            <span class="session-meta"><strong>Tage:</strong> {{ formatDays(s.days) }}</span>
             <span class="session-meta"><strong>Plan:</strong> {{ getPlanName(s.planId, s.planName) }}</span>
+
             <span class="session-meta"><strong>Übungen:</strong>
-              <ng-container *ngIf="s.exerciseNames?.length; else noEx">{{ joinExerciseNames(s) }}</ng-container>
+              <ng-container *ngIf="getSessionExerciseNames(s).length; else noEx">
+                {{ joinExerciseNames(s) }}
+              </ng-container>
               <ng-template #noEx>Keine Übungen hinterlegt</ng-template>
             </span>
           </div>
+
           <div class="session-actions">
             <button type="button" (click)="selectSession(s)">Details</button>
             <button type="button" class="btn-danger" (click)="deleteSession(s, $event)" [disabled]="deleting && deleteId === s.id">
@@ -183,79 +216,123 @@
       </div>
     </div>
 
-    <!-- Detailansicht der ausgewählten Session -->
     <ng-container *ngIf="selectedSession; else noSelectionBlock">
       <div class="sessions-detail-card">
         <div class="sessions-detail-header">
           <button type="button" class="sessions-detail-back" (click)="clearSelection()">← Zurück zur Übersicht</button>
           <h2 class="card-title">Details: {{ detailForm.name || selectedSession.name }}</h2>
-          <p class="card-sub">Bearbeite Name, Plan und Datum der ausgewählten Session.</p>
+          <p class="card-sub">Bearbeite Name, Plan, Tage und Übungs-Konfiguration (Priorität/Sätze/Wdh/Gewicht).</p>
         </div>
 
-        <!-- Formular zur Bearbeitung der Session -->
-        <form class="sessions-detail-form" (ngSubmit)="updateSelectedSession()">
+        <form class="sessions-detail-form" novalidate>
           <label for="detailName">Name</label>
           <input id="detailName" [(ngModel)]="detailForm.name" name="detailName" [disabled]="updating || detailLoading" required />
 
           <label for="detailPlan">Kategorie / Trainingsplan</label>
-          <select id="detailPlan" [(ngModel)]="detailForm.planId" name="detailPlanId" [disabled]="updating || detailLoading || loadingPlans || !plans.length" required>
+
+          <select
+            id="detailPlan"
+            [(ngModel)]="detailForm.planId"
+            (ngModelChange)="onDetailPlanChange()"
+            name="detailPlanId"
+            [disabled]="updating || detailLoading || loadingPlans || !plans.length"
+            required
+          >
             <option [ngValue]="null" disabled>Bitte Plan wählen</option>
             <option *ngFor="let p of plans" [ngValue]="p.id">{{ p.name }}</option>
           </select>
 
-          <label for="detailDate">Datum</label>
-          <div class="date-field">
-            <input #detailDateInput id="detailDate" type="date" [(ngModel)]="detailForm.date" name="detailDate" [disabled]="updating || detailLoading" required />
-            <span class="date-icon" aria-hidden="true" (click)="openDatePicker(detailDateInput)">
-              <!-- Kalender-Icon wie oben -->
-              <svg viewBox="0 0 24 24" class="date-icon-svg" xmlns="http://www.w3.org/2000/svg">
-                <rect x="3.5" y="4.5" width="17" height="16" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="1.6"></rect>
-                <line x1="3.5" y1="9" x2="20.5" y2="9" stroke="currentColor" stroke-width="1.5"></line>
-                <line x1="9" y1="3" x2="9" y2="7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></line>
-                <line x1="15" y1="3" x2="15" y2="7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></line>
-                <rect x="9.2" y="11.2" width="2.6" height="2.6" rx="0.6" ry="0.6" fill="currentColor"></rect>
-              </svg>
-            </span>
+          <label>Tage (1–30)</label>
+          <div class="days-toolbar">
+            <button type="button" class="days-clear" (click)="clearDaysDetail()" [disabled]="updating || detailLoading || !detailForm.days.length">
+              Auswahl löschen
+            </button>
+            <span class="muted small">Ausgewählt: {{ formatDays(detailForm.days) }}</span>
           </div>
 
-          <!-- Liste der Übungen in dieser Session -->
+          <div class="days-grid" [class.disabled]="updating || detailLoading">
+            <button
+              type="button"
+              class="day-btn"
+              *ngFor="let d of dayOptions"
+              (click)="toggleDayDetail(d)"
+              [class.selected]="isDaySelectedDetail(d)"
+              [class.blocked]="isDayBlockedDetail(d)"
+              [disabled]="updating || detailLoading || isDayBlockedDetail(d)"
+              [attr.title]="isDayBlockedDetail(d) ? 'Dieser Tag ist im Plan schon belegt' : null"
+              [attr.aria-pressed]="isDaySelectedDetail(d)"
+            >
+              {{ d }}
+            </button>
+          </div>
+
           <label>Übungen in dieser Session</label>
-          <div class="sessions-detail-exercises">
-            <ng-container *ngIf="detailSelectedExerciseIds.length; else noExercisesDetail">
-              <div class="sessions-detail-exercises-list">
-                <button type="button" class="exercise-chip" *ngFor="let ex of getDetailExercises()" (click)="removeExerciseFromDetail(ex)">
-                  <span>{{ ex.name }}</span>
-                  <span class="exercise-chip-remove">×</span>
-                </button>
+
+          <div class="exec-config-card" *ngIf="detailExecutions.length">
+            <div class="exec-config-header">
+              <h3 class="exec-config-title">Konfiguration</h3>
+              <span class="muted small">Priorität = Reihenfolge</span>
+            </div>
+
+            <div class="exec-config-list">
+              <div class="exec-config-row" *ngFor="let d of detailExecutions">
+                <div class="exec-name">
+                  <span class="exec-name-text">{{ getExerciseName(d.exerciseId) }}</span>
+                  <button type="button" class="exec-remove" (click)="removeExecutionDraftDetail(d.exerciseId)">×</button>
+                </div>
+
+                <div class="exec-fields">
+                  <div class="exec-field">
+                    <label class="mini-label">Prio</label>
+                    <input type="number" min="1" [(ngModel)]="d.orderIndex" name="d_order_{{d.exerciseId}}" [disabled]="updating || detailLoading" />
+                  </div>
+
+                  <div class="exec-field">
+                    <label class="mini-label">Sätze</label>
+                    <input type="number" min="1" [(ngModel)]="d.plannedSets" name="d_sets_{{d.exerciseId}}" [disabled]="updating || detailLoading" />
+                  </div>
+
+                  <div class="exec-field">
+                    <label class="mini-label">Wdh</label>
+                    <input type="number" min="1" [(ngModel)]="d.plannedReps" name="d_reps_{{d.exerciseId}}" [disabled]="updating || detailLoading" />
+                  </div>
+
+                  <div class="exec-field">
+                    <label class="mini-label">Kg</label>
+                    <input type="number" min="0" step="0.5" [(ngModel)]="d.plannedWeightKg" name="d_kg_{{d.exerciseId}}" [disabled]="updating || detailLoading" />
+                  </div>
+                </div>
+
+                <div class="exec-notes">
+                  <input type="text" placeholder="Notiz (optional)" [(ngModel)]="d.notes" name="d_notes_{{d.exerciseId}}" [disabled]="updating || detailLoading" />
+                </div>
               </div>
-            </ng-container>
-            <ng-template #noExercisesDetail>
-              <span class="muted small">Keine Übungen hinterlegt.</span>
-            </ng-template>
+            </div>
           </div>
 
-          <!-- Hinzufügen weiterer Übungen -->
           <label>Weitere Übung hinzufügen</label>
           <input type="text" [(ngModel)]="detailExerciseSearch" name="detailExerciseSearch" placeholder="Übung nach Name filtern..." [disabled]="detailLoading || loadingExercises" />
+
           <div class="exercise-list" *ngIf="getAvailableDetailExercises().length && !loadingExercises">
             <button type="button" class="exercise-item" *ngFor="let ex of getAvailableDetailExercises()" (click)="addExerciseToDetail(ex)">
               <div class="exercise-main">
                 <span class="exercise-name">{{ ex.name }}</span>
-                <span class="exercise-meta">{{ ex.category || 'Kategorie unbekannt' }}<span *ngIf="ex.muscleGroups">· {{ ex.muscleGroups }}</span></span>
+                <span class="exercise-meta">
+                  {{ ex.category || 'Kategorie unbekannt' }}<span *ngIf="ex.muscleGroups">· {{ ex.muscleGroups }}</span>
+                </span>
               </div>
             </button>
           </div>
 
           <p class="muted small" *ngIf="loadingExercises">Übungen werden geladen...</p>
 
-          <button type="submit" [disabled]="updating || detailLoading">
+          <button type="button" (click)="updateSelectedSession()" [disabled]="updating || detailLoading">
             {{ updating ? 'Änderungen werden gespeichert...' : 'Änderungen speichern' }}
           </button>
         </form>
       </div>
     </ng-container>
 
-    <!-- Platzhalter, wenn keine Session ausgewählt ist -->
     <ng-template #noSelectionBlock>
       <div class="sessions-detail-card">
         <h2 class="card-title">Details</h2>
