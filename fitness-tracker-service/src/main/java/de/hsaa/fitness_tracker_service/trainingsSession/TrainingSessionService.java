@@ -82,7 +82,7 @@ public class TrainingSessionService {
     public TrainingSession update(Long id, Long planId, String name, List<Integer> days) {
         TrainingSession current = get(id);
 
-        if (planId != null && !planId.equals(current.getPlan().getId())) {
+        if (planId != null && current.getPlan() != null && !planId.equals(current.getPlan().getId())) {
             current.setPlan(requirePlan(planId));
         }
 
@@ -112,16 +112,40 @@ public class TrainingSessionService {
         return current;
     }
 
+    /**
+     * ✅ Hard delete: aber Executions bleiben erhalten.
+     * Wir detach-en alle TrainingExecutions, backfill-en Snapshot-Felder und löschen danach die Session.
+     */
     public void delete(Long id) {
-        if (!repo.existsById(id)) {
-            throw new EntityNotFoundException("session not found");
+        TrainingSession s = repo.findById(id)
+            .orElseThrow(() -> new EntityNotFoundException("session not found"));
+
+        String sessionName = s.getName();
+        String planName = (s.getPlan() != null ? s.getPlan().getName() : null);
+
+        // Alle Executions holen, solange sie noch per FK verlinkt sind
+        List<TrainingExecution> executions = trainingExecutionRepo.findBySessionId(id);
+
+        if (executions != null && !executions.isEmpty()) {
+            for (TrainingExecution te : executions) {
+                // Snapshot backfill
+                if (te.getSessionIdSnapshot() == null) te.setSessionIdSnapshot(id);
+
+                if (te.getSessionNameSnapshot() == null || te.getSessionNameSnapshot().isBlank()) {
+                    te.setSessionNameSnapshot(sessionName);
+                }
+
+                if (te.getPlanNameSnapshot() == null || te.getPlanNameSnapshot().isBlank()) {
+                    te.setPlanNameSnapshot(planName);
+                }
+
+                // detach
+                te.setSession(null);
+            }
+            trainingExecutionRepo.saveAll(executions);
         }
 
-        for (TrainingExecution te : trainingExecutionRepo.findBySessionId(id)) {
-            te.setSession(null);
-        }
-
-        repo.deleteById(id);
+        repo.delete(s);
     }
 
     private TrainingPlan requirePlan(Long planId) {

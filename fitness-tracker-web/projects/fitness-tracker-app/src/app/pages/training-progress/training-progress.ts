@@ -3,6 +3,8 @@ import { CommonModule, NgForOf, NgIf } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { HttpClient, HttpClientModule, HttpParams } from '@angular/common/http';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { environment } from '../../../../environment';
 
 interface TrainingSessionListItem {
@@ -42,6 +44,8 @@ type StatusFilter = 'ALL' | 'NEVER' | 'DONE';
 interface ExecutedExerciseDto {
   id: number;
   exerciseId: number;
+  exerciseName?: string | null;
+  exerciseCategory?: string | null;
   plannedSets: number;
   plannedReps: number;
   plannedWeightKg: number;
@@ -55,6 +59,8 @@ interface ExecutedExerciseDto {
 interface TrainingExecutionDto {
   id: number;
   sessionId: number;
+  sessionName?: string | null;
+  planName?: string | null;
   status: 'IN_PROGRESS' | 'COMPLETED';
   startedAt: string;
   completedAt: string | null;
@@ -69,6 +75,8 @@ interface UiSessionProgress {
   days: number[];
   exerciseCount: number;
   performedCount: number;
+
+  isDeleted?: boolean;
 
   lastSavedAt?: Date;
   lastExecutionId?: number;
@@ -96,13 +104,11 @@ export class TrainingProgress implements OnInit {
 
   sessions: UiSessionProgress[] = [];
 
-  // expand / details
   expandedSessionId: number | null = null;
   detailsLoading = false;
   detailsError = '';
   detailCache = new Map<number, TrainingSessionDetailResponse>();
 
-  // executions by session
   executionsLoading = false;
   executionsError = '';
   executionCache = new Map<number, TrainingExecutionDto[]>();
@@ -121,32 +127,98 @@ export class TrainingProgress implements OnInit {
     this.executionsError = '';
     this.expandedSessionId = null;
 
-    this.http.get<any>(`${this.baseUrl}/training-sessions?size=200`).subscribe({
-      next: (res) => {
-        const raw = this.extractCollection(res, 'trainingSessions') as TrainingSessionListItem[];
+    const sessionsReq$ = this.http.get<any>(`${this.baseUrl}/training-sessions?size=200`).pipe(
+      catchError((err) => {
+        console.error(err);
+        return of(null);
+      })
+    );
 
-        this.sessions = (raw ?? []).map((s) => {
+    const executionsReq$ = this.http.get<TrainingExecutionDto[]>(`${this.baseUrl}/training-executions`).pipe(
+      catchError((err) => {
+        console.error(err);
+        return of([] as TrainingExecutionDto[]);
+      })
+    );
+
+    forkJoin([sessionsReq$, executionsReq$]).subscribe({
+      next: ([sessionsRes, executionsRes]) => {
+        const rawSessions = this.extractCollection(sessionsRes, 'trainingSessions') as TrainingSessionListItem[];
+        const allExecutions = Array.isArray(executionsRes) ? executionsRes : [];
+
+        const executionGrouped = this.groupExecutionsBySessionId(allExecutions);
+        this.executionCache = executionGrouped;
+
+        const sessionMap = new Map<number, UiSessionProgress>();
+
+        for (const s of rawSessions ?? []) {
+          if (!s || !Number.isFinite(Number(s.id))) continue;
+
           const days = Array.isArray(s?.days) ? s.days.filter((d) => Number.isFinite(Number(d))) : [];
-          const performedCount = Number.isFinite(Number(s?.performedCount)) ? Number(s.performedCount) : 0;
           const exerciseCount = Number.isFinite(Number(s?.exerciseCount)) ? Number(s.exerciseCount) : 0;
 
-          return {
-            id: s.id,
+          const runs = executionGrouped.get(Number(s.id)) ?? [];
+          const performedCount = runs.length > 0
+            ? runs.length
+            : (Number.isFinite(Number(s?.performedCount)) ? Number(s.performedCount) : 0);
+
+          const ui: UiSessionProgress = {
+            id: Number(s.id),
             name: s?.name ?? 'Unbenannte Session',
             planId: s?.planId ?? null,
             planName: s?.planName ?? '-',
             days: days.map((d) => Number(d)).filter((d) => d >= 1 && d <= 30).sort((a, b) => a - b),
             performedCount,
             exerciseCount,
+            isDeleted: false,
             lastSavedAt: undefined,
             lastExecutionId: undefined,
             lastStatus: undefined,
             lastDurationSeconds: null,
           };
-        });
 
+          sessionMap.set(ui.id, ui);
+          this.applyLatestRunToSessionFromRuns(ui, runs);
+        }
+
+        for (const [sid, runs] of executionGrouped.entries()) {
+          if (!runs || runs.length === 0) continue;
+          if (sessionMap.has(sid)) continue;
+
+          const latest = runs[0] ?? null;
+          const sessionName = (latest?.sessionName ?? '').trim();
+          const planName = (latest?.planName ?? '').trim();
+
+          const uniqueExerciseIds = this.uniqueExerciseIdsFromRuns(runs);
+
+          const ui: UiSessionProgress = {
+            id: sid,
+            name: sessionName || `Gelöschte Session #${sid}`,
+            planId: null,
+            planName: planName || '-',
+            days: [],
+            performedCount: runs.length,
+            exerciseCount: uniqueExerciseIds.length,
+            isDeleted: true,
+            lastSavedAt: undefined,
+            lastExecutionId: undefined,
+            lastStatus: undefined,
+            lastDurationSeconds: null,
+          };
+
+          sessionMap.set(sid, ui);
+          this.applyLatestRunToSessionFromRuns(ui, runs);
+
+          const synthetic = this.buildSyntheticDetailFromLatestRun(ui, latest);
+          if (synthetic) this.detailCache.set(sid, synthetic);
+        }
+
+        this.sessions = [...sessionMap.values()];
         this.loading = false;
-        if (!this.sessions.length) this.infoMsg = 'Noch keine Sessions vorhanden – lege zuerst Sessions an.';
+
+        if (!this.sessions.length) {
+          this.infoMsg = 'Noch keine Daten vorhanden – erst Training speichern/abschließen, dann erscheint hier der Fortschritt.';
+        }
       },
       error: (err) => {
         console.error(err);
@@ -156,12 +228,10 @@ export class TrainingProgress implements OnInit {
     });
   }
 
-  // -------- Filters
-
   get plansForFilter(): { id: number; name: string }[] {
     const map = new Map<number, string>();
     for (const s of this.sessions) {
-      if (typeof s.planId === 'number') map.set(s.planId, s.planName);
+      if (typeof s.planId === 'number' && Number.isFinite(s.planId)) map.set(s.planId, s.planName);
     }
     return [...map.entries()]
       .map(([id, name]) => ({ id, name }))
@@ -177,10 +247,13 @@ export class TrainingProgress implements OnInit {
         if (this.statusFilter === 'DONE' && s.performedCount <= 0) return false;
 
         if (!term) return true;
-        const hay = `${s.name} ${s.planName} ${s.days.join(',')}`.toLowerCase();
+        const hay = `${s.name} ${s.planName} ${s.days.join(',')} ${s.isDeleted ? 'gelöscht deleted' : ''}`.toLowerCase();
         return hay.includes(term);
       })
       .sort((a, b) => {
+        const at = a.lastSavedAt ? a.lastSavedAt.getTime() : 0;
+        const bt = b.lastSavedAt ? b.lastSavedAt.getTime() : 0;
+        if (bt !== at) return bt - at;
         if (b.performedCount !== a.performedCount) return b.performedCount - a.performedCount;
         return a.name.localeCompare(b.name);
       });
@@ -191,8 +264,6 @@ export class TrainingProgress implements OnInit {
     this.planFilter = 'ALL';
     this.statusFilter = 'ALL';
   }
-
-  // -------- Expand session details (planned + executions)
 
   toggleDetails(sessionId: number): void {
     this.detailsError = '';
@@ -205,7 +276,6 @@ export class TrainingProgress implements OnInit {
 
     this.expandedSessionId = sessionId;
 
-    // load planned details if needed
     if (!this.detailCache.has(sessionId)) {
       this.detailsLoading = true;
       this.http.get<TrainingSessionDetailResponse>(`${this.baseUrl}/training-sessions/${sessionId}`).subscribe({
@@ -222,25 +292,35 @@ export class TrainingProgress implements OnInit {
         error: (err) => {
           console.error(err);
           this.detailsLoading = false;
+
+          const runs = this.executionCache.get(sessionId) ?? [];
+          const latest = runs[0] ?? null;
+          const ui = this.sessions.find((x) => x.id === sessionId) ?? null;
+
+          const synthetic = this.buildSyntheticDetailFromLatestRun(ui, latest);
+          if (synthetic) {
+            this.detailCache.set(sessionId, synthetic);
+            this.detailsError = '';
+            return;
+          }
+
           this.detailsError = 'Session-Details konnten nicht geladen werden.';
         },
       });
     }
 
-    // load executions if needed
     if (!this.executionCache.has(sessionId)) {
       this.executionsLoading = true;
 
-      //  FIX: HttpParams sauber als String übergeben
       const params = new HttpParams().set('sessionId', String(sessionId));
-
       this.http.get<TrainingExecutionDto[]>(`${this.baseUrl}/training-executions`, { params }).subscribe({
         next: (execs) => {
           const safe = Array.isArray(execs) ? execs : [];
           const sorted = [...safe].sort((a, b) => this.execSortTime(b) - this.execSortTime(a));
           this.executionCache.set(sessionId, sorted);
 
-          this.applyLatestRunToSession(sessionId, sorted[0] ?? null);
+          const ui = this.sessions.find((x) => x.id === sessionId);
+          if (ui) this.applyLatestRunToSessionFromRuns(ui, sorted);
 
           this.executionsLoading = false;
         },
@@ -266,8 +346,6 @@ export class TrainingProgress implements OnInit {
     return this.detailCache.get(sessionId) ?? null;
   }
 
-  // -------- Executions
-
   runsForSession(sessionId: number): TrainingExecutionDto[] {
     return this.executionCache.get(sessionId) ?? [];
   }
@@ -281,6 +359,47 @@ export class TrainingProgress implements OnInit {
     const run = this.latestRunForSession(sessionId);
     if (!run?.executedExercises?.length) return null;
     return run.executedExercises.find((e) => Number(e.exerciseId) === Number(exerciseId)) ?? null;
+  }
+
+  private groupExecutionsBySessionId(execs: TrainingExecutionDto[]): Map<number, TrainingExecutionDto[]> {
+    const map = new Map<number, TrainingExecutionDto[]>();
+
+    for (const e of execs ?? []) {
+      const sid = Number(e?.sessionId);
+      if (!Number.isFinite(sid) || sid <= 0) continue;
+
+      const arr = map.get(sid) ?? [];
+      arr.push(this.normalizeExecution(e));
+      map.set(sid, arr);
+    }
+
+    for (const [sid, arr] of map.entries()) {
+      const sorted = [...arr].sort((a, b) => this.execSortTime(b) - this.execSortTime(a));
+      map.set(sid, sorted);
+    }
+
+    return map;
+  }
+
+  private normalizeExecution(e: TrainingExecutionDto): TrainingExecutionDto {
+    return {
+      ...e,
+      sessionId: Number(e.sessionId),
+      sessionName: e?.sessionName ?? null,
+      planName: e?.planName ?? null,
+      executedExercises: Array.isArray(e.executedExercises) ? e.executedExercises : [],
+    };
+  }
+
+  private uniqueExerciseIdsFromRuns(runs: TrainingExecutionDto[]): number[] {
+    const set = new Set<number>();
+    for (const r of runs ?? []) {
+      for (const ex of r.executedExercises ?? []) {
+        const id = Number(ex?.exerciseId);
+        if (Number.isFinite(id)) set.add(id);
+      }
+    }
+    return [...set.values()].sort((a, b) => a - b);
   }
 
   private execSortTime(e: TrainingExecutionDto): number {
@@ -297,26 +416,56 @@ export class TrainingProgress implements OnInit {
     return Math.max(0, Math.round((endTime - start) / 1000));
   }
 
-  private applyLatestRunToSession(sessionId: number, latest: TrainingExecutionDto | null): void {
-    const idx = this.sessions.findIndex((s) => s.id === sessionId);
-    if (idx < 0) return;
+  private applyLatestRunToSessionFromRuns(session: UiSessionProgress, runs: TrainingExecutionDto[]): void {
+    const latest = runs?.length ? runs[0] : null;
 
     if (!latest) {
-      this.sessions[idx].lastSavedAt = undefined;
-      this.sessions[idx].lastExecutionId = undefined;
-      this.sessions[idx].lastStatus = undefined;
-      this.sessions[idx].lastDurationSeconds = null;
+      session.lastSavedAt = undefined;
+      session.lastExecutionId = undefined;
+      session.lastStatus = undefined;
+      session.lastDurationSeconds = null;
       return;
     }
 
     const lastTimeIso = latest.completedAt || latest.startedAt;
-    this.sessions[idx].lastSavedAt = lastTimeIso ? new Date(lastTimeIso) : undefined;
-    this.sessions[idx].lastExecutionId = latest.id;
-    this.sessions[idx].lastStatus = latest.status;
-    this.sessions[idx].lastDurationSeconds = this.durationSecondsOfRun(latest);
+    session.lastSavedAt = lastTimeIso ? new Date(lastTimeIso) : undefined;
+    session.lastExecutionId = latest.id;
+    session.lastStatus = latest.status;
+    session.lastDurationSeconds = this.durationSecondsOfRun(latest);
   }
 
-  // -------- Formatting helpers
+  private buildSyntheticDetailFromLatestRun(ui: UiSessionProgress | null, latest: TrainingExecutionDto | null): TrainingSessionDetailResponse | null {
+    if (!latest) return null;
+
+    const execs = Array.isArray(latest.executedExercises) ? latest.executedExercises : [];
+    if (!execs.length) return null;
+
+    const planned: PlannedExerciseFromSession[] = execs.map((x, idx) => ({
+      id: idx + 1,
+      exerciseId: Number(x.exerciseId),
+      exerciseName: (x.exerciseName ?? '').trim() || `Übung #${Number(x.exerciseId)}`,
+      category: (x.exerciseCategory ?? '').trim() || '-',
+      orderIndex: idx + 1,
+      plannedSets: Number(x.plannedSets ?? 0),
+      plannedReps: Number(x.plannedReps ?? 0),
+      plannedWeightKg: Number(x.plannedWeightKg ?? 0),
+    }));
+
+    const sid = Number(latest.sessionId);
+    const name = ui?.name ?? (latest.sessionName ? String(latest.sessionName) : `Gelöschte Session #${sid}`);
+    const planName = ui?.planName ?? (latest.planName ? String(latest.planName) : '-');
+
+    return {
+      id: sid,
+      name,
+      planId: null,
+      planName,
+      days: ui?.days ?? [],
+      exerciseCount: planned.length,
+      performedCount: (this.executionCache.get(sid) ?? []).length,
+      exerciseExecutions: planned,
+    };
+  }
 
   formatDays(days: number[]): string {
     if (!days?.length) return '-';
@@ -344,10 +493,8 @@ export class TrainingProgress implements OnInit {
     const mm = m.toString().padStart(2, '0');
     const ss = s.toString().padStart(2, '0');
 
-    return h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss.padStart(2, '0')}`;
+    return h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
   }
-
-  // -------- extract collection
 
   private extractCollection(res: any, embeddedKey: string): any[] {
     if (Array.isArray(res)) return res;

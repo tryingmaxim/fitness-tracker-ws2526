@@ -62,13 +62,16 @@
       <div class="msg error" *ngIf="errorMsg">{{ errorMsg }}</div>
       <div class="msg info" *ngIf="!errorMsg && infoMsg">{{ infoMsg }}</div>
 
-      <!-- Sessions untereinander -->
       <div class="tp-list" *ngIf="!loading && filteredSessions.length">
 
         <article class="tp-card" *ngFor="let s of filteredSessions">
           <header class="tp-card-head">
             <div class="tp-card-main">
-              <h3 class="tp-card-title">{{ s.name }}</h3>
+              <h3 class="tp-card-title">
+                {{ s.name }}
+                <span class="chip danger" *ngIf="s.isDeleted">Gelöscht</span>
+              </h3>
+
               <p class="tp-card-sub">
                 Plan: <strong>{{ s.planName }}</strong>
                 <span class="sep">•</span>
@@ -80,6 +83,10 @@
                 <span class="pill">Letzter Run: <strong>{{ s.lastSavedAt ? (s.lastSavedAt | date:'dd.MM.yyyy HH:mm') : '-' }}</strong></span>
                 <span class="pill">Dauer: <strong>{{ formatDuration(s.lastDurationSeconds) }}</strong></span>
                 <span class="pill">Status: <strong>{{ s.lastStatus ?? '-' }}</strong></span>
+              </div>
+
+              <div class="muted small" *ngIf="s.isDeleted">
+                Session wurde gelöscht – die gespeicherten Runs bleiben hier sichtbar.
               </div>
             </div>
 
@@ -94,12 +101,16 @@
               {{ expandedSessionId === s.id ? 'Details schließen' : 'Details anzeigen' }}
             </button>
 
-            <button class="mini-btn primary" type="button" [routerLink]="['/training/start', s.id]">
+            <button
+              class="mini-btn primary"
+              type="button"
+              [routerLink]="['/training/start', s.id]"
+              [disabled]="s.isDeleted"
+            >
               Training starten
             </button>
           </div>
 
-          <!-- Details -->
           <div class="tp-details" *ngIf="expandedSessionId === s.id">
 
             <div class="msg info" *ngIf="detailsLoading">
@@ -120,7 +131,6 @@
 
             <ng-container *ngIf="getDetail(s.id) as detail">
 
-              <!-- Planned Exercises -->
               <div class="detail-block">
                 <div class="detail-title">Übungen in der Session</div>
 
@@ -161,11 +171,10 @@
                 </div>
 
                 <ng-template #noExTpl>
-                  <div class="muted">Keine Übungen in der Session.</div>
+                  <div class="muted">Keine Übungen verfügbar.</div>
                 </ng-template>
               </div>
 
-              <!-- Runs / History (Backend) -->
               <div class="detail-block">
                 <div class="detail-title">Trainingsläufe</div>
 
@@ -190,10 +199,9 @@
                       </div>
                     </div>
 
-                    <!-- Exercises of this run -->
                     <div class="run-exercises" *ngIf="run.executedExercises?.length">
                       <div class="rex-head">
-                        <div>Übung-ID</div>
+                        <div>Übung</div>
                         <div>Geplant</div>
                         <div>Tatsächlich</div>
                         <div>Done</div>
@@ -201,7 +209,12 @@
 
                       <div class="rex-row" *ngFor="let rx of run.executedExercises">
                         <div class="rex-name">
-                          <div class="ex-name">#{{ rx.exerciseId }}</div>
+                          <div class="ex-name">
+                            {{ (rx.exerciseName && rx.exerciseName.trim()) ? rx.exerciseName : ('Übung #' + rx.exerciseId) }}
+                          </div>
+                          <div class="muted small" *ngIf="rx.exerciseCategory">
+                            {{ rx.exerciseCategory }}
+                          </div>
                           <div class="muted small" *ngIf="rx.notes">{{ rx.notes }}</div>
                         </div>
 
@@ -234,7 +247,7 @@
 
       <div class="empty" *ngIf="!loading && !filteredSessions.length && !errorMsg">
         <div class="empty-title">Keine Treffer</div>
-        <div class="empty-sub">Passe Filter/Suche an oder lege zuerst Sessions an.</div>
+        <div class="empty-sub">Passe Filter/Suche an oder speichere zuerst Trainingsläufe.</div>
       </div>
     </div>
   </div>

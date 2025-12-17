@@ -1,4 +1,3 @@
-
 package de.hsaa.fitness_tracker_service.trainingExecution;
 
 import de.hsaa.fitness_tracker_service.exercise.Exercise;
@@ -26,6 +25,13 @@ public class ExecutedExercise {
     @ManyToOne(optional = false)
     @JoinColumn(name = "exercise_id", nullable = false)
     private Exercise exercise;
+
+    // Snapshot-Daten für History/Progress (bleiben auch nach Session-Delete stabil)
+    @Column(name = "exercise_name_snapshot")
+    private String exerciseNameSnapshot;
+
+    @Column(name = "exercise_category_snapshot")
+    private String exerciseCategorySnapshot;
 
     @NotNull
     @Min(1)
@@ -85,6 +91,22 @@ public class ExecutedExercise {
 
     public void setExercise(Exercise exercise) {
         this.exercise = exercise;
+    }
+
+    public String getExerciseNameSnapshot() {
+        return exerciseNameSnapshot;
+    }
+
+    public void setExerciseNameSnapshot(String exerciseNameSnapshot) {
+        this.exerciseNameSnapshot = exerciseNameSnapshot;
+    }
+
+    public String getExerciseCategorySnapshot() {
+        return exerciseCategorySnapshot;
+    }
+
+    public void setExerciseCategorySnapshot(String exerciseCategorySnapshot) {
+        this.exerciseCategorySnapshot = exerciseCategorySnapshot;
     }
 
     public Integer getPlannedSets() {

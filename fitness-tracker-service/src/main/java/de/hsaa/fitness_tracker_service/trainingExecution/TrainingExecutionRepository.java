@@ -1,6 +1,5 @@
 package de.hsaa.fitness_tracker_service.trainingExecution;
 
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -18,15 +17,71 @@ public interface TrainingExecutionRepository extends JpaRepository<TrainingExecu
     })
     Optional<TrainingExecution> findWithExercisesById(Long id);
 
+    // ===== Standard (nur wenn Session noch verlinkt ist) =====
     long countBySessionId(Long sessionId);
-
     List<TrainingExecution> findBySessionId(Long sessionId);
 
-    @Query("select te.session.id, count(te) from TrainingExecution te where te.session.id in :ids group by te.session.id")
+    // ===== Snapshot-only (wenn Session gelöscht/detached ist) =====
+    long countBySessionIdSnapshot(Long sessionIdSnapshot);
+    List<TrainingExecution> findBySessionIdSnapshot(Long sessionIdSnapshot);
+
+    // ✅ Count: Session ODER Snapshot (wichtig für performedCount überall)
+    @Query("""
+        select count(te) from TrainingExecution te
+        where (te.session.id = :id)
+           or (te.session is null and te.sessionIdSnapshot = :id)
+    """)
+    long countBySessionOrSnapshot(@Param("id") Long id);
+
+    // ✅ Liste: Session ODER Snapshot (für /training-executions?sessionId=...)
+    @EntityGraph(attributePaths = {
+        "session",
+        "executedExercises",
+        "executedExercises.exercise"
+    })
+    @Query("""
+        select te from TrainingExecution te
+        where (te.session.id = :id)
+           or (te.session is null and te.sessionIdSnapshot = :id)
+        order by te.startedAt desc
+    """)
+    List<TrainingExecution> findWithExercisesBySessionOrSnapshot(@Param("id") Long id);
+
+    // ✅ Training-Progress: alle Executions inkl. Übungen
+    @EntityGraph(attributePaths = {
+        "session",
+        "executedExercises",
+        "executedExercises.exercise"
+    })
+    @Query("select te from TrainingExecution te")
+    List<TrainingExecution> findAllWithExercises();
+
+    // ✅ Streak (COMPLETED newest first)
+    List<TrainingExecution> findByStatusOrderByCompletedAtDesc(TrainingExecution.Status status);
+
+    // ===== Counts für Listenansicht (wenn Sessions existieren) =====
+    @Query("""
+        select te.session.id, count(te)
+        from TrainingExecution te
+        where te.session.id in :ids
+        group by te.session.id
+    """)
     List<Object[]> countBySessionIds(@Param("ids") List<Long> ids);
 
-    //NEU: nur COMPLETED, newest first (für Streak)
-    @Query(" select te from TrainingExecution te where te.status = de.hsaa.fitness_tracker_service.trainingExecution.TrainingExecution.Status.COMPLETED and te.completedAt is not null order by te.completedAt desc ")
-    List<TrainingExecution> findRecentCompleted(Pageable pageable);
-}
+    // ===== Counts für Listenansicht (wenn Sessions gelöscht/detached -> snapshot) =====
+    @Query("""
+        select te.sessionIdSnapshot, count(te)
+        from TrainingExecution te
+        where te.session is null and te.sessionIdSnapshot in :ids
+        group by te.sessionIdSnapshot
+    """)
+    List<Object[]> countBySessionIdSnapshots(@Param("ids") List<Long> ids);
 
+    // Optional (falls du’s irgendwo nutzt)
+    @EntityGraph(attributePaths = {
+        "session",
+        "executedExercises",
+        "executedExercises.exercise"
+    })
+    List<TrainingExecution> findWithExercisesBySessionId(Long sessionId);
+}

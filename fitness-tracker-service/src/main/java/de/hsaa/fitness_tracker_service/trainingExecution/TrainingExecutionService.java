@@ -6,7 +6,6 @@ import de.hsaa.fitness_tracker_service.execution.ExerciseExecution;
 import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSession;
 import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSessionRepository;
 import jakarta.persistence.EntityNotFoundException;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,7 +13,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 @Service
 @Transactional
@@ -43,6 +41,12 @@ public class TrainingExecutionService {
 
         TrainingExecution te = new TrainingExecution();
         te.setSession(session);
+
+        // Snapshot der Session-Metadaten für Progress/History
+        te.setSessionIdSnapshot(session.getId());
+        te.setSessionNameSnapshot(session.getName());
+        te.setPlanNameSnapshot(session.getPlan() != null ? session.getPlan().getName() : null);
+
         te.setStatus(TrainingExecution.Status.IN_PROGRESS);
         te.setStartedAt(LocalDateTime.now());
         te.setCompletedAt(null);
@@ -50,15 +54,24 @@ public class TrainingExecutionService {
         for (ExerciseExecution planned : session.getExerciseExecutions()) {
             ExecutedExercise ee = new ExecutedExercise();
             ee.setTrainingExecution(te);
-            ee.setExercise(planned.getExercise());
+
+            Exercise ex = planned.getExercise();
+            ee.setExercise(ex);
+
+            // Snapshot der Übung (Name/Kategorie) für Progress/History
+            ee.setExerciseNameSnapshot(ex != null ? ex.getName() : null);
+            ee.setExerciseCategorySnapshot(ex != null ? ex.getCategory() : null);
+
             ee.setPlannedSets(planned.getPlannedSets());
             ee.setPlannedReps(planned.getPlannedReps());
             ee.setPlannedWeightKg(planned.getPlannedWeightKg());
+
             ee.setActualSets(0);
             ee.setActualReps(0);
             ee.setActualWeightKg(0.0);
             ee.setDone(false);
             ee.setNotes(null);
+
             te.getExecutedExercises().add(ee);
         }
 
@@ -86,15 +99,9 @@ public class TrainingExecutionService {
             throw new IllegalArgumentException("training is not editable");
         }
 
-        if (actualSets == null || actualSets < 0) {
-            throw new IllegalArgumentException("actualSets must be >= 0");
-        }
-        if (actualReps == null || actualReps < 0) {
-            throw new IllegalArgumentException("actualReps must be >= 0");
-        }
-        if (actualWeightKg == null || actualWeightKg < 0) {
-            throw new IllegalArgumentException("actualWeightKg must be >= 0");
-        }
+        if (actualSets == null || actualSets < 0) throw new IllegalArgumentException("actualSets must be >= 0");
+        if (actualReps == null || actualReps < 0) throw new IllegalArgumentException("actualReps must be >= 0");
+        if (actualWeightKg == null || actualWeightKg < 0) throw new IllegalArgumentException("actualWeightKg must be >= 0");
 
         Exercise ex = requireExercise(exerciseId);
 
@@ -104,6 +111,15 @@ public class TrainingExecutionService {
             .orElseThrow(() -> new EntityNotFoundException("exercise not part of this execution"));
 
         target.setExercise(ex);
+
+        // Snapshot nachziehen, falls neue Daten fehlen
+        if (target.getExerciseNameSnapshot() == null || target.getExerciseNameSnapshot().isBlank()) {
+            target.setExerciseNameSnapshot(ex.getName());
+        }
+        if (target.getExerciseCategorySnapshot() == null || target.getExerciseCategorySnapshot().isBlank()) {
+            target.setExerciseCategorySnapshot(ex.getCategory());
+        }
+
         target.setActualSets(actualSets);
         target.setActualReps(actualReps);
         target.setActualWeightKg(actualWeightKg);
@@ -137,32 +153,39 @@ public class TrainingExecutionService {
 
     @Transactional(readOnly = true)
     public List<TrainingExecution> listBySession(Long sessionId) {
-        return repo.findBySessionId(sessionId);
+        return repo.findWithExercisesBySessionOrSnapshot(sessionId);
     }
 
-    //NEU: Streak (nur COMPLETED)
+    @Transactional(readOnly = true)
+    public List<TrainingExecution> listAll() {
+        return repo.findAllWithExercises();
+    }
+
     @Transactional(readOnly = true)
     public int calculateCompletedStreakDays() {
-        List<TrainingExecution> recent = repo.findRecentCompleted(PageRequest.of(0, 365));
+        List<TrainingExecution> list = repo.findByStatusOrderByCompletedAtDesc(TrainingExecution.Status.COMPLETED);
+        if (list.isEmpty()) return 0;
 
-        Set<LocalDate> trainedDays = new HashSet<>();
-        for (TrainingExecution te : recent) {
-            if (te.getCompletedAt() == null) continue;
-            trainedDays.add(te.getCompletedAt().toLocalDate());
-        }
+        HashSet<LocalDate> seen = new HashSet<>();
+        List<LocalDate> dates = list.stream()
+            .map(te -> te.getCompletedAt() != null ? te.getCompletedAt().toLocalDate() : null)
+            .filter(d -> d != null)
+            .filter(seen::add)
+            .toList();
 
-        if (trainedDays.isEmpty()) return 0;
+        if (dates.isEmpty()) return 0;
 
-        LocalDate today = LocalDate.now();
+        int streak = 1;
+        LocalDate cursor = dates.get(0);
 
-        // Streak startet bei heute, wenn heute completed vorhanden ist,
-        // sonst startet sie bei gestern.
-        LocalDate cursor = trainedDays.contains(today) ? today : today.minusDays(1);
-
-        int streak = 0;
-        while (trainedDays.contains(cursor)) {
-            streak++;
-            cursor = cursor.minusDays(1);
+        for (int i = 1; i < dates.size(); i++) {
+            LocalDate next = dates.get(i);
+            if (next.equals(cursor.minusDays(1))) {
+                streak++;
+                cursor = next;
+            } else {
+                break;
+            }
         }
         return streak;
     }

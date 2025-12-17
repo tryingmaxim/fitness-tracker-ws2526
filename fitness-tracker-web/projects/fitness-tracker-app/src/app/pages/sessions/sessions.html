@@ -68,7 +68,7 @@
             (click)="toggleDayCreate(d)"
             [class.selected]="isDaySelectedCreate(d)"
             [class.blocked]="isDayBlockedCreate(d)"
-            [disabled]="creating || isDayBlockedCreate(d)"
+            [disabled]="creating || (!isDaySelectedCreate(d) && isDayBlockedCreate(d))"
             [attr.title]="isDayBlockedCreate(d) ? 'Dieser Tag ist im Plan schon belegt' : null"
             [attr.aria-pressed]="isDaySelectedCreate(d)"
           >
@@ -258,7 +258,7 @@
               (click)="toggleDayDetail(d)"
               [class.selected]="isDaySelectedDetail(d)"
               [class.blocked]="isDayBlockedDetail(d)"
-              [disabled]="updating || detailLoading || isDayBlockedDetail(d)"
+              [disabled]="updating || detailLoading || (!isDaySelectedDetail(d) && isDayBlockedDetail(d))"
               [attr.title]="isDayBlockedDetail(d) ? 'Dieser Tag ist im Plan schon belegt' : null"
               [attr.aria-pressed]="isDaySelectedDetail(d)"
             >

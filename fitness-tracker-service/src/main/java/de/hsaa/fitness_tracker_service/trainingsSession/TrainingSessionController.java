@@ -2,8 +2,8 @@ package de.hsaa.fitness_tracker_service.trainingsSession;
 
 import de.hsaa.fitness_tracker_service.execution.ExerciseExecution;
 import de.hsaa.fitness_tracker_service.execution.ExerciseExecutionRepository;
-import de.hsaa.fitness_tracker_service.trainingExecution.TrainingExecutionRepository;
 import de.hsaa.fitness_tracker_service.trainingsSessionDay.SessionDay;
+import de.hsaa.fitness_tracker_service.trainingExecution.TrainingExecutionRepository;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -159,7 +159,10 @@ public class TrainingSessionController {
     @GetMapping("/{id}")
     public TrainingSessionResponse get(@PathVariable Long id) {
         TrainingSession s = service.get(id);
-        long performedCount = trainingExecutionRepo.countBySessionId(id);
+
+        // ✅ wichtig: Session ODER Snapshot zählen
+        long performedCount = trainingExecutionRepo.countBySessionOrSnapshot(id);
+
         long exerciseCount = s.getExerciseExecutions() != null ? s.getExerciseExecutions().size() : 0L;
         return toDto(s, true, exerciseCount, performedCount);
     }
@@ -182,10 +185,14 @@ public class TrainingSessionController {
         @Valid @RequestBody UpdateSessionRequest req
     ) {
         var updated = service.update(id, req.planId(), req.name(), req.days());
-        long performedCount = trainingExecutionRepo.countBySessionId(id);
+
+        // ✅ Session ODER Snapshot zählen
+        long performedCount = trainingExecutionRepo.countBySessionOrSnapshot(id);
+
         long exerciseCount = updated.getExerciseExecutions() != null
             ? updated.getExerciseExecutions().size()
             : 0L;
+
         return toDto(updated, true, exerciseCount, performedCount);
     }
 
@@ -195,13 +202,18 @@ public class TrainingSessionController {
         @RequestBody UpdateSessionRequest req
     ) {
         var updated = service.update(id, req.planId(), req.name(), req.days());
-        long performedCount = trainingExecutionRepo.countBySessionId(id);
+
+        // ✅ Session ODER Snapshot zählen
+        long performedCount = trainingExecutionRepo.countBySessionOrSnapshot(id);
+
         long exerciseCount = updated.getExerciseExecutions() != null
             ? updated.getExerciseExecutions().size()
             : 0L;
+
         return toDto(updated, true, exerciseCount, performedCount);
     }
 
+    // ✅ Delete ist jetzt clean: Service macht snapshot + detach + delete in 1 Transaktion
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long id) {
@@ -214,9 +226,26 @@ public class TrainingSessionController {
             .filter(Objects::nonNull)
             .toList();
         if (ids.isEmpty()) return Map.of();
-        List<Object[]> rows = trainingExecutionRepo.countBySessionIds(ids);
-        return rows.stream()
-            .collect(Collectors.toMap(r -> (Long) r[0], r -> (Long) r[1]));
+
+        Map<Long, Long> out = new HashMap<>();
+
+        // Counts, wo Session noch existiert
+        List<Object[]> rows1 = trainingExecutionRepo.countBySessionIds(ids);
+        for (Object[] r : rows1) {
+            Long id = (Long) r[0];
+            Long cnt = (Long) r[1];
+            out.merge(id, cnt, Long::sum);
+        }
+
+        // Counts, wo Session gelöscht/detached ist -> snapshot
+        List<Object[]> rows2 = trainingExecutionRepo.countBySessionIdSnapshots(ids);
+        for (Object[] r : rows2) {
+            Long id = (Long) r[0];
+            Long cnt = (Long) r[1];
+            out.merge(id, cnt, Long::sum);
+        }
+
+        return out;
     }
 
     private Map<Long, Long> loadExerciseCounts(List<TrainingSession> sessions) {
@@ -225,6 +254,7 @@ public class TrainingSessionController {
             .filter(Objects::nonNull)
             .toList();
         if (ids.isEmpty()) return Map.of();
+
         List<Object[]> rows = exerciseExecutionRepo.countBySessionIds(ids);
         return rows.stream()
             .collect(Collectors.toMap(r -> (Long) r[0], r -> (Long) r[1]));

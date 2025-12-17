@@ -35,6 +35,8 @@ public class TrainingExecutionController {
     public record ExecutedExerciseResponse(
         Long id,
         Long exerciseId,
+        String exerciseName,
+        String exerciseCategory,
         Integer plannedSets,
         Integer plannedReps,
         Double plannedWeightKg,
@@ -48,23 +50,35 @@ public class TrainingExecutionController {
     public record TrainingExecutionResponse(
         Long id,
         Long sessionId,
+        String sessionName,
+        String planName,
         String status,
         LocalDateTime startedAt,
         LocalDateTime completedAt,
         List<ExecutedExerciseResponse> executedExercises
     ) {}
 
-    // ✅ NEU: Dashboard Streak Response
     public record StreakResponse(int streakDays) {}
 
     private static TrainingExecutionResponse toDto(TrainingExecution te) {
         List<ExecutedExerciseResponse> execs = List.of();
         if (te.getExecutedExercises() != null) {
-            execs = te.getExecutedExercises().stream().map(TrainingExecutionController::toDto).toList();
+            execs = te.getExecutedExercises().stream()
+                .map(TrainingExecutionController::toDto)
+                .toList();
         }
+
+        Long sessionId = te.getSession() != null ? te.getSession().getId() : te.getSessionIdSnapshot();
+        String sessionName = te.getSession() != null ? te.getSession().getName() : te.getSessionNameSnapshot();
+        String planName = te.getSession() != null && te.getSession().getPlan() != null
+            ? te.getSession().getPlan().getName()
+            : te.getPlanNameSnapshot();
+
         return new TrainingExecutionResponse(
             te.getId(),
-            te.getSession() != null ? te.getSession().getId() : null,
+            sessionId,
+            sessionName,
+            planName,
             te.getStatus() != null ? te.getStatus().name() : null,
             te.getStartedAt(),
             te.getCompletedAt(),
@@ -73,9 +87,21 @@ public class TrainingExecutionController {
     }
 
     private static ExecutedExerciseResponse toDto(ExecutedExercise e) {
+        Long exerciseId = e.getExercise() != null ? e.getExercise().getId() : null;
+
+        String exerciseName = e.getExercise() != null
+            ? e.getExercise().getName()
+            : e.getExerciseNameSnapshot();
+
+        String exerciseCategory = e.getExercise() != null
+            ? e.getExercise().getCategory()
+            : e.getExerciseCategorySnapshot();
+
         return new ExecutedExerciseResponse(
             e.getId(),
-            e.getExercise() != null ? e.getExercise().getId() : null,
+            exerciseId,
+            exerciseName,
+            exerciseCategory,
             e.getPlannedSets(),
             e.getPlannedReps(),
             e.getPlannedWeightKg(),
@@ -93,7 +119,9 @@ public class TrainingExecutionController {
         UriComponentsBuilder uri
     ) {
         var saved = service.start(body.sessionId());
-        var location = uri.path("/api/v1/training-executions/{id}").buildAndExpand(saved.getId()).toUri();
+        var location = uri.path("/api/v1/training-executions/{id}")
+            .buildAndExpand(saved.getId())
+            .toUri();
         return ResponseEntity.created(location).body(toDto(saved));
     }
 
@@ -118,19 +146,23 @@ public class TrainingExecutionController {
         ));
     }
 
-    
-    @GetMapping
+    @GetMapping(params = "sessionId")
     public List<TrainingExecutionResponse> listBySession(@RequestParam Long sessionId) {
         return service.listBySession(sessionId).stream()
             .map(TrainingExecutionController::toDto)
             .toList();
     }
 
-    // NEU: Streak fürs Dashboard (nur COMPLETED)
+    @GetMapping
+    public List<TrainingExecutionResponse> listAll() {
+        return service.listAll().stream()
+            .map(TrainingExecutionController::toDto)
+            .toList();
+    }
+
     @GetMapping("/stats/streak")
     public StreakResponse streak() {
-        int days = service.calculateCompletedStreakDays();
-        return new StreakResponse(days);
+        return new StreakResponse(service.calculateCompletedStreakDays());
     }
 
     @PostMapping("/{id}/complete")

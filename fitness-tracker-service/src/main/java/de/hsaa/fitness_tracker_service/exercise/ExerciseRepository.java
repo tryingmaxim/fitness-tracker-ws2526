@@ -1,14 +1,21 @@
 package de.hsaa.fitness_tracker_service.exercise;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-//Dieses Interface stellt alle Standard-Datenbankfunktionen bereit(z.B.findAll,save,deleteById)
-//JpaRepository<Exercise,Long> bedeutet: Tabelle=Exercise,Primärschlüsseltyp=Long
+// Repository für Exercise inkl. Validierungs-Checks und Soft-Delete (archived)
 public interface ExerciseRepository extends JpaRepository<Exercise, Long> {
 
-	// Eigene Methode,um zu prüfen,ob eine Übung mit diesem Namen schon existiert
-	boolean existsByNameIgnoreCase(String name);
+    // Prüft, ob eine aktive Übung mit dem Namen existiert (Create-Validierung)
+    boolean existsByNameIgnoreCaseAndArchivedFalse(String name);
 
-	// Erweiterte Methode für Update: prüft,ob Name bei einem anderen Datensatz vorkommt
-	boolean existsByNameIgnoreCaseAndIdNot(String name, Long id);
+    // Prüft, ob eine andere aktive Übung denselben Namen hat (Update-Validierung)
+    boolean existsByNameIgnoreCaseAndIdNotAndArchivedFalse(String name, Long id);
+
+    // Listet nur aktive Übungen (UI soll archivierte standardmäßig ausblenden)
+    Page<Exercise> findByArchivedFalse(Pageable pageable);
+
+    // Optional: falls später "Archivierte anzeigen" 
+    Page<Exercise> findByArchivedTrue(Pageable pageable);
 }

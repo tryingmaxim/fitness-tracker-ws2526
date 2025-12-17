@@ -19,6 +19,16 @@ public class TrainingExecution {
     @JoinColumn(name = "session_id", nullable = true)
     private TrainingSession session;
 
+    // Snapshot/Fallback: bleibt erhalten, wenn Session gelöscht wird
+    @Column(name = "session_id_snapshot")
+    private Long sessionIdSnapshot;
+
+    @Column(name = "session_name_snapshot")
+    private String sessionNameSnapshot;
+
+    @Column(name = "plan_name_snapshot")
+    private String planNameSnapshot;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Status status;
@@ -37,51 +47,30 @@ public class TrainingExecution {
         COMPLETED
     }
 
-    public Long getId() {
-        return id;
-    }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public TrainingSession getSession() { return session; }
+    public void setSession(TrainingSession session) { this.session = session; }
 
-    public TrainingSession getSession() {
-        return session;
-    }
+    public Long getSessionIdSnapshot() { return sessionIdSnapshot; }
+    public void setSessionIdSnapshot(Long sessionIdSnapshot) { this.sessionIdSnapshot = sessionIdSnapshot; }
 
-    public void setSession(TrainingSession session) {
-        this.session = session;
-    }
+    public String getSessionNameSnapshot() { return sessionNameSnapshot; }
+    public void setSessionNameSnapshot(String sessionNameSnapshot) { this.sessionNameSnapshot = sessionNameSnapshot; }
 
-    public Status getStatus() {
-        return status;
-    }
+    public String getPlanNameSnapshot() { return planNameSnapshot; }
+    public void setPlanNameSnapshot(String planNameSnapshot) { this.planNameSnapshot = planNameSnapshot; }
 
-    public void setStatus(Status status) {
-        this.status = status;
-    }
+    public Status getStatus() { return status; }
+    public void setStatus(Status status) { this.status = status; }
 
-    public LocalDateTime getStartedAt() {
-        return startedAt;
-    }
+    public LocalDateTime getStartedAt() { return startedAt; }
+    public void setStartedAt(LocalDateTime startedAt) { this.startedAt = startedAt; }
 
-    public void setStartedAt(LocalDateTime startedAt) {
-        this.startedAt = startedAt;
-    }
+    public LocalDateTime getCompletedAt() { return completedAt; }
+    public void setCompletedAt(LocalDateTime completedAt) { this.completedAt = completedAt; }
 
-    public LocalDateTime getCompletedAt() {
-        return completedAt;
-    }
-
-    public void setCompletedAt(LocalDateTime completedAt) {
-        this.completedAt = completedAt;
-    }
-
-    public List<ExecutedExercise> getExecutedExercises() {
-        return executedExercises;
-    }
-
-    public void setExecutedExercises(List<ExecutedExercise> executedExercises) {
-        this.executedExercises = executedExercises;
-    }
+    public List<ExecutedExercise> getExecutedExercises() { return executedExercises; }
+    public void setExecutedExercises(List<ExecutedExercise> executedExercises) { this.executedExercises = executedExercises; }
 }

@@ -183,21 +183,25 @@ export class Sessions implements OnInit {
     return used;
   }
 
+  isDaySelectedCreate(day: number): boolean {
+    return Array.isArray(this.form.days) && this.form.days.some((d) => Number(d) === day);
+  }
+
+  isDaySelectedDetail(day: number): boolean {
+    return Array.isArray(this.detailForm.days) && this.detailForm.days.some((d) => Number(d) === day);
+  }
+
   isDayBlockedCreate(day: number): boolean {
     const used = this.getUsedDaysForPlan(this.form.planId, null);
-    return used.has(day);
+    const alreadySelected = this.isDaySelectedCreate(day);
+    return used.has(day) && !alreadySelected;
   }
 
   isDayBlockedDetail(day: number): boolean {
     const excludeId = this.detailForm.id ?? null;
     const used = this.getUsedDaysForPlan(this.detailForm.planId, excludeId);
-
-    const alreadySelected = Array.isArray(this.detailForm.days) && this.detailForm.days.includes(day);
+    const alreadySelected = this.isDaySelectedDetail(day);
     return used.has(day) && !alreadySelected;
-  }
-
-  isDaySelectedCreate(day: number): boolean {
-    return Array.isArray(this.form.days) && this.form.days.includes(day);
   }
 
   toggleDayCreate(day: number): void {
@@ -205,19 +209,18 @@ export class Sessions implements OnInit {
     if (this.isDayBlockedCreate(day)) return;
 
     if (!Array.isArray(this.form.days)) this.form.days = [];
-    const idx = this.form.days.indexOf(day);
-    if (idx >= 0) this.form.days.splice(idx, 1);
-    else this.form.days.push(day);
 
-    this.form.days = Array.from(new Set(this.form.days)).sort((a, b) => a - b);
+    if (this.isDaySelectedCreate(day)) {
+      this.form.days = this.form.days.filter((d) => Number(d) !== day);
+    } else {
+      this.form.days.push(day);
+    }
+
+    this.form.days = Array.from(new Set(this.form.days.map((d) => Number(d)))).sort((a, b) => a - b);
   }
 
   clearDaysCreate(): void {
     this.form.days = [];
-  }
-
-  isDaySelectedDetail(day: number): boolean {
-    return Array.isArray(this.detailForm.days) && this.detailForm.days.includes(day);
   }
 
   toggleDayDetail(day: number): void {
@@ -226,11 +229,14 @@ export class Sessions implements OnInit {
     if (!this.isDaySelectedDetail(day) && this.isDayBlockedDetail(day)) return;
 
     if (!Array.isArray(this.detailForm.days)) this.detailForm.days = [];
-    const idx = this.detailForm.days.indexOf(day);
-    if (idx >= 0) this.detailForm.days.splice(idx, 1);
-    else this.detailForm.days.push(day);
 
-    this.detailForm.days = Array.from(new Set(this.detailForm.days)).sort((a, b) => a - b);
+    if (this.isDaySelectedDetail(day)) {
+      this.detailForm.days = this.detailForm.days.filter((d) => Number(d) !== day);
+    } else {
+      this.detailForm.days.push(day);
+    }
+
+    this.detailForm.days = Array.from(new Set(this.detailForm.days.map((d) => Number(d)))).sort((a, b) => a - b);
   }
 
   clearDaysDetail(): void {

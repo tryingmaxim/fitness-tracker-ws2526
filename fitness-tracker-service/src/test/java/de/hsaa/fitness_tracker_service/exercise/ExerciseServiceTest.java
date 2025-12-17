@@ -6,7 +6,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -18,130 +17,165 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class ExerciseServiceTest {
 
-	@Mock
-	ExerciseRepository repo;
+    @Mock
+    ExerciseRepository repo;
 
-	@InjectMocks
-	ExerciseService service;
+    @InjectMocks
+    ExerciseService service;
 
-	@Test
-	void shouldCreateExerciseWhenNameUnique() {
-		Exercise e = new Exercise();
-		e.setName(" Bench ");
-		when(repo.existsByNameIgnoreCase("Bench")).thenReturn(false);
-		when(repo.save(any())).thenAnswer(i -> i.getArgument(0));
+    @Test
+    void shouldCreateExercise() {
+        Exercise e = new Exercise();
+        e.setName(" Bench ");
+        e.setCategory("Free");
+        e.setMuscleGroups("Chest");
 
-		Exercise result = service.create(e);
+        when(repo.save(any())).thenAnswer(i -> i.getArgument(0));
 
-		assertEquals("Bench", result.getName());
-		verify(repo).save(result);
-	}
+        Exercise result = service.create(e);
 
-	@Test
-	void shouldThrowExceptionWhenExerciseNameAlreadyExists() {
-		Exercise e = new Exercise();
-		e.setName("Bench");
-		when(repo.existsByNameIgnoreCase("Bench")).thenReturn(true);
+        assertNull(result.getId());
+        assertEquals("Bench", result.getName());
+        assertFalse(result.isArchived());
+        verify(repo).save(result);
+    }
 
-		assertThrows(DataIntegrityViolationException.class, () -> service.create(e));
-	}
+    @Test
+    void shouldGetExerciseWhenExistsAndNotArchived() {
+        Exercise e = new Exercise();
+        e.setId(1L);
+        e.setArchived(false);
 
-	@Test
-	void shouldGetExerciseWhenExists() {
-		Exercise e = new Exercise();
-		e.setId(1L);
-		when(repo.findById(1L)).thenReturn(Optional.of(e));
+        when(repo.findById(1L)).thenReturn(Optional.of(e));
 
-		Exercise result = service.get(1L);
+        Exercise result = service.get(1L);
 
-		assertEquals(1L, result.getId());
-	}
+        assertEquals(1L, result.getId());
+    }
 
-	@Test
-	void shouldThrowExceptionWhenExerciseNotFound() {
-		when(repo.findById(99L)).thenReturn(Optional.empty());
+    @Test
+    void shouldThrowExceptionWhenExerciseIsArchived() {
+        Exercise e = new Exercise();
+        e.setId(1L);
+        e.setArchived(true);
 
-		assertThrows(EntityNotFoundException.class, () -> service.get(99L));
-	}
+        when(repo.findById(1L)).thenReturn(Optional.of(e));
 
-	@Test
-	void shouldUpdateExercise() {
-		Exercise current = new Exercise();
-		current.setId(1L);
-		current.setName("Old");
+        assertThrows(EntityNotFoundException.class, () -> service.get(1L));
+    }
 
-		Exercise patch = new Exercise();
-		patch.setName("New");
+    @Test
+    void shouldThrowExceptionWhenExerciseNotFound() {
+        when(repo.findById(99L)).thenReturn(Optional.empty());
 
-		when(repo.findById(1L)).thenReturn(Optional.of(current));
-		when(repo.existsByNameIgnoreCaseAndIdNot("New", 1L)).thenReturn(false);
+        assertThrows(EntityNotFoundException.class, () -> service.get(99L));
+    }
 
-		Exercise result = service.update(1L, patch);
+    @Test
+    void shouldUpdateExercise() {
+        Exercise current = new Exercise();
+        current.setId(1L);
+        current.setArchived(false);
+        current.setName("Old");
+        current.setCategory("C");
+        current.setMuscleGroups("M");
 
-		assertEquals("New", result.getName());
-	}
+        Exercise patch = new Exercise();
+        patch.setName(" New ");
 
-	@Test
-	void shouldThrowExceptionWhenUpdateNameExists() {
-		Exercise current = new Exercise();
-		current.setId(1L);
+        when(repo.findById(1L)).thenReturn(Optional.of(current));
 
-		Exercise patch = new Exercise();
-		patch.setName("Dup");
+        Exercise result = service.update(1L, patch);
 
-		when(repo.findById(1L)).thenReturn(Optional.of(current));
-		when(repo.existsByNameIgnoreCaseAndIdNot("Dup", 1L)).thenReturn(true);
+        assertEquals("New", result.getName());
+        assertSame(current, result);
+    }
 
-		assertThrows(DataIntegrityViolationException.class, () -> service.update(1L, patch));
-	}
+    @Test
+    void shouldThrowExceptionWhenUpdateArchivedExercise() {
+        Exercise current = new Exercise();
+        current.setId(1L);
+        current.setArchived(true);
 
-	@Test
-	void shouldDeleteExerciseWhenExists() {
-		when(repo.existsById(1L)).thenReturn(true);
+        Exercise patch = new Exercise();
+        patch.setName("New");
 
-		service.delete(1L);
+        when(repo.findById(1L)).thenReturn(Optional.of(current));
 
-		verify(repo).deleteById(1L);
-	}
+        assertThrows(EntityNotFoundException.class, () -> service.update(1L, patch));
+    }
 
-	@Test
-	void shouldThrowExceptionWhenDeleteNotFound() {
-		when(repo.existsById(1L)).thenReturn(false);
+    @Test
+    void shouldArchiveExerciseWhenExists() {
+        Exercise current = new Exercise();
+        current.setId(1L);
+        current.setArchived(false);
 
-		assertThrows(EntityNotFoundException.class, () -> service.delete(1L));
-	}
+        when(repo.findById(1L)).thenReturn(Optional.of(current));
 
-	@Test
-	void shouldListExercises() {
-		Pageable pageable = Pageable.ofSize(10);
-		Page<Exercise> page = mock(Page.class);
-		when(repo.findAll(pageable)).thenReturn(page);
+        service.delete(1L);
 
-		Page<Exercise> result = service.list(pageable);
+        assertTrue(current.isArchived());
+        verify(repo, never()).deleteById(anyLong());
+        verify(repo, never()).save(any());
+    }
 
-		assertSame(page, result);
-	}
+    @Test
+    void shouldNotFailWhenDeleteAlreadyArchived() {
+        Exercise current = new Exercise();
+        current.setId(1L);
+        current.setArchived(true);
 
-	@Test
-	void shouldUpdateExerciseWhenPatchHasNullFields() {
-		Exercise current = new Exercise();
-		current.setName("Old");
-		current.setCategory("C");
-		current.setMuscleGroups("M");
-		current.setDescription("D");
+        when(repo.findById(1L)).thenReturn(Optional.of(current));
 
-		Exercise patch = new Exercise();
+        service.delete(1L);
 
-		when(repo.findById(1L)).thenReturn(Optional.of(current));
-		when(repo.existsByNameIgnoreCaseAndIdNot("Old", 1L)).thenReturn(false);
+        assertTrue(current.isArchived());
+        verify(repo, never()).deleteById(anyLong());
+        verify(repo, never()).save(any());
+    }
 
-		Exercise result = service.update(1L, patch);
+    @Test
+    void shouldThrowExceptionWhenDeleteNotFound() {
+        when(repo.findById(1L)).thenReturn(Optional.empty());
 
-		assertSame(current, result);
-		assertEquals("Old", result.getName());
-		assertEquals("C", result.getCategory());
-		assertEquals("M", result.getMuscleGroups());
-		assertNull(result.getDescription());
-	}
+        assertThrows(EntityNotFoundException.class, () -> service.delete(1L));
+    }
 
+    @Test
+    void shouldListExercises() {
+        Pageable pageable = Pageable.ofSize(10);
+        Page<Exercise> page = mock(Page.class);
+
+        when(repo.findByArchivedFalse(pageable)).thenReturn(page);
+
+        Page<Exercise> result = service.list(pageable);
+
+        assertSame(page, result);
+        verify(repo).findByArchivedFalse(pageable);
+        verify(repo, never()).findAll(any(Pageable.class));
+    }
+
+    @Test
+    void shouldUpdateExerciseWhenPatchHasNullFields() {
+        Exercise current = new Exercise();
+        current.setId(1L);
+        current.setArchived(false);
+        current.setName("Old");
+        current.setCategory("C");
+        current.setMuscleGroups("M");
+        current.setDescription("D");
+
+        Exercise patch = new Exercise();
+
+        when(repo.findById(1L)).thenReturn(Optional.of(current));
+
+        Exercise result = service.update(1L, patch);
+
+        assertSame(current, result);
+        assertEquals("Old", result.getName());
+        assertEquals("C", result.getCategory());
+        assertEquals("M", result.getMuscleGroups());
+        assertEquals("D", result.getDescription());
+    }
 }
