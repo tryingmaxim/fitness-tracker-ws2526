@@ -197,13 +197,8 @@
             <span class="session-name">{{ s.name }}</span>
             <span class="session-meta"><strong>Tage:</strong> {{ formatDays(s.days) }}</span>
             <span class="session-meta"><strong>Plan:</strong> {{ getPlanName(s.planId, s.planName) }}</span>
-
-            <span class="session-meta"><strong>Übungen:</strong>
-              <ng-container *ngIf="getSessionExerciseNames(s).length; else noEx">
-                {{ joinExerciseNames(s) }}
-              </ng-container>
-              <ng-template #noEx>Keine Übungen hinterlegt</ng-template>
-            </span>
+            <span class="session-meta"><strong>Übungen:</strong> {{ joinExerciseNames(s) }}</span>
+          
           </div>
 
           <div class="session-actions">

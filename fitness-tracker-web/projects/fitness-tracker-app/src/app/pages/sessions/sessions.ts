@@ -13,8 +13,16 @@ interface TrainingPlan {
 
 interface PlannedExerciseResponse {
   id: number;
-  exerciseId: number;
-  exerciseName: string;
+  exerciseId?: number;
+  exerciseName?: string;
+
+  exercise?: {
+    id: number;
+    name: string;
+    category?: string | null;
+    muscleGroups?: string | null;
+  };
+
   category?: string | null;
   muscleGroups?: string | null;
   orderIndex?: number | null;
@@ -23,6 +31,7 @@ interface PlannedExerciseResponse {
   plannedWeightKg?: number | null;
   notes?: string | null;
 }
+
 
 interface TrainingSession {
   id?: number;
@@ -96,6 +105,10 @@ export class Sessions implements OnInit {
 
   selectedExecutions: ExecutionDraft[] = [];
   detailExecutions: ExecutionDraft[] = [];
+
+  /* Snapshot der ursprünglichen Executions nötig für POST / PATCH / DELETE Sync*/
+  detailOriginalExecutions: ExecutionDraft[] = [];
+
   detailExerciseSearch = '';
 
   loadingPlans = false;
@@ -137,20 +150,29 @@ export class Sessions implements OnInit {
   }
 
   //  Übungsnamen IMMER aus ExerciseExecution ableiten (Fallback: exerciseNames)
-  getSessionExerciseNames(session: TrainingSession): string[] {
-    const fromExecutions =
-      (session.exerciseExecutions ?? [])
-        .map((e) => (e?.exerciseName ?? '').toString().trim())
-        .filter((x) => !!x) ?? [];
+  getExerciseExecution(session: TrainingSession): string[] {
+  const fromExecutions = (session.exerciseExecutions ?? [])
+    .map((e: any) =>
+      (
+        e?.exerciseName ??
+        e?.exercise?.name ??   // ✅ wichtig!
+        ''
+      ).toString().trim()
+    )
+    .filter(Boolean);
 
-    if (fromExecutions.length) return fromExecutions;
+  if (fromExecutions.length) return fromExecutions;
 
-    return (session.exerciseNames ?? []).map((x) => (x ?? '').toString().trim()).filter((x) => !!x);
-  }
+  return (session.exerciseNames ?? [])
+    .map((x) => (x ?? '').toString().trim())
+    .filter(Boolean);
+}
 
-  joinExerciseNames(session: TrainingSession): string {
-    return this.getSessionExerciseNames(session).join(', ');
-  }
+joinExerciseNames(session: TrainingSession): string {
+  const names = this.getExerciseExecution(session);
+  return names.length ? names.join(', ') : 'Keine Übungen hinterlegt';
+}
+
 
   getPlanName(planId: number | null, fallback?: string): string {
     if (fallback) return fallback;
@@ -496,28 +518,34 @@ export class Sessions implements OnInit {
 
     this.http.get<any[]>(`${this.baseUrl}/training-sessions/${id}/executions`).subscribe({
       next: (execs) => {
-        this.detailExecutions = (execs ?? [])
-          .map((e: any) => {
-            const exerciseId = Number(e?.exercise?.id);
-            if (!Number.isFinite(exerciseId)) return null;
+        const normalized = (execs ?? [])
+        .map((e: any): ExecutionDraft | null => {
+        const exerciseId = Number(e.exerciseId ?? e.exercise?.id);
+           if (!Number.isFinite(exerciseId)) return null;
 
-            const draft: ExecutionDraft = {
-              executionId: Number(e?.id),
-              exerciseId,
-              orderIndex: Number(e?.orderIndex) || 1,
-              plannedSets: Number(e?.plannedSets) || this.defaultPlannedSets,
-              plannedReps: Number(e?.plannedReps) || this.defaultPlannedReps,
-              plannedWeightKg: Number(e?.plannedWeightKg) || this.defaultPlannedWeightKg,
-              notes: e?.notes ?? null,
-            };
-            return this.normalizeDraft(draft);
-          })
-          .filter((x: ExecutionDraft | null): x is ExecutionDraft => !!x)
-          .sort((a, b) => a.orderIndex - b.orderIndex);
+           return this.normalizeDraft({
+             executionId: Number(e.id),
+             exerciseId,
+             orderIndex: Number(e.orderIndex) || 1,
+             plannedSets: Number(e.plannedSets) || this.defaultPlannedSets,
+             plannedReps: Number(e.plannedReps) || this.defaultPlannedReps,
+             plannedWeightKg: Number(e.plannedWeightKg) || this.defaultPlannedWeightKg,
+             notes: e.notes ?? null,
+          });
+      })
+      .filter((x): x is ExecutionDraft => x !== null)
+      .sort((a, b) => a.orderIndex - b.orderIndex);
+
+      this.detailExecutions = normalized;
+
+     // SNAPSHOT für Diff
+      this.detailOriginalExecutions =
+       JSON.parse(JSON.stringify(normalized));
 
         this.detailExerciseSearch = '';
         this.detailLoading = false;
       },
+
       error: (err) => {
         console.error('Details konnten nicht geladen werden', err);
         this.errorMsg = 'Details zur Session konnten nicht geladen werden.';
@@ -527,14 +555,16 @@ export class Sessions implements OnInit {
   }
 
   clearSelection(): void {
-    this.selectedSession = null;
-    this.detailExerciseSearch = '';
-    this.detailExecutions = [];
-    this.detailForm = { id: null, planId: null, name: '', days: [] };
-    this.detailOriginal = null;
-    this.detailLoading = false;
-    this.updating = false;
-  }
+  this.selectedSession = null;
+  this.detailExecutions = [];
+  this.detailOriginalExecutions = [];
+  this.detailForm = { id: null, planId: null, name: '', days: [] };
+  this.detailOriginal = null;
+  this.detailExerciseSearch = '';
+  this.detailLoading = false;
+  this.updating = false;
+}
+
 
   updateSelectedSession(): void {
     if (!this.detailForm.id) return;
@@ -575,36 +605,105 @@ export class Sessions implements OnInit {
     if (!original || original.planId !== planId) payload.planId = planId;
     if (daysChanged) payload.days = Array.from(new Set(normalizedDays)).sort((a, b) => a - b);
 
-    if (!Object.keys(payload).length) {
-      this.infoMsg = 'Keine Änderungen zum Speichern.';
+    const executionsChanged =
+    JSON.stringify(this.detailExecutions) !==
+    JSON.stringify(this.detailOriginalExecutions);
+
+      if (!Object.keys(payload).length && !executionsChanged) {
+        this.infoMsg = 'Keine Änderungen zum Speichern.';
       return;
-    }
+      }
+
 
     this.errorMsg = '';
     this.infoMsg = '';
     this.updating = true;
 
     this.http.patch<any>(`${this.baseUrl}/training-sessions/${id}`, payload).subscribe({
-      next: () => {
-        this.updating = false;
-        this.infoMsg = 'Session wurde aktualisiert.';
-
-        this.detailOriginal = {
-          id,
-          name: trimmedName,
-          planId,
-          daysKey: daysKeyNow,
-        };
-
-        this.loadSessions();
-      },
-      error: (err) => {
-        console.error(err);
-        this.updating = false;
-        this.errorMsg = err?.error?.detail || err?.error?.message || 'Session konnte nicht aktualisiert werden.';
+  next: () => {
+    // ❗ NICHT hier beenden → jetzt kommen die Übungen
+    this.syncDetailExecutions(id);
+  },
+    error: (err) => {
+       console.error(err);
+      this.updating = false;
+      this.errorMsg =
+         err?.error?.detail ||
+         err?.error?.message ||
+        'Session konnte nicht aktualisiert werden.';
       },
     });
   }
+  
+  private syncDetailExecutions(sessionId: number): void {
+  const toCreate = this.detailExecutions.filter(d => !d.executionId);
+
+  const toDelete = this.detailOriginalExecutions.filter(
+    o => !this.detailExecutions.find(d => d.executionId === o.executionId)
+  );
+
+  const toUpdate = this.detailExecutions.filter(d => {
+    if (!d.executionId) return false;
+    const orig = this.detailOriginalExecutions.find(
+      o => o.executionId === d.executionId
+    );
+    if (!orig) return true;
+    return JSON.stringify(d) !== JSON.stringify(orig);
+  });
+
+  const requests = [];
+
+  for (const d of toCreate) {
+    requests.push(
+      this.http.post(
+        `${this.baseUrl}/training-sessions/${sessionId}/executions`,
+        d
+      )
+    );
+  }
+
+  for (const d of toUpdate) {
+    requests.push(
+      this.http.patch(
+        `${this.baseUrl}/training-sessions/${sessionId}/executions/${d.executionId}`,
+        d
+      )
+    );
+  }
+
+  for (const d of toDelete) {
+    requests.push(
+      this.http.delete(
+        `${this.baseUrl}/training-sessions/${sessionId}/executions/${d.executionId}`
+      )
+    );
+  }
+
+  if (!requests.length) {
+    this.afterUpdateSuccess();
+    return;
+  }
+
+  forkJoin(requests).subscribe({
+    next: () => this.afterUpdateSuccess(),
+    error: () => {
+      this.updating = false;
+      this.errorMsg = 'Übungen konnten nicht gespeichert werden.';
+    },
+  });
+}
+
+private afterUpdateSuccess(): void {
+  this.updating = false;
+  this.infoMsg = 'Session wurde vollständig aktualisiert.';
+  this.clearSelection();
+
+  // Sessions + Executions neu laden
+  this.loadSessions();
+}
+
+
+
 
   deleteSession(session: TrainingSession, event?: MouseEvent): void {
     if (event) event.stopPropagation();
@@ -661,28 +760,60 @@ export class Sessions implements OnInit {
   }
 
   private loadSessions(): void {
-    this.loadingSessions = true;
-    this.http.get<any>(`${this.baseUrl}/training-sessions?size=200`).subscribe({
-      next: (res) => {
-        const list = this.flattenCollection(res, 'trainingSessions');
-        this.sessions = (list ?? []).map((s: any) => ({
-          id: s.id != null ? Number(s.id) : undefined,
-          name: s.name,
-          planId: s.planId != null ? Number(s.planId) : (s.plan?.id != null ? Number(s.plan.id) : null),
-          planName: s.planName ?? s.plan?.name,
-          days: Array.isArray(s.days) ? s.days.map((d: any) => Number(d)).filter((d: number) => d >= 1 && d <= 30) : [],
-          exerciseExecutions: Array.isArray(s.exerciseExecutions) ? s.exerciseExecutions : undefined,
-          exerciseNames: Array.isArray(s.exerciseNames) ? s.exerciseNames : undefined,
-        }));
+  this.loadingSessions = true;
 
+  this.http.get<any>(`${this.baseUrl}/training-sessions?size=200`).subscribe({
+    next: (res) => {
+      const list = this.flattenCollection(res, 'trainingSessions');
+
+      this.sessions = (list ?? []).map((s: any) => ({
+        id: Number(s.id),
+        name: s.name,
+        planId:
+          s.planId != null
+            ? Number(s.planId)
+            : s.plan?.id != null
+            ? Number(s.plan.id)
+            : null,
+        planName: s.planName ?? s.plan?.name,
+        days: Array.isArray(s.days)
+          ? s.days.map((d: any) => Number(d)).filter((d: number) => d >= 1 && d <= 30)
+          : [],
+        exerciseExecutions: [],
+      }));
+
+      const ids = this.sessions
+        .map((s) => s.id)
+        .filter((id): id is number => Number.isFinite(id));
+
+      if (!ids.length) {
         this.loadingSessions = false;
-      },
-      error: (err) => {
-        console.error(err);
-        this.loadingSessions = false;
-      },
-    });
-  }
+        return;
+      }
+
+      const requests = ids.map((id) =>
+        this.http.get<any[]>(`${this.baseUrl}/training-sessions/${id}/executions`)
+      );
+
+      forkJoin(requests).subscribe({
+        next: (results) => {
+          this.sessions = this.sessions.map((s, i) => ({
+            ...s,
+            exerciseExecutions: results[i] ?? [],
+          }));
+          this.loadingSessions = false;
+        },
+        error: () => {
+          this.loadingSessions = false;
+        },
+      });
+    },
+    error: () => {
+      this.loadingSessions = false;
+    },
+  });
+}
+
 
   private loadExercises(): void {
     this.loadingExercises = true;
