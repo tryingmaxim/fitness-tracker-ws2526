@@ -59,7 +59,7 @@ interface PlanCalendar {
   days: CalendarDayCell[];
 }
 
-// NEU: Backend response von /training-executions/streak
+// Backend response von /training-executions/stats/streak
 interface StreakResponse {
   streakDays: number;
 }
@@ -96,7 +96,7 @@ export class Dashboard implements OnInit {
 
   plansDashboard: PlanDashboardItem[] = [];
 
-  // NEU: Kalender (Tabs)
+  // Kalender (Tabs)
   planTabs: PlanTabItem[] = [];
   planCalendars: PlanCalendar[] = [];
   selectedPlanId: number | null = null;
@@ -123,7 +123,7 @@ export class Dashboard implements OnInit {
   //wird ausgeführt wenn Seite geladen wird
   ngOnInit(): void {
     this.loadData();
-    this.loadStreak(); // ✅ NEU
+    this.loadStreak(); // ✅ Streak laden
   }
 
   // HEUTE-Logik für 1–30 Kalender
@@ -221,7 +221,7 @@ export class Dashboard implements OnInit {
       return;
     }
 
-    // FIX: korrektes Spread 
+    // ✅ FIX: korrektes Spread (sonst crash)
     const sorted = [...sessions].sort((a, b) => {
       const aMin = this.minDay(a.days);
       const bMin = this.minDay(b.days);
@@ -287,7 +287,7 @@ export class Dashboard implements OnInit {
     });
   }
 
-  //  NEU: Plan-Tabs + 1-30 Kalender pro Plan bauen
+  // Plan-Tabs + 1-30 Kalender pro Plan bauen
   private buildPlanCalendars(): void {
     if (!this.plansRaw.length) {
       this.planTabs = [];
@@ -355,17 +355,17 @@ export class Dashboard implements OnInit {
   }
 
   // =========================================================
-  // ✅ STREAK (NEU) – holt vom Backend /training-executions/streak
+  // ✅ STREAK – holt vom Backend /training-executions/stats/streak
   // =========================================================
   private loadStreak(): void {
-    this.http.get<StreakResponse>(`${this.baseUrl}/training-executions/streak`).subscribe({
+    this.http.get<StreakResponse>(`${this.baseUrl}/training-executions/stats/streak`).subscribe({
       next: (res) => {
         const days = Math.max(0, Number(res?.streakDays ?? 0));
         this.stats[2].value = `${days} Tage`;
         this.stats[2].sub = days > 0 ? 'ohne Pause' : 'noch keine Serie';
       },
       error: () => {
-        // fallback ohne crash, falls Endpoint noch nicht deployed/erreichbar
+        // fallback ohne crash, falls Endpoint nicht erreichbar
         this.stats[2].value = '0 Tage';
         this.stats[2].sub = 'Streak nicht verfügbar (Backend)';
       },

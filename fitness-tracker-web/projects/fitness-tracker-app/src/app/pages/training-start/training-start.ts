@@ -56,11 +56,26 @@ interface ExecutedExerciseResponse {
 
 interface ActualEntry {
   exerciseId: number;
-  actualSets: number;
-  actualReps: number;
-  actualWeightKg: number;
+  actualSets: number;      // min 1
+  actualReps: number;      // min 1
+  actualWeightKg: number;  // min 0
   done: boolean;
   notes: string;
+}
+
+type FieldKey = 'sets' | 'reps' | 'weight';
+type FieldType = 'int' | 'float';
+
+interface ActualInputEntry {
+  sets: string;
+  reps: string;
+  weight: string;
+}
+
+interface FieldErrors {
+  sets?: string;
+  reps?: string;
+  weight?: string;
 }
 
 @Component({
@@ -84,8 +99,14 @@ export class TrainingStart implements OnInit, OnDestroy {
   startedAt: Date | null = null;
   completedAt: Date | null = null;
 
-  // actual per exerciseId
+  // actual per exerciseId (numeric values used for saving)
   actual: Record<number, ActualEntry> = {};
+
+  // raw inputs per exerciseId (strings to detect invalid characters)
+  actualInput: Record<number, ActualInputEntry> = {};
+
+  // errors per exerciseId
+  errors: Record<number, FieldErrors> = {};
 
   // UX
   toast: { type: 'success' | 'error' | 'info'; text: string } | null = null;
@@ -167,6 +188,13 @@ export class TrainingStart implements OnInit, OnDestroy {
       return;
     }
 
+    // validate once before starting to avoid odd states
+    this.validateAllFields();
+    if (this.hasValidationErrors()) {
+      this.showToast('error', 'Bitte korrigiere die Eingaben (nur gültige Zahlen).');
+      return;
+    }
+
     this.starting = true;
 
     this.http
@@ -195,6 +223,12 @@ export class TrainingStart implements OnInit, OnDestroy {
       return;
     }
 
+    this.validateAllFields();
+    if (this.hasValidationErrors()) {
+      this.showToast('error', 'Speichern nicht möglich: Bitte korrigiere die rot markierten Felder.');
+      return;
+    }
+
     this.saving = true;
 
     const requests = this.session.exerciseExecutions.map((p) => {
@@ -202,9 +236,9 @@ export class TrainingStart implements OnInit, OnDestroy {
 
       const body = {
         exerciseId: p.exerciseId,
-        actualSets: Math.max(0, Number(a?.actualSets ?? 0)),
-        actualReps: Math.max(0, Number(a?.actualReps ?? 0)),
-        actualWeightKg: Math.max(0, Number(a?.actualWeightKg ?? 0)),
+        actualSets: this.clampIntMin(a?.actualSets, 1),
+        actualReps: this.clampIntMin(a?.actualReps, 1),
+        actualWeightKg: this.clampFloatMin(a?.actualWeightKg, 0),
         done: Boolean(a?.done ?? false),
         notes: (a?.notes ?? '').trim() || null,
       };
@@ -217,7 +251,6 @@ export class TrainingStart implements OnInit, OnDestroy {
 
     forkJoin(requests).subscribe({
       next: () => {
-        // Wichtig: einmal sauber aus dem Backend laden, damit Notes/Werte garantiert korrekt sind
         this.loadExecutionAndThen(() => {
           this.persistLocalDraft();
           this.showToast('success', 'Fortschritt gespeichert ✅');
@@ -243,6 +276,12 @@ export class TrainingStart implements OnInit, OnDestroy {
       return;
     }
 
+    this.validateAllFields();
+    if (this.hasValidationErrors()) {
+      this.showToast('error', 'Abschließen nicht möglich: Bitte korrigiere die rot markierten Felder.');
+      return;
+    }
+
     this.finishing = true;
 
     const saveRequests =
@@ -252,9 +291,9 @@ export class TrainingStart implements OnInit, OnDestroy {
           `${this.baseUrl}/training-executions/${this.executionId}/exercises`,
           {
             exerciseId: p.exerciseId,
-            actualSets: Math.max(0, Number(a?.actualSets ?? 0)),
-            actualReps: Math.max(0, Number(a?.actualReps ?? 0)),
-            actualWeightKg: Math.max(0, Number(a?.actualWeightKg ?? 0)),
+            actualSets: this.clampIntMin(a?.actualSets, 1),
+            actualReps: this.clampIntMin(a?.actualReps, 1),
+            actualWeightKg: this.clampFloatMin(a?.actualWeightKg, 0),
             done: Boolean(a?.done ?? false),
             notes: (a?.notes ?? '').trim() || null,
           }
@@ -274,7 +313,6 @@ export class TrainingStart implements OnInit, OnDestroy {
       )
       .subscribe({
         next: () => {
-          // auch nach complete nochmal reloaden, damit completedAt/notes etc. safe sind
           this.loadExecutionAndThen(() => {
             this.clearLocalDraft();
             this.showToast('success', 'Training abgeschlossen 🏁');
@@ -309,29 +347,68 @@ export class TrainingStart implements OnInit, OnDestroy {
     });
   }
 
-  onNumberChange(exerciseId: number): void {
-    const a = this.actual[exerciseId];
-    if (!a) return;
+  // -------------------------
+  // Input handling (strict validation)
+  // -------------------------
 
-    a.actualSets = this.sanitizeInt(a.actualSets);
-    a.actualReps = this.sanitizeInt(a.actualReps);
-    a.actualWeightKg = this.sanitizeFloat(a.actualWeightKg);
+  onRawInputChange(exerciseId: number, field: FieldKey, value: string): void {
+    if (!this.actualInput[exerciseId]) this.actualInput[exerciseId] = { sets: '1', reps: '1', weight: '0' };
+    this.actualInput[exerciseId][field] = (value ?? '').toString();
+
+    // validate + (only if valid) update numeric actual
+    this.validateAndApply(exerciseId, field);
 
     this.persistLocalDraft();
   }
 
-  onToggleDone(exerciseId: number, checked: boolean): void {
-    const a = this.actual[exerciseId];
-    if (!a) return;
-    a.done = checked;
-    this.persistLocalDraft();
+  onNumberKeyDown(ev: KeyboardEvent, type: FieldType): void {
+    const allowedControl = [
+      'Backspace',
+      'Delete',
+      'Tab',
+      'Escape',
+      'Enter',
+      'ArrowLeft',
+      'ArrowRight',
+      'Home',
+      'End',
+    ];
+
+    if (allowedControl.includes(ev.key)) return;
+    if (ev.ctrlKey || ev.metaKey) return; // allow copy/paste/select all shortcuts
+
+    // block minus / plus / exponent
+    if (ev.key === '-' || ev.key === '+' || ev.key.toLowerCase() === 'e') {
+      ev.preventDefault();
+      return;
+    }
+
+    if (type === 'int') {
+      if (!/^\d$/.test(ev.key)) ev.preventDefault();
+      return;
+    }
+
+    // float: digits + one decimal separator (dot or comma)
+    if (/^\d$/.test(ev.key)) return;
+
+    if (ev.key === '.' || ev.key === ',') {
+      const input = ev.target as HTMLInputElement | null;
+      const current = (input?.value ?? '');
+      if (current.includes('.') || current.includes(',')) {
+        ev.preventDefault();
+      }
+      return;
+    }
+
+    ev.preventDefault();
   }
 
-  onNotesChange(exerciseId: number): void {
-    const a = this.actual[exerciseId];
-    if (!a) return;
-    a.notes = (a.notes ?? '').toString();
-    this.persistLocalDraft();
+  onNumberPaste(ev: ClipboardEvent, type: FieldType): void {
+    const txt = (ev.clipboardData?.getData('text') ?? '').trim();
+    const ok = type === 'int' ? /^\d+$/.test(txt) : /^\d+([.,]\d+)?$/.test(txt);
+    if (!ok) {
+      ev.preventDefault();
+    }
   }
 
   // -------------------------
@@ -375,7 +452,6 @@ export class TrainingStart implements OnInit, OnDestroy {
         fn();
       },
       error: () => {
-        // not fatal, but we keep UI state
         fn();
       },
     });
@@ -412,19 +488,29 @@ export class TrainingStart implements OnInit, OnDestroy {
         if (!this.actual[exId]) {
           this.actual[exId] = {
             exerciseId: exId,
-            actualSets: 0,
-            actualReps: 0,
+            actualSets: 1,
+            actualReps: 1,
             actualWeightKg: 0,
             done: false,
             notes: '',
           };
         }
 
-        this.actual[exId].actualSets = Math.max(0, Number(e.actualSets ?? 0));
-        this.actual[exId].actualReps = Math.max(0, Number(e.actualReps ?? 0));
-        this.actual[exId].actualWeightKg = Math.max(0, Number(e.actualWeightKg ?? 0));
+        // numeric
+        this.actual[exId].actualSets = this.clampIntMin(Number(e.actualSets ?? 1), 1);
+        this.actual[exId].actualReps = this.clampIntMin(Number(e.actualReps ?? 1), 1);
+        this.actual[exId].actualWeightKg = this.clampFloatMin(Number(e.actualWeightKg ?? 0), 0);
         this.actual[exId].done = Boolean(e.done);
         this.actual[exId].notes = (e.notes ?? '') || '';
+
+        // raw strings
+        if (!this.actualInput[exId]) this.actualInput[exId] = { sets: '1', reps: '1', weight: '0' };
+        this.actualInput[exId].sets = String(this.actual[exId].actualSets);
+        this.actualInput[exId].reps = String(this.actual[exId].actualReps);
+        this.actualInput[exId].weight = this.formatWeight(this.actual[exId].actualWeightKg);
+
+        // clear errors after loading backend values
+        this.errors[exId] = {};
       }
     }
   }
@@ -433,17 +519,31 @@ export class TrainingStart implements OnInit, OnDestroy {
     if (!this.session) return;
 
     const next: Record<number, ActualEntry> = {};
+    const nextInput: Record<number, ActualInputEntry> = {};
+    const nextErrors: Record<number, FieldErrors> = {};
+
     for (const p of this.session.exerciseExecutions) {
       next[p.exerciseId] = {
         exerciseId: p.exerciseId,
-        actualSets: 0,
-        actualReps: 0,
+        actualSets: 1,
+        actualReps: 1,
         actualWeightKg: 0,
         done: false,
         notes: '',
       };
+
+      nextInput[p.exerciseId] = {
+        sets: '1',
+        reps: '1',
+        weight: '0',
+      };
+
+      nextErrors[p.exerciseId] = {};
     }
+
     this.actual = next;
+    this.actualInput = nextInput;
+    this.errors = nextErrors;
   }
 
   private normalizeSession(s: TrainingSessionResponse): TrainingSessionResponse {
@@ -473,6 +573,8 @@ export class TrainingStart implements OnInit, OnDestroy {
       startedAt: this.startedAt ? this.startedAt.toISOString() : null,
       completedAt: this.completedAt ? this.completedAt.toISOString() : null,
       actual: this.actual,
+      actualInput: this.actualInput,
+      errors: this.errors,
     };
     try {
       localStorage.setItem(this.localKey(this.sessionId), JSON.stringify(payload));
@@ -496,6 +598,7 @@ export class TrainingStart implements OnInit, OnDestroy {
       this.startedAt = parsed.startedAt ? new Date(parsed.startedAt) : null;
       this.completedAt = parsed.completedAt ? new Date(parsed.completedAt) : null;
 
+      // restore numeric actual
       if (parsed.actual && typeof parsed.actual === 'object') {
         for (const key of Object.keys(parsed.actual)) {
           const exId = Number(key);
@@ -504,14 +607,48 @@ export class TrainingStart implements OnInit, OnDestroy {
 
           this.actual[exId] = {
             exerciseId: exId,
-            actualSets: Math.max(0, this.sanitizeInt(src.actualSets)),
-            actualReps: Math.max(0, this.sanitizeInt(src.actualReps)),
-            actualWeightKg: Math.max(0, this.sanitizeFloat(src.actualWeightKg)),
+            actualSets: this.clampIntMin(Number(src.actualSets ?? 1), 1),
+            actualReps: this.clampIntMin(Number(src.actualReps ?? 1), 1),
+            actualWeightKg: this.clampFloatMin(Number(src.actualWeightKg ?? 0), 0),
             done: Boolean(src.done),
             notes: typeof src.notes === 'string' ? src.notes : '',
           };
         }
       }
+
+      // restore raw inputs
+      if (parsed.actualInput && typeof parsed.actualInput === 'object') {
+        for (const key of Object.keys(parsed.actualInput)) {
+          const exId = Number(key);
+          if (!this.actualInput[exId]) continue;
+          const src = parsed.actualInput[key];
+
+          this.actualInput[exId] = {
+            sets: typeof src.sets === 'string' ? src.sets : String(this.actual[exId].actualSets),
+            reps: typeof src.reps === 'string' ? src.reps : String(this.actual[exId].actualReps),
+            weight: typeof src.weight === 'string' ? src.weight : this.formatWeight(this.actual[exId].actualWeightKg),
+          };
+        }
+      } else {
+        // ensure raw inputs exist
+        for (const exIdStr of Object.keys(this.actual)) {
+          const exId = Number(exIdStr);
+          if (!this.actualInput[exId]) {
+            this.actualInput[exId] = {
+              sets: String(this.actual[exId].actualSets),
+              reps: String(this.actual[exId].actualReps),
+              weight: this.formatWeight(this.actual[exId].actualWeightKg),
+            };
+          }
+        }
+      }
+
+      // restore errors (optional), but we revalidate anyway
+      if (parsed.errors && typeof parsed.errors === 'object') {
+        this.errors = parsed.errors;
+      }
+
+      this.validateAllFields();
     } catch {
       // ignore
     }
@@ -535,22 +672,124 @@ export class TrainingStart implements OnInit, OnDestroy {
   }
 
   // -------------------------
-  // Utilities
+  // Validation helpers
   // -------------------------
 
-  private sanitizeInt(v: any): number {
-    const n = Number(v);
-    if (!Number.isFinite(n)) return 0;
-    const i = Math.trunc(n);
-    return i < 0 ? 0 : i;
+  private validateAllFields(): void {
+    if (!this.session) return;
+    for (const p of this.session.exerciseExecutions) {
+      const exId = p.exerciseId;
+      this.validateAndApply(exId, 'sets');
+      this.validateAndApply(exId, 'reps');
+      this.validateAndApply(exId, 'weight');
+    }
   }
 
-  private sanitizeFloat(v: any): number {
-    const n = Number(v);
-    if (!Number.isFinite(n)) return 0;
-    const x = n < 0 ? 0 : n;
-    return Math.round(x * 10) / 10;
+  private validateAndApply(exerciseId: number, field: FieldKey): void {
+    if (!this.actual[exerciseId]) return;
+    if (!this.actualInput[exerciseId]) this.actualInput[exerciseId] = { sets: '1', reps: '1', weight: '0' };
+    if (!this.errors[exerciseId]) this.errors[exerciseId] = {};
+
+    const raw = (this.actualInput[exerciseId][field] ?? '').toString().trim();
+
+    // empty handling
+    if (!raw) {
+      if (field === 'weight') {
+        this.errors[exerciseId][field] = 'Bitte eine Zahl ≥ 0 eingeben.';
+      } else {
+        this.errors[exerciseId][field] = 'Bitte eine ganze Zahl ≥ 1 eingeben.';
+      }
+      return;
+    }
+
+    if (field === 'sets' || field === 'reps') {
+      // only digits (no special chars)
+      if (!/^\d+$/.test(raw)) {
+        this.errors[exerciseId][field] = 'Nur ganze Zahlen ohne Sonderzeichen (≥ 1).';
+        return;
+      }
+      const n = Number(raw);
+      if (!Number.isFinite(n) || n < 1) {
+        this.errors[exerciseId][field] = 'Muss mindestens 1 sein.';
+        return;
+      }
+      // valid
+      this.errors[exerciseId][field] = undefined;
+      const intVal = Math.trunc(n);
+      if (field === 'sets') this.actual[exerciseId].actualSets = intVal;
+      else this.actual[exerciseId].actualReps = intVal;
+      return;
+    }
+
+    // weight: digits with optional decimal separator . or ,
+    if (!/^\d+([.,]\d+)?$/.test(raw)) {
+      this.errors[exerciseId][field] = 'Nur Zahlen (z.B. 20 oder 20,5). Keine Sonderzeichen.';
+      return;
+    }
+
+    const normalized = raw.replace(',', '.');
+    const n = Number(normalized);
+    if (!Number.isFinite(n) || n < 0) {
+      this.errors[exerciseId][field] = 'Muss mindestens 0 sein.';
+      return;
+    }
+
+    this.errors[exerciseId][field] = undefined;
+    this.actual[exerciseId].actualWeightKg = this.roundToTenth(n);
   }
+
+  private hasValidationErrors(): boolean {
+    for (const exIdStr of Object.keys(this.errors)) {
+      const e = this.errors[Number(exIdStr)];
+      if (!e) continue;
+      if (e.sets || e.reps || e.weight) return true;
+    }
+    return false;
+  }
+
+  private clampIntMin(v: any, min: number): number {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return min;
+    const i = Math.trunc(n);
+    return i < min ? min : i;
+  }
+
+  private clampFloatMin(v: any, min: number): number {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return min;
+    return n < min ? min : this.roundToTenth(n);
+  }
+
+  private roundToTenth(n: number): number {
+    return Math.round(n * 10) / 10;
+  }
+
+  private formatWeight(n: number): string {
+    // keep dot to avoid locale issues in inputs; user can still type comma
+    return Number.isFinite(n) ? String(this.roundToTenth(n)) : '0';
+  }
+
+  // -------------------------
+  // Other field events
+  // -------------------------
+
+  onToggleDone(exerciseId: number, checked: boolean): void {
+    const a = this.actual[exerciseId];
+    if (!a) return;
+    a.done = checked;
+    this.persistLocalDraft();
+  }
+
+  onNotesChange(exerciseId: number): void {
+    const a = this.actual[exerciseId];
+    if (!a) return;
+    a.notes = (a.notes ?? '').toString();
+    this.persistLocalDraft();
+  }
+
+  // -------------------------
+  // Utilities
+  // -------------------------
 
   private showToast(type: 'success' | 'error' | 'info', text: string): void {
     this.toast = { type, text };

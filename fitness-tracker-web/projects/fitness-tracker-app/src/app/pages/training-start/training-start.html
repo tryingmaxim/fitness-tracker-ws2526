@@ -163,31 +163,70 @@
             </div>
 
             <div class="fields">
+              <!-- SÄTZE (min 1) -->
               <div class="field">
                 <label>Sätze</label>
-                <input type="number" min="0"
-                       [disabled]="!isInProgress || isCompleted"
-                       [(ngModel)]="actual[ex.exerciseId].actualSets"
-                       (ngModelChange)="onNumberChange(ex.exerciseId)"
-                       placeholder="0">
+                <input
+                  type="text"
+                  inputmode="numeric"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="1"
+                  [disabled]="!isInProgress || isCompleted"
+                  [ngModel]="actualInput[ex.exerciseId]?.sets"
+                  (ngModelChange)="onRawInputChange(ex.exerciseId, 'sets', $event)"
+                  (keydown)="onNumberKeyDown($event, 'int')"
+                  (paste)="onNumberPaste($event, 'int')"
+                  [class.invalid]="!!errors[ex.exerciseId]?.sets"
+                  [attr.aria-invalid]="!!errors[ex.exerciseId]?.sets"
+                />
+                <div class="field-error" *ngIf="errors[ex.exerciseId]?.sets">
+                  {{ errors[ex.exerciseId]?.sets }}
+                </div>
               </div>
 
+              <!-- WDH (min 1) -->
               <div class="field">
                 <label>Wdh.</label>
-                <input type="number" min="0"
-                       [disabled]="!isInProgress || isCompleted"
-                       [(ngModel)]="actual[ex.exerciseId].actualReps"
-                       (ngModelChange)="onNumberChange(ex.exerciseId)"
-                       placeholder="0">
+                <input
+                  type="text"
+                  inputmode="numeric"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="1"
+                  [disabled]="!isInProgress || isCompleted"
+                  [ngModel]="actualInput[ex.exerciseId]?.reps"
+                  (ngModelChange)="onRawInputChange(ex.exerciseId, 'reps', $event)"
+                  (keydown)="onNumberKeyDown($event, 'int')"
+                  (paste)="onNumberPaste($event, 'int')"
+                  [class.invalid]="!!errors[ex.exerciseId]?.reps"
+                  [attr.aria-invalid]="!!errors[ex.exerciseId]?.reps"
+                />
+                <div class="field-error" *ngIf="errors[ex.exerciseId]?.reps">
+                  {{ errors[ex.exerciseId]?.reps }}
+                </div>
               </div>
 
+              <!-- KG (min 0, Dezimal erlaubt mit . oder ,) -->
               <div class="field">
                 <label>kg</label>
-                <input type="number" min="0" step="0.5"
-                       [disabled]="!isInProgress || isCompleted"
-                       [(ngModel)]="actual[ex.exerciseId].actualWeightKg"
-                       (ngModelChange)="onNumberChange(ex.exerciseId)"
-                       placeholder="0">
+                <input
+                  type="text"
+                  inputmode="decimal"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="0"
+                  [disabled]="!isInProgress || isCompleted"
+                  [ngModel]="actualInput[ex.exerciseId]?.weight"
+                  (ngModelChange)="onRawInputChange(ex.exerciseId, 'weight', $event)"
+                  (keydown)="onNumberKeyDown($event, 'float')"
+                  (paste)="onNumberPaste($event, 'float')"
+                  [class.invalid]="!!errors[ex.exerciseId]?.weight"
+                  [attr.aria-invalid]="!!errors[ex.exerciseId]?.weight"
+                />
+                <div class="field-error" *ngIf="errors[ex.exerciseId]?.weight">
+                  {{ errors[ex.exerciseId]?.weight }}
+                </div>
               </div>
             </div>
 

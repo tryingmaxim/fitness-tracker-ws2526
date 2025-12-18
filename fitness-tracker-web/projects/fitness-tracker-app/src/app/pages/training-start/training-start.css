@@ -363,6 +363,24 @@
   border-color: rgba(148, 163, 184, 0.65);
 }
 
+/* INVALID FIELD STYLES */
+.field input.invalid {
+  border-color: rgba(239, 68, 68, 0.85);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
+.field-error {
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 750;
+  color: rgba(239, 68, 68, 0.92);
+  line-height: 1.25;
+}
+
+:host-context(.light-mode) .field-error {
+  color: rgba(185, 28, 28, 0.92);
+}
+
 .note { margin-top: 0.75rem; }
 
 .note label {
