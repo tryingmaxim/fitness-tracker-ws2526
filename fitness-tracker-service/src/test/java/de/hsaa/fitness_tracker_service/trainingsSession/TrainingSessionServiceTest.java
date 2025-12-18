@@ -25,192 +25,299 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class TrainingSessionServiceTest {
 
-	@Mock
-	TrainingSessionRepository repo;
-	@Mock
-	TrainingPlanRepository planRepo;
-	@Mock
-	TrainingExecutionRepository trainingExecutionRepo;
-	@Mock
-	SessionDayRepository sessionDayRepo;
+    @Mock
+    TrainingSessionRepository repo;
+    @Mock
+    TrainingPlanRepository planRepo;
+    @Mock
+    TrainingExecutionRepository trainingExecutionRepo;
+    @Mock
+    SessionDayRepository sessionDayRepo;
 
-	@InjectMocks
-	TrainingSessionService service;
+    @InjectMocks
+    TrainingSessionService service;
 
-	@Test
-	void shouldCreateSessionWithValidDays() {
-		TrainingPlan plan = new TrainingPlan();
+    @Test
+    void shouldCreateSessionWithValidDaysDistinctSortedAndTrimmedName() {
+        TrainingPlan plan = new TrainingPlan();
 
-		when(planRepo.findById(1L)).thenReturn(Optional.of(plan));
-		when(sessionDayRepo.existsByPlanIdAndDay(1L, 1)).thenReturn(false);
-		when(sessionDayRepo.existsByPlanIdAndDay(1L, 2)).thenReturn(false);
-		when(repo.save(any())).thenAnswer(i -> i.getArgument(0));
+        when(planRepo.findById(1L)).thenReturn(Optional.of(plan));
+        when(sessionDayRepo.existsByPlanIdAndDay(1L, 2)).thenReturn(false);
+        when(sessionDayRepo.existsByPlanIdAndDay(1L, 1)).thenReturn(false);
+        when(repo.save(any())).thenAnswer(i -> i.getArgument(0));
 
-		TrainingSession result = service.create(1L, " Session ", List.of(1, 2));
+        TrainingSession result = service.create(1L, " Session ", java.util.Arrays.asList(2, 2, 1, null));
 
-		assertEquals("Session", result.getName());
-		assertSame(plan, result.getPlan());
-		assertEquals(2, result.getDays().size());
-		assertTrue(result.getDays().stream().map(SessionDay::getDay).toList().containsAll(List.of(1, 2)));
-	}
+        assertSame(plan, result.getPlan());
+        assertEquals("Session", result.getName());
+        assertEquals(2, result.getDays().size());
+        List<Integer> days = result.getDays().stream().map(SessionDay::getDay).sorted().toList();
+        assertEquals(List.of(1, 2), days);
+    }
 
-	@Test
-	void shouldThrowExceptionWhenDaysEmpty() {
-		when(planRepo.findById(1L)).thenReturn(Optional.of(new TrainingPlan()));
+    @Test
+    void shouldThrowExceptionWhenCreatePlanNotFound() {
+        when(planRepo.findById(1L)).thenReturn(Optional.empty());
+        assertThrows(EntityNotFoundException.class, () -> service.create(1L, "A", List.of(1)));
+    }
 
-		assertThrows(IllegalArgumentException.class, () -> service.create(1L, "A", List.of()));
-	}
+    @Test
+    void shouldThrowExceptionWhenDaysEmpty() {
+        when(planRepo.findById(1L)).thenReturn(Optional.of(new TrainingPlan()));
+        assertThrows(IllegalArgumentException.class, () -> service.create(1L, "A", List.of()));
+    }
 
-	@Test
-	void shouldThrowExceptionWhenDayOutOfRange() {
-		when(planRepo.findById(1L)).thenReturn(Optional.of(new TrainingPlan()));
+    @Test
+    void shouldThrowExceptionWhenDayOutOfRangeLow() {
+        when(planRepo.findById(1L)).thenReturn(Optional.of(new TrainingPlan()));
+        assertThrows(IllegalArgumentException.class, () -> service.create(1L, "A", List.of(0)));
+    }
 
-		assertThrows(IllegalArgumentException.class, () -> service.create(1L, "A", List.of(0)));
-	}
+    @Test
+    void shouldThrowExceptionWhenDayOutOfRangeHigh() {
+        when(planRepo.findById(1L)).thenReturn(Optional.of(new TrainingPlan()));
+        assertThrows(IllegalArgumentException.class, () -> service.create(1L, "A", List.of(31)));
+    }
 
-	@Test
-	void shouldThrowExceptionWhenDayAlreadyUsed() {
-		TrainingPlan plan = new TrainingPlan();
+    @Test
+    void shouldThrowExceptionWhenDayAlreadyUsed() {
+        TrainingPlan plan = new TrainingPlan();
 
-		when(planRepo.findById(1L)).thenReturn(Optional.of(plan));
-		when(sessionDayRepo.existsByPlanIdAndDay(1L, 1)).thenReturn(true);
+        when(planRepo.findById(1L)).thenReturn(Optional.of(plan));
+        when(sessionDayRepo.existsByPlanIdAndDay(1L, 1)).thenReturn(true);
 
-		assertThrows(DataIntegrityViolationException.class, () -> service.create(1L, "A", List.of(1)));
-	}
+        assertThrows(DataIntegrityViolationException.class, () -> service.create(1L, "A", List.of(1)));
+    }
 
-	@Test
-	void shouldGetSessionWhenExists() {
-		TrainingSession s = new TrainingSession();
+    @Test
+    void shouldListSessions() {
+        Pageable pageable = Pageable.ofSize(10);
+        @SuppressWarnings("unchecked")
+        Page<TrainingSession> page = mock(Page.class);
 
-		when(repo.findWithExecutionsById(1L)).thenReturn(Optional.of(s));
+        when(repo.findAll(pageable)).thenReturn(page);
 
-		assertSame(s, service.get(1L));
-	}
+        assertSame(page, service.list(pageable));
+        verify(repo).findAll(pageable);
+    }
 
-	@Test
-	void shouldThrowExceptionWhenSessionNotFound() {
-		when(repo.findWithExecutionsById(1L)).thenReturn(Optional.empty());
+    @Test
+    void shouldListSessionsByPlan() {
+        TrainingPlan plan = new TrainingPlan();
+        Pageable pageable = Pageable.ofSize(10);
+        @SuppressWarnings("unchecked")
+        Page<TrainingSession> page = mock(Page.class);
 
-		assertThrows(EntityNotFoundException.class, () -> service.get(1L));
-	}
+        when(planRepo.findById(1L)).thenReturn(Optional.of(plan));
+        when(repo.findAllByPlanId(1L, pageable)).thenReturn(page);
 
-	@Test
-	void shouldDeleteSessionAndDetachExecutions() {
-		TrainingExecution te1 = mock(TrainingExecution.class);
-		TrainingExecution te2 = mock(TrainingExecution.class);
+        assertSame(page, service.listByPlan(1L, pageable));
+        verify(repo).findAllByPlanId(1L, pageable);
+    }
 
-		when(repo.existsById(1L)).thenReturn(true);
-		when(trainingExecutionRepo.findBySessionId(1L)).thenReturn(List.of(te1, te2));
+    @Test
+    void shouldThrowExceptionWhenListByPlanPlanNotFound() {
+        when(planRepo.findById(123L)).thenReturn(Optional.empty());
+        assertThrows(EntityNotFoundException.class, () -> service.listByPlan(123L, Pageable.ofSize(10)));
+    }
 
-		service.delete(1L);
+    @Test
+    void shouldGetSessionWhenExists() {
+        TrainingSession s = new TrainingSession();
 
-		verify(te1).setSession(null);
-		verify(te2).setSession(null);
-		verify(repo).deleteById(1L);
-	}
+        when(repo.findWithExecutionsById(1L)).thenReturn(Optional.of(s));
 
-	@Test
-	void shouldThrowExceptionWhenDeleteSessionNotFound() {
-		when(repo.existsById(1L)).thenReturn(false);
+        assertSame(s, service.get(1L));
+        verify(repo).findWithExecutionsById(1L);
+    }
 
-		assertThrows(EntityNotFoundException.class, () -> service.delete(1L));
-		verify(repo, never()).deleteById(anyLong());
-	}
+    @Test
+    void shouldThrowExceptionWhenSessionNotFound() {
+        when(repo.findWithExecutionsById(1L)).thenReturn(Optional.empty());
+        assertThrows(EntityNotFoundException.class, () -> service.get(1L));
+    }
 
-	@Test
-	void shouldListSessions() {
-		Pageable pageable = Pageable.ofSize(10);
-		@SuppressWarnings("unchecked")
-		Page<TrainingSession> page = mock(Page.class);
+    @Test
+    void shouldUpdateSessionNameOnly() {
+        TrainingSession current = new TrainingSession();
+        current.setName("Old");
+        TrainingPlan plan = new TrainingPlan();
+        plan.setId(1L);
+        current.setPlan(plan);
 
-		when(repo.findAll(pageable)).thenReturn(page);
+        when(repo.findWithExecutionsById(1L)).thenReturn(Optional.of(current));
 
-		assertSame(page, service.list(pageable));
-	}
+        TrainingSession result = service.update(1L, null, "  New  ", null);
 
-	@Test
-	void shouldListSessionsByPlan() {
-		TrainingPlan plan = new TrainingPlan();
-		Pageable pageable = Pageable.ofSize(10);
-		@SuppressWarnings("unchecked")
-		Page<TrainingSession> page = mock(Page.class);
+        assertSame(current, result);
+        assertEquals("New", result.getName());
+    }
 
-		when(planRepo.findById(1L)).thenReturn(Optional.of(plan));
-		when(repo.findAllByPlanId(1L, pageable)).thenReturn(page);
+    @Test
+    void shouldUpdateSessionChangePlan() {
+        TrainingPlan oldPlan = mock(TrainingPlan.class);
+        when(oldPlan.getId()).thenReturn(1L);
 
-		assertSame(page, service.listByPlan(1L, pageable));
-	}
+        TrainingPlan newPlan = mock(TrainingPlan.class);
 
-	@Test
-	void shouldUpdateSessionNameOnly() {
-		TrainingSession current = new TrainingSession();
-		current.setName("Old");
+        TrainingSession current = new TrainingSession();
+        current.setPlan(oldPlan);
 
-		when(repo.findWithExecutionsById(1L)).thenReturn(Optional.of(current));
+        when(repo.findWithExecutionsById(1L)).thenReturn(Optional.of(current));
+        when(planRepo.findById(2L)).thenReturn(Optional.of(newPlan));
 
-		TrainingSession result = service.update(1L, null, "  New  ", null);
+        TrainingSession result = service.update(1L, 2L, null, null);
 
-		assertSame(current, result);
-		assertEquals("New", result.getName());
-	}
+        assertSame(newPlan, result.getPlan());
+    }
 
-	@Test
-	void shouldUpdateSessionChangePlan() {
-		TrainingPlan oldPlan = mock(TrainingPlan.class);
-		when(oldPlan.getId()).thenReturn(1L);
+    @Test
+    void shouldThrowExceptionWhenUpdatePlanNotFound() {
+        TrainingPlan oldPlan = mock(TrainingPlan.class);
+        when(oldPlan.getId()).thenReturn(1L);
 
-		TrainingPlan newPlan = mock(TrainingPlan.class);
+        TrainingSession current = new TrainingSession();
+        current.setPlan(oldPlan);
 
-		TrainingSession current = new TrainingSession();
-		current.setPlan(oldPlan);
+        when(repo.findWithExecutionsById(1L)).thenReturn(Optional.of(current));
+        when(planRepo.findById(2L)).thenReturn(Optional.empty());
 
-		when(repo.findWithExecutionsById(1L)).thenReturn(Optional.of(current));
-		when(planRepo.findById(2L)).thenReturn(Optional.of(newPlan));
+        assertThrows(EntityNotFoundException.class, () -> service.update(1L, 2L, null, null));
+    }
 
-		TrainingSession result = service.update(1L, 2L, null, null);
+    @Test
+    void shouldUpdateSessionDaysReplaceDaysDistinct() {
+        TrainingPlan plan = mock(TrainingPlan.class);
+        when(plan.getId()).thenReturn(1L);
 
-		assertSame(newPlan, result.getPlan());
-	}
+        TrainingSession current = new TrainingSession();
+        current.setPlan(plan);
+        current.getDays().add(new SessionDay());
 
-	@Test
-	void shouldUpdateSessionDaysReplaceDays() {
-		TrainingPlan plan = mock(TrainingPlan.class);
-		when(plan.getId()).thenReturn(1L);
+        when(repo.findWithExecutionsById(1L)).thenReturn(Optional.of(current));
+        when(sessionDayRepo.existsByPlanIdAndDayAndSessionIdNot(1L, 1, 1L)).thenReturn(false);
+        when(sessionDayRepo.existsByPlanIdAndDayAndSessionIdNot(1L, 2, 1L)).thenReturn(false);
 
-		TrainingSession current = new TrainingSession();
-		current.setPlan(plan);
-		current.getDays().add(new de.hsaa.fitness_tracker_service.trainingsSessionDay.SessionDay());
+        TrainingSession result = service.update(1L, null, null, java.util.Arrays.asList(1, 1, 2, null));
 
-		when(repo.findWithExecutionsById(1L)).thenReturn(Optional.of(current));
-		when(sessionDayRepo.existsByPlanIdAndDayAndSessionIdNot(1L, 1, 1L)).thenReturn(false);
-		when(sessionDayRepo.existsByPlanIdAndDayAndSessionIdNot(1L, 2, 1L)).thenReturn(false);
+        assertSame(current, result);
+        assertEquals(2, result.getDays().size());
+        List<Integer> days = result.getDays().stream().map(SessionDay::getDay).sorted().toList();
+        assertEquals(List.of(1, 2), days);
+    }
 
-		TrainingSession result = service.update(1L, null, null, java.util.Arrays.asList(1, 1, 2, null));
+    @Test
+    void shouldThrowExceptionWhenUpdateDaysEmpty() {
+        TrainingPlan plan = new TrainingPlan();
+        plan.setId(1L);
 
-		assertSame(current, result);
-		assertEquals(2, result.getDays().size());
-		assertTrue(result.getDays().stream().allMatch(d -> d.getDay() == 1 || d.getDay() == 2));
-	}
+        TrainingSession current = new TrainingSession();
+        current.setPlan(plan);
 
-	@Test
-	void shouldThrowExceptionWhenUpdateDaysConflict() {
-		TrainingPlan plan = mock(TrainingPlan.class);
-		when(plan.getId()).thenReturn(1L);
+        when(repo.findWithExecutionsById(1L)).thenReturn(Optional.of(current));
 
-		TrainingSession current = new TrainingSession();
-		current.setPlan(plan);
+        assertThrows(IllegalArgumentException.class, () -> service.update(1L, null, null, List.of()));
+    }
 
-		when(repo.findWithExecutionsById(1L)).thenReturn(Optional.of(current));
-		when(sessionDayRepo.existsByPlanIdAndDayAndSessionIdNot(1L, 1, 1L)).thenReturn(true);
+    @Test
+    void shouldThrowExceptionWhenUpdateDayOutOfRange() {
+        TrainingPlan plan = new TrainingPlan();
+        plan.setId(1L);
 
-		assertThrows(DataIntegrityViolationException.class, () -> service.update(1L, null, null, List.of(1)));
-	}
+        TrainingSession current = new TrainingSession();
+        current.setPlan(plan);
 
-	@Test
-	void shouldThrowExceptionWhenListByPlanPlanNotFound() {
-		when(planRepo.findById(123L)).thenReturn(Optional.empty());
+        when(repo.findWithExecutionsById(1L)).thenReturn(Optional.of(current));
 
-		assertThrows(EntityNotFoundException.class, () -> service.listByPlan(123L, Pageable.ofSize(10)));
-	}
+        assertThrows(IllegalArgumentException.class, () -> service.update(1L, null, null, List.of(31)));
+    }
 
+    @Test
+    void shouldThrowExceptionWhenUpdateDaysConflict() {
+        TrainingPlan plan = mock(TrainingPlan.class);
+        when(plan.getId()).thenReturn(1L);
+
+        TrainingSession current = new TrainingSession();
+        current.setPlan(plan);
+
+        when(repo.findWithExecutionsById(1L)).thenReturn(Optional.of(current));
+        when(sessionDayRepo.existsByPlanIdAndDayAndSessionIdNot(1L, 1, 1L)).thenReturn(true);
+
+        assertThrows(DataIntegrityViolationException.class, () -> service.update(1L, null, null, List.of(1)));
+    }
+
+    @Test
+    void shouldDeleteSessionAndDetachExecutionsAndBackfillSnapshotsThenDelete() {
+        TrainingPlan plan = new TrainingPlan();
+        plan.setName("P");
+
+        TrainingSession s = new TrainingSession();
+        s.setName("S");
+        s.setPlan(plan);
+
+        TrainingExecution te1 = mock(TrainingExecution.class);
+        TrainingExecution te2 = mock(TrainingExecution.class);
+
+        when(repo.findById(1L)).thenReturn(Optional.of(s));
+        when(trainingExecutionRepo.findBySessionId(1L)).thenReturn(List.of(te1, te2));
+
+        service.delete(1L);
+
+        verify(te1).setSession(null);
+        verify(te2).setSession(null);
+        verify(trainingExecutionRepo).saveAll(anyList());
+        verify(repo).delete(s);
+    }
+
+    @Test
+    void shouldDeleteSessionWhenNoExecutions() {
+        TrainingPlan plan = new TrainingPlan();
+        plan.setName("P");
+
+        TrainingSession s = new TrainingSession();
+        s.setName("S");
+        s.setPlan(plan);
+
+        when(repo.findById(1L)).thenReturn(Optional.of(s));
+        when(trainingExecutionRepo.findBySessionId(1L)).thenReturn(List.of());
+
+        service.delete(1L);
+
+        verify(trainingExecutionRepo, never()).saveAll(anyList());
+        verify(repo).delete(s);
+    }
+
+    @Test
+    void shouldThrowExceptionWhenDeleteSessionNotFound() {
+        when(repo.findById(1L)).thenReturn(Optional.empty());
+        assertThrows(EntityNotFoundException.class, () -> service.delete(1L));
+        verify(repo, never()).delete(any());
+    }
+
+    @Test
+    void shouldBackfillSnapshotsOnlyWhenNullOrBlank() {
+        TrainingPlan plan = new TrainingPlan();
+        plan.setName("P");
+
+        TrainingSession s = new TrainingSession();
+        s.setName("S");
+        s.setPlan(plan);
+
+        TrainingExecution te1 = mock(TrainingExecution.class);
+        when(te1.getSessionIdSnapshot()).thenReturn(null);
+        when(te1.getSessionNameSnapshot()).thenReturn("  ");
+        when(te1.getPlanNameSnapshot()).thenReturn(null);
+
+        when(repo.findById(1L)).thenReturn(Optional.of(s));
+        when(trainingExecutionRepo.findBySessionId(1L)).thenReturn(List.of(te1));
+
+        service.delete(1L);
+
+        verify(te1).setSessionIdSnapshot(1L);
+        verify(te1).setSessionNameSnapshot("S");
+        verify(te1).setPlanNameSnapshot("P");
+        verify(te1).setSession(null);
+        verify(trainingExecutionRepo).saveAll(anyList());
+        verify(repo).delete(s);
+    }
 }

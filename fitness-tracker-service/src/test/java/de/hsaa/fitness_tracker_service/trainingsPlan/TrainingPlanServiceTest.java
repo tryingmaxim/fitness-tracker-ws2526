@@ -18,108 +18,163 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class TrainingPlanServiceTest {
 
-    @Mock
-    TrainingPlanRepository repo;
+	@Mock
+	TrainingPlanRepository repo;
 
-    @InjectMocks
-    TrainingPlanService service;
+	@InjectMocks
+	TrainingPlanService service;
 
-    @Test
-    void shouldCreatePlanWhenNameUnique() {
-        TrainingPlan p = new TrainingPlan();
-        p.setName(" Plan ");
+	@Test
+	void shouldCreatePlanWhenNameUniqueTrimsFields() {
+		TrainingPlan p = new TrainingPlan();
+		p.setName(" Plan ");
+		p.setDescription(" Desc ");
 
-        when(repo.existsByNameIgnoreCase("Plan")).thenReturn(false);
-        when(repo.save(any())).thenAnswer(i -> i.getArgument(0));
+		when(repo.existsByNameIgnoreCase("Plan")).thenReturn(false);
+		when(repo.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        TrainingPlan result = service.create(p);
+		TrainingPlan result = service.create(p);
 
-        assertEquals("Plan", result.getName());
-    }
+		assertSame(p, result);
+		assertEquals("Plan", result.getName());
+		assertEquals("Desc", result.getDescription());
+		verify(repo).existsByNameIgnoreCase("Plan");
+		verify(repo).save(p);
+	}
 
-    @Test
-    void shouldThrowExceptionWhenPlanNameExists() {
-        TrainingPlan p = new TrainingPlan();
-        p.setName("Plan");
+	@Test
+	void shouldThrowExceptionWhenPlanNameExistsOnCreate() {
+		TrainingPlan p = new TrainingPlan();
+		p.setName("Plan");
+		p.setDescription("D");
 
-        when(repo.existsByNameIgnoreCase("Plan")).thenReturn(true);
+		when(repo.existsByNameIgnoreCase("Plan")).thenReturn(true);
 
-        assertThrows(DataIntegrityViolationException.class, () -> service.create(p));
-    }
+		assertThrows(DataIntegrityViolationException.class, () -> service.create(p));
+		verify(repo).existsByNameIgnoreCase("Plan");
+		verify(repo, never()).save(any());
+	}
 
-    @Test
-    void shouldGetPlanWhenExists() {
-        TrainingPlan p = new TrainingPlan();
-        p.setId(1L);
+	@Test
+	void shouldListPlans() {
+		Pageable pageable = Pageable.ofSize(10);
+		Page<TrainingPlan> page = mock(Page.class);
 
-        when(repo.findById(1L)).thenReturn(Optional.of(p));
+		when(repo.findAll(pageable)).thenReturn(page);
 
-        TrainingPlan result = service.get(1L);
+		Page<TrainingPlan> result = service.list(pageable);
 
-        assertEquals(1L, result.getId());
-    }
+		assertSame(page, result);
+		verify(repo).findAll(pageable);
+	}
 
-    @Test
-    void shouldThrowExceptionWhenPlanNotFound() {
-        when(repo.findById(1L)).thenReturn(Optional.empty());
+	@Test
+	void shouldGetPlanWhenExists() {
+		TrainingPlan p = new TrainingPlan();
+		p.setId(1L);
 
-        assertThrows(EntityNotFoundException.class, () -> service.get(1L));
-    }
+		when(repo.findById(1L)).thenReturn(Optional.of(p));
 
-    @Test
-    void shouldUpdatePlan() {
-        TrainingPlan current = new TrainingPlan();
-        current.setId(1L);
-        current.setName("Old");
+		TrainingPlan result = service.get(1L);
 
-        TrainingPlan patch = new TrainingPlan();
-        patch.setName("New");
+		assertSame(p, result);
+		assertEquals(1L, result.getId());
+		verify(repo).findById(1L);
+	}
 
-        when(repo.findById(1L)).thenReturn(Optional.of(current));
-        when(repo.existsByNameIgnoreCaseAndIdNot("New", 1L)).thenReturn(false);
+	@Test
+	void shouldThrowExceptionWhenPlanNotFound() {
+		when(repo.findById(1L)).thenReturn(Optional.empty());
 
-        TrainingPlan result = service.update(1L, patch);
+		assertThrows(EntityNotFoundException.class, () -> service.get(1L));
+		verify(repo).findById(1L);
+	}
 
-        assertEquals("New", result.getName());
-    }
+	@Test
+	void shouldUpdatePlanUpdatesOnlyNonNullFieldsAndTrims() {
+		TrainingPlan current = new TrainingPlan();
+		current.setId(1L);
+		current.setName("Old");
+		current.setDescription("OldDesc");
 
-    @Test
-    void shouldThrowExceptionWhenUpdateNameExists() {
-        TrainingPlan current = new TrainingPlan();
-        current.setId(1L);
+		TrainingPlan patch = new TrainingPlan();
+		patch.setName(" New ");
+		patch.setDescription(" NewDesc ");
 
-        TrainingPlan patch = new TrainingPlan();
-        patch.setName("Dup");
+		when(repo.findById(1L)).thenReturn(Optional.of(current));
+		when(repo.existsByNameIgnoreCaseAndIdNot("New", 1L)).thenReturn(false);
 
-        when(repo.findById(1L)).thenReturn(Optional.of(current));
-        when(repo.existsByNameIgnoreCaseAndIdNot("Dup", 1L)).thenReturn(true);
+		TrainingPlan result = service.update(1L, patch);
 
-        assertThrows(DataIntegrityViolationException.class, () -> service.update(1L, patch));
-    }
+		assertSame(current, result);
+		assertEquals("New", result.getName());
+		assertEquals("NewDesc", result.getDescription());
+		verify(repo).findById(1L);
+		verify(repo).existsByNameIgnoreCaseAndIdNot("New", 1L);
+	}
 
-    @Test
-    void shouldDeletePlanWhenExists() {
-        when(repo.existsById(1L)).thenReturn(true);
+	@Test
+	void shouldUpdatePlanWhenPatchHasNullFieldsDoesNotChangeExisting() {
+		TrainingPlan current = new TrainingPlan();
+		current.setId(1L);
+		current.setName("Old");
+		current.setDescription("OldDesc");
 
-        service.delete(1L);
+		TrainingPlan patch = new TrainingPlan();
 
-        verify(repo).deleteById(1L);
-    }
+		when(repo.findById(1L)).thenReturn(Optional.of(current));
+		when(repo.existsByNameIgnoreCaseAndIdNot("Old", 1L)).thenReturn(false);
 
-    @Test
-    void shouldThrowExceptionWhenDeleteNotFound() {
-        when(repo.existsById(1L)).thenReturn(false);
+		TrainingPlan result = service.update(1L, patch);
 
-        assertThrows(EntityNotFoundException.class, () -> service.delete(1L));
-    }
+		assertSame(current, result);
+		assertEquals("Old", result.getName());
+		assertEquals("OldDesc", result.getDescription());
+		verify(repo).findById(1L);
+		verify(repo).existsByNameIgnoreCaseAndIdNot("Old", 1L);
+	}
 
-    @Test
-    void shouldListPlans() {
-        Pageable pageable = Pageable.ofSize(10);
-        Page<TrainingPlan> page = mock(Page.class);
+	@Test
+	void shouldThrowExceptionWhenUpdateNameExists() {
+		TrainingPlan current = new TrainingPlan();
+		current.setId(1L);
+		current.setName("Old");
+		current.setDescription("D");
 
-        when(repo.findAll(pageable)).thenReturn(page);
+		TrainingPlan patch = new TrainingPlan();
+		patch.setName(" Dup ");
 
-        assertSame(page, service.list(pageable));
-    }
+		when(repo.findById(1L)).thenReturn(Optional.of(current));
+		when(repo.existsByNameIgnoreCaseAndIdNot("Dup", 1L)).thenReturn(true);
+
+		assertThrows(DataIntegrityViolationException.class, () -> service.update(1L, patch));
+		verify(repo).findById(1L);
+		verify(repo).existsByNameIgnoreCaseAndIdNot("Dup", 1L);
+	}
+
+	@Test
+	void shouldThrowExceptionWhenUpdateNotFound() {
+		when(repo.findById(1L)).thenReturn(Optional.empty());
+		assertThrows(EntityNotFoundException.class, () -> service.update(1L, new TrainingPlan()));
+		verify(repo).findById(1L);
+	}
+
+	@Test
+	void shouldDeletePlanWhenExists() {
+		when(repo.existsById(1L)).thenReturn(true);
+
+		service.delete(1L);
+
+		verify(repo).existsById(1L);
+		verify(repo).deleteById(1L);
+	}
+
+	@Test
+	void shouldThrowExceptionWhenDeleteNotFound() {
+		when(repo.existsById(1L)).thenReturn(false);
+
+		assertThrows(EntityNotFoundException.class, () -> service.delete(1L));
+		verify(repo).existsById(1L);
+		verify(repo, never()).deleteById(anyLong());
+	}
 }
