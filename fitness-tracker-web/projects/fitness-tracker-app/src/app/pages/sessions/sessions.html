@@ -1,8 +1,8 @@
 <div class="sessions-page">
   <h1>Sessions planen</h1>
   <p class="sub">
-    Ordne neue Trainingseinheiten einem vorhandenen Plan zu, damit sie im
-    Übersicht-Modul erscheinen.
+    Ordne neue Trainingseinheiten einem vorhandenen Plan zu, damit sie im Übersicht-Modul
+    erscheinen.
   </p>
 
   <div class="alert error" *ngIf="errorMsg">
@@ -16,8 +16,7 @@
     <div class="session-card">
       <h2 class="card-title">Neue Session anlegen</h2>
       <p class="card-sub">
-        Wähle einen Plan, vergib einen Namen und wähle die Tage (1–30) für deine
-        Trainingseinheit.
+        Wähle einen Plan, vergib einen Namen und wähle die Tage (1–30) für deine Trainingseinheit.
       </p>
 
       <form class="form" (ngSubmit)="add()" novalidate>
@@ -87,7 +86,8 @@
         <div>
           <h2 class="card-title">Übungen für diese Session</h2>
           <p class="card-sub">
-            Wähle hier Übungen aus deinem Übungspool aus. Danach kannst du Priorität, Sätze, Wdh und Gewicht anpassen.
+            Wähle hier Übungen aus deinem Übungspool aus. Danach kannst du Priorität, Sätze, Wdh und
+            Gewicht anpassen.
           </p>
         </div>
         <span class="badge">{{ selectedExecutions.length }}</span>
@@ -103,7 +103,12 @@
       />
 
       <div class="exercise-list" *ngIf="!loadingExercises && filteredExercises.length">
-        <button type="button" class="exercise-item" *ngFor="let ex of filteredExercises" (click)="toggleExercise(ex)">
+        <button
+          type="button"
+          class="exercise-item"
+          *ngFor="let ex of filteredExercises"
+          (click)="toggleExercise(ex)"
+        >
           <div class="exercise-main">
             <span class="exercise-name">{{ ex.name }}</span>
             <span class="exercise-meta">
@@ -120,9 +125,7 @@
       <p class="muted small" *ngIf="!loadingExercises && !filteredExercises.length">
         Keine Übung gefunden. Passe deinen Suchbegriff an.
       </p>
-      <p class="muted small" *ngIf="loadingExercises">
-        Übungen werden geladen...
-      </p>
+      <p class="muted small" *ngIf="loadingExercises">Übungen werden geladen...</p>
 
       <div class="exec-config-card" *ngIf="selectedExecutions.length">
         <div class="exec-config-header">
@@ -131,36 +134,86 @@
         </div>
 
         <div class="exec-config-list">
-          <div class="exec-config-row" *ngFor="let d of selectedExecutions">
+          <div class="exec-config-row" *ngFor="let d of selectedExecutions; let i = index">
             <div class="exec-name">
               <span class="exec-name-text">{{ getExerciseName(d.exerciseId) }}</span>
-              <button type="button" class="exec-remove" (click)="removeExecutionDraftCreate(d.exerciseId)">×</button>
+              <button
+                type="button"
+                class="exec-remove"
+                (click)="removeExecutionDraftCreate(d.exerciseId)"
+              >
+                ×
+              </button>
             </div>
 
             <div class="exec-fields">
               <div class="exec-field">
                 <label class="mini-label">Prio</label>
-                <input type="number" min="1" [(ngModel)]="d.orderIndex" name="c_order_{{d.exerciseId}}" />
+
+                <div class="prio-controls">
+                  <button
+                    type="button"
+                    class="prio-btn"
+                    (click)="moveCreateUp(i)"
+                    [disabled]="i === 0"
+                  >
+                    ↑
+                  </button>
+
+                  <button type="button" class="prio-btn" disabled>
+                    {{ i + 1 }}
+                  </button>
+
+                  <button
+                    type="button"
+                    class="prio-btn"
+                    (click)="moveCreateDown(i)"
+                    [disabled]="i === selectedExecutions.length - 1"
+                  >
+                    ↓
+                  </button>
+                </div>
               </div>
 
               <div class="exec-field">
                 <label class="mini-label">Sätze</label>
-                <input type="number" min="1" [(ngModel)]="d.plannedSets" name="c_sets_{{d.exerciseId}}" />
+                <input
+                  type="number"
+                  min="1"
+                  [(ngModel)]="d.plannedSets"
+                  name="c_sets_{{ d.exerciseId }}"
+                />
               </div>
 
               <div class="exec-field">
                 <label class="mini-label">Wdh</label>
-                <input type="number" min="1" [(ngModel)]="d.plannedReps" name="c_reps_{{d.exerciseId}}" />
+                <input
+                  type="number"
+                  min="1"
+                  [(ngModel)]="d.plannedReps"
+                  name="c_reps_{{ d.exerciseId }}"
+                />
               </div>
 
               <div class="exec-field">
                 <label class="mini-label">Kg</label>
-                <input type="number" min="0" step="0.5" [(ngModel)]="d.plannedWeightKg" name="c_kg_{{d.exerciseId}}" />
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  [(ngModel)]="d.plannedWeightKg"
+                  name="c_kg_{{ d.exerciseId }}"
+                />
               </div>
             </div>
 
             <div class="exec-notes">
-              <input type="text" placeholder="Notiz (optional)" [(ngModel)]="d.notes" name="c_notes_{{d.exerciseId}}" />
+              <input
+                type="text"
+                placeholder="Notiz (optional)"
+                [(ngModel)]="d.notes"
+                name="c_notes_{{ d.exerciseId }}"
+              />
             </div>
           </div>
         </div>
@@ -183,7 +236,13 @@
         <span class="badge">{{ filteredSessionsForOverview.length }}</span>
       </div>
 
-      <input class="sessions-search-input" type="text" placeholder="Session suchen..." [(ngModel)]="sessionSearch" name="sessionSearch" />
+      <input
+        class="sessions-search-input"
+        type="text"
+        placeholder="Session suchen..."
+        [(ngModel)]="sessionSearch"
+        name="sessionSearch"
+      />
 
       <div class="sessions-list">
         <button
@@ -196,14 +255,20 @@
           <div class="session-main">
             <span class="session-name">{{ s.name }}</span>
             <span class="session-meta"><strong>Tage:</strong> {{ formatDays(s.days) }}</span>
-            <span class="session-meta"><strong>Plan:</strong> {{ getPlanName(s.planId, s.planName) }}</span>
+            <span class="session-meta"
+              ><strong>Plan:</strong> {{ getPlanName(s.planId, s.planName) }}</span
+            >
             <span class="session-meta"><strong>Übungen:</strong> {{ joinExerciseNames(s) }}</span>
-          
           </div>
 
           <div class="session-actions">
             <button type="button" (click)="selectSession(s)">Details</button>
-            <button type="button" class="btn-danger" (click)="deleteSession(s, $event)" [disabled]="deleting && deleteId === s.id">
+            <button
+              type="button"
+              class="btn-danger"
+              (click)="deleteSession(s, $event)"
+              [disabled]="deleting && deleteId === s.id"
+            >
               {{ deleting && deleteId === s.id ? 'Löschen...' : 'Löschen' }}
             </button>
           </div>
@@ -214,14 +279,24 @@
     <ng-container *ngIf="selectedSession; else noSelectionBlock">
       <div class="sessions-detail-card">
         <div class="sessions-detail-header">
-          <button type="button" class="sessions-detail-back" (click)="clearSelection()">← Zurück zur Übersicht</button>
+          <button type="button" class="sessions-detail-back" (click)="clearSelection()">
+            ← Zurück zur Übersicht
+          </button>
           <h2 class="card-title">Details: {{ detailForm.name || selectedSession.name }}</h2>
-          <p class="card-sub">Bearbeite Name, Plan, Tage und Übungs-Konfiguration (Priorität/Sätze/Wdh/Gewicht).</p>
+          <p class="card-sub">
+            Bearbeite Name, Plan, Tage und Übungs-Konfiguration (Priorität/Sätze/Wdh/Gewicht).
+          </p>
         </div>
 
         <form class="sessions-detail-form" novalidate>
           <label for="detailName">Name</label>
-          <input id="detailName" [(ngModel)]="detailForm.name" name="detailName" [disabled]="updating || detailLoading" required />
+          <input
+            id="detailName"
+            [(ngModel)]="detailForm.name"
+            name="detailName"
+            [disabled]="updating || detailLoading"
+            required
+          />
 
           <label for="detailPlan">Kategorie / Trainingsplan</label>
 
@@ -239,7 +314,12 @@
 
           <label>Tage (1–30)</label>
           <div class="days-toolbar">
-            <button type="button" class="days-clear" (click)="clearDaysDetail()" [disabled]="updating || detailLoading || !detailForm.days.length">
+            <button
+              type="button"
+              class="days-clear"
+              (click)="clearDaysDetail()"
+              [disabled]="updating || detailLoading || !detailForm.days.length"
+            >
               Auswahl löschen
             </button>
             <span class="muted small">Ausgewählt: {{ formatDays(detailForm.days) }}</span>
@@ -253,7 +333,9 @@
               (click)="toggleDayDetail(d)"
               [class.selected]="isDaySelectedDetail(d)"
               [class.blocked]="isDayBlockedDetail(d)"
-              [disabled]="updating || detailLoading || (!isDaySelectedDetail(d) && isDayBlockedDetail(d))"
+              [disabled]="
+                updating || detailLoading || (!isDaySelectedDetail(d) && isDayBlockedDetail(d))
+              "
               [attr.title]="isDayBlockedDetail(d) ? 'Dieser Tag ist im Plan schon belegt' : null"
               [attr.aria-pressed]="isDaySelectedDetail(d)"
             >
@@ -270,50 +352,118 @@
             </div>
 
             <div class="exec-config-list">
-              <div class="exec-config-row" *ngFor="let d of detailExecutions">
+              <div class="exec-config-row" *ngFor="let d of detailExecutions; let i = index">
                 <div class="exec-name">
                   <span class="exec-name-text">{{ getExerciseName(d.exerciseId) }}</span>
-                  <button type="button" class="exec-remove" (click)="removeExecutionDraftDetail(d.exerciseId)">×</button>
+                  <button
+                    type="button"
+                    class="exec-remove"
+                    (click)="removeExecutionDraftDetail(d.exerciseId)"
+                  >
+                    ×
+                  </button>
                 </div>
 
                 <div class="exec-fields">
                   <div class="exec-field">
                     <label class="mini-label">Prio</label>
-                    <input type="number" min="1" [(ngModel)]="d.orderIndex" name="d_order_{{d.exerciseId}}" [disabled]="updating || detailLoading" />
+                    <div class="prio-controls">
+                      <button
+                        type="button"
+                        class="prio-btn"
+                        (click)="moveDetailUp(i)"
+                        [disabled]="i === 0 || updating || detailLoading"
+                      >
+                        ↑
+                      </button>
+
+                      <button type="button" class="prio-btn" [disabled]="true">
+                        {{ i + 1 }}
+                      </button>
+
+                      <button
+                        type="button"
+                        class="prio-btn"
+                        (click)="moveDetailDown(i)"
+                        [disabled]="i === detailExecutions.length - 1 || updating || detailLoading"
+                      >
+                        ↓
+                      </button>
+                    </div>
                   </div>
 
                   <div class="exec-field">
                     <label class="mini-label">Sätze</label>
-                    <input type="number" min="1" [(ngModel)]="d.plannedSets" name="d_sets_{{d.exerciseId}}" [disabled]="updating || detailLoading" />
+                    <input
+                      type="number"
+                      min="1"
+                      [(ngModel)]="d.plannedSets"
+                      name="d_sets_{{ d.exerciseId }}"
+                      [disabled]="updating || detailLoading"
+                    />
                   </div>
 
                   <div class="exec-field">
                     <label class="mini-label">Wdh</label>
-                    <input type="number" min="1" [(ngModel)]="d.plannedReps" name="d_reps_{{d.exerciseId}}" [disabled]="updating || detailLoading" />
+                    <input
+                      type="number"
+                      min="1"
+                      [(ngModel)]="d.plannedReps"
+                      name="d_reps_{{ d.exerciseId }}"
+                      [disabled]="updating || detailLoading"
+                    />
                   </div>
 
                   <div class="exec-field">
                     <label class="mini-label">Kg</label>
-                    <input type="number" min="0" step="0.5" [(ngModel)]="d.plannedWeightKg" name="d_kg_{{d.exerciseId}}" [disabled]="updating || detailLoading" />
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      [(ngModel)]="d.plannedWeightKg"
+                      name="d_kg_{{ d.exerciseId }}"
+                      [disabled]="updating || detailLoading"
+                    />
                   </div>
                 </div>
 
                 <div class="exec-notes">
-                  <input type="text" placeholder="Notiz (optional)" [(ngModel)]="d.notes" name="d_notes_{{d.exerciseId}}" [disabled]="updating || detailLoading" />
+                  <input
+                    type="text"
+                    placeholder="Notiz (optional)"
+                    [(ngModel)]="d.notes"
+                    name="d_notes_{{ d.exerciseId }}"
+                    [disabled]="updating || detailLoading"
+                  />
                 </div>
               </div>
             </div>
           </div>
 
           <label>Weitere Übung hinzufügen</label>
-          <input type="text" [(ngModel)]="detailExerciseSearch" name="detailExerciseSearch" placeholder="Übung nach Name filtern..." [disabled]="detailLoading || loadingExercises" />
+          <input
+            type="text"
+            [(ngModel)]="detailExerciseSearch"
+            name="detailExerciseSearch"
+            placeholder="Übung nach Name filtern..."
+            [disabled]="detailLoading || loadingExercises"
+          />
 
-          <div class="exercise-list" *ngIf="getAvailableDetailExercises().length && !loadingExercises">
-            <button type="button" class="exercise-item" *ngFor="let ex of getAvailableDetailExercises()" (click)="addExerciseToDetail(ex)">
+          <div
+            class="exercise-list"
+            *ngIf="getAvailableDetailExercises().length && !loadingExercises"
+          >
+            <button
+              type="button"
+              class="exercise-item"
+              *ngFor="let ex of getAvailableDetailExercises()"
+              (click)="addExerciseToDetail(ex)"
+            >
               <div class="exercise-main">
                 <span class="exercise-name">{{ ex.name }}</span>
                 <span class="exercise-meta">
-                  {{ ex.category || 'Kategorie unbekannt' }}<span *ngIf="ex.muscleGroups">· {{ ex.muscleGroups }}</span>
+                  {{ ex.category || 'Kategorie unbekannt'
+                  }}<span *ngIf="ex.muscleGroups">· {{ ex.muscleGroups }}</span>
                 </span>
               </div>
             </button>
@@ -321,7 +471,11 @@
 
           <p class="muted small" *ngIf="loadingExercises">Übungen werden geladen...</p>
 
-          <button type="button" (click)="updateSelectedSession()" [disabled]="updating || detailLoading">
+          <button
+            type="button"
+            (click)="updateSelectedSession()"
+            [disabled]="updating || detailLoading"
+          >
             {{ updating ? 'Änderungen werden gespeichert...' : 'Änderungen speichern' }}
           </button>
         </form>
@@ -331,9 +485,7 @@
     <ng-template #noSelectionBlock>
       <div class="sessions-detail-card">
         <h2 class="card-title">Details</h2>
-        <p class="card-sub">
-          Wähle links eine Session aus, um Details zu sehen und zu bearbeiten.
-        </p>
+        <p class="card-sub">Wähle links eine Session aus, um Details zu sehen und zu bearbeiten.</p>
       </div>
     </ng-template>
   </div>

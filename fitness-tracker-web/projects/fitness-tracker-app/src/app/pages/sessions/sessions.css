@@ -728,3 +728,14 @@ button.btn-danger:hover {
   background: #e5e7eb;
   color: #0f172a;
 }
+
+.prio-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.prio-btn {
+  padding: 4px 8px;
+  line-height: 1;
+}

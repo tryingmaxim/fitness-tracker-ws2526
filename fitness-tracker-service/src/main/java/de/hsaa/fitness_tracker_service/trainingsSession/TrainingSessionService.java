@@ -99,8 +99,9 @@ public class TrainingSessionService {
                     throw new DataIntegrityViolationException("day already used in plan: " + d);
                 }
             }
-
+            	
             current.getDays().clear();
+            repo.saveAndFlush(current);
             for (Integer d : normalizedDays) {
                 SessionDay sd = new SessionDay();
                 sd.setDay(d);
@@ -113,7 +114,7 @@ public class TrainingSessionService {
     }
 
     /**
-     * ✅ Hard delete: aber Executions bleiben erhalten.
+     * Hard delete: aber Executions bleiben erhalten.
      * Wir detach-en alle TrainingExecutions, backfill-en Snapshot-Felder und löschen danach die Session.
      */
     public void delete(Long id) {
