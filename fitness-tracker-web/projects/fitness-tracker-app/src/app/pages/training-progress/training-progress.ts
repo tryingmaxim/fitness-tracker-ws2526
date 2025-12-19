@@ -119,6 +119,7 @@ export class TrainingProgress implements OnInit {
     this.load();
   }
 
+  //lädt Sessions und Executions und baut daraus Trainingsfortschritt pro Session
   load(): void {
     this.loading = true;
     this.errorMsg = '';
@@ -141,6 +142,7 @@ export class TrainingProgress implements OnInit {
       })
     );
 
+    //beide Requests parallel laden 
     forkJoin([sessionsReq$, executionsReq$]).subscribe({
       next: ([sessionsRes, executionsRes]) => {
         const rawSessions = this.extractCollection(sessionsRes, 'trainingSessions') as TrainingSessionListItem[];
@@ -151,6 +153,7 @@ export class TrainingProgress implements OnInit {
 
         const sessionMap = new Map<number, UiSessionProgress>();
 
+        //für jede Session ein UI Modell bauen 
         for (const s of rawSessions ?? []) {
           if (!s || !Number.isFinite(Number(s.id))) continue;
 
@@ -181,6 +184,7 @@ export class TrainingProgress implements OnInit {
           this.applyLatestRunToSessionFromRuns(ui, runs);
         }
 
+        //Sonderfall bei gelöschten Sessions, aber Trainingsfortschritt soll trotzdem sichtbar bleiben 
         for (const [sid, runs] of executionGrouped.entries()) {
           if (!runs || runs.length === 0) continue;
           if (sessionMap.has(sid)) continue;
@@ -228,6 +232,7 @@ export class TrainingProgress implements OnInit {
     });
   }
 
+  //eindeutige Liste mit allen Trainingsplänen die in Sessions vorkommen
   get plansForFilter(): { id: number; name: string }[] {
     const map = new Map<number, string>();
     for (const s of this.sessions) {
@@ -238,6 +243,7 @@ export class TrainingProgress implements OnInit {
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
+  //zeigt Sessions im UI basierend auf Filtern an 
   get filteredSessions(): UiSessionProgress[] {
     const term = this.search.trim().toLowerCase();
     return this.sessions
@@ -265,6 +271,7 @@ export class TrainingProgress implements OnInit {
     this.statusFilter = 'ALL';
   }
 
+  //anzeigen von Detailansicht
   toggleDetails(sessionId: number): void {
     this.detailsError = '';
     this.executionsError = '';
@@ -278,6 +285,7 @@ export class TrainingProgress implements OnInit {
 
     if (!this.detailCache.has(sessionId)) {
       this.detailsLoading = true;
+      //Daten vom Backend holem
       this.http.get<TrainingSessionDetailResponse>(`${this.baseUrl}/training-sessions/${sessionId}`).subscribe({
         next: (detail) => {
           const normalized: TrainingSessionDetailResponse = {
@@ -342,25 +350,30 @@ export class TrainingProgress implements OnInit {
     }
   }
 
+  //Holt Session Details aus dem Cache
   getDetail(sessionId: number): TrainingSessionDetailResponse | null {
     return this.detailCache.get(sessionId) ?? null;
   }
 
+  //liefert Trainingsläufe einer Session aus dem Cache
   runsForSession(sessionId: number): TrainingExecutionDto[] {
     return this.executionCache.get(sessionId) ?? [];
   }
 
+  //gibt neuesten Trainingslauf einer Sesion zurück
   latestRunForSession(sessionId: number): TrainingExecutionDto | null {
     const runs = this.runsForSession(sessionId);
     return runs.length ? runs[0] : null;
   }
 
+  //sucht bestimmte Übung im neuesten Trainingslauf
   latestExerciseOfRun(sessionId: number, exerciseId: number): ExecutedExerciseDto | null {
     const run = this.latestRunForSession(sessionId);
     if (!run?.executedExercises?.length) return null;
     return run.executedExercises.find((e) => Number(e.exerciseId) === Number(exerciseId)) ?? null;
   }
 
+  //Gruppiert Trainingsläufe nach Sessions
   private groupExecutionsBySessionId(execs: TrainingExecutionDto[]): Map<number, TrainingExecutionDto[]> {
     const map = new Map<number, TrainingExecutionDto[]>();
 
@@ -391,6 +404,7 @@ export class TrainingProgress implements OnInit {
     };
   }
 
+  //ermittelt eindeutige Liste aller Übungen aus Trainingsläufen
   private uniqueExerciseIdsFromRuns(runs: TrainingExecutionDto[]): number[] {
     const set = new Set<number>();
     for (const r of runs ?? []) {
@@ -402,12 +416,14 @@ export class TrainingProgress implements OnInit {
     return [...set.values()].sort((a, b) => a - b);
   }
 
+  //liefert Zeitpunkt zum sortieren von Trainingsläufen
   private execSortTime(e: TrainingExecutionDto): number {
     const t = e.completedAt || e.startedAt;
     const dt = t ? new Date(t).getTime() : 0;
     return Number.isFinite(dt) ? dt : 0;
   }
 
+  //Dauer eines Trainigslaufs
   private durationSecondsOfRun(run: TrainingExecutionDto): number | null {
     const start = run?.startedAt ? new Date(run.startedAt).getTime() : NaN;
     const end = run?.completedAt ? new Date(run.completedAt).getTime() : NaN;
@@ -416,6 +432,7 @@ export class TrainingProgress implements OnInit {
     return Math.max(0, Math.round((endTime - start) / 1000));
   }
 
+  //überträgt Daten vom Trainingslauf auf die Session
   private applyLatestRunToSessionFromRuns(session: UiSessionProgress, runs: TrainingExecutionDto[]): void {
     const latest = runs?.length ? runs[0] : null;
 
@@ -434,6 +451,7 @@ export class TrainingProgress implements OnInit {
     session.lastDurationSeconds = this.durationSecondsOfRun(latest);
   }
 
+  //künstliche Session Details eintragen, falls echte fehlem
   private buildSyntheticDetailFromLatestRun(ui: UiSessionProgress | null, latest: TrainingExecutionDto | null): TrainingSessionDetailResponse | null {
     if (!latest) return null;
 
@@ -467,11 +485,13 @@ export class TrainingProgress implements OnInit {
     };
   }
 
+  //formatiert ausgewählte Trainingstage zu einem lesbaren String für UI
   formatDays(days: number[]): string {
     if (!days?.length) return '-';
     return days.join(', ');
   }
 
+  //Wandelt Zeitstempel in Datumsformat für UI um
   formatDateTimeIso(iso?: string | null): string {
     if (!iso) return '-';
     const d = new Date(iso);
@@ -484,6 +504,7 @@ export class TrainingProgress implements OnInit {
     });
   }
 
+  //Wandelt Dauer in lesbares Zeitformat für UI um
   formatDuration(seconds?: number | null): string {
     if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds <= 0) return '-';
     const s = Math.floor(seconds % 60);

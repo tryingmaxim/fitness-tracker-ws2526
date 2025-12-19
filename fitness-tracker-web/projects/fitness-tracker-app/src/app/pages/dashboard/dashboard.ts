@@ -10,7 +10,7 @@ interface SessionResponse {
   id: number;
   name: string;
   planId: number | null;
-  days: number[]; // Sprint 3: Reihenfolge im Plan (1-30) - kann mehrere enthalten
+  days: number[]; 
   planName?: string;
 }
 
@@ -59,7 +59,7 @@ interface PlanCalendar {
   days: CalendarDayCell[];
 }
 
-// Backend response von /training-executions/stats/streak
+//Backend response von /training-executions/stats/streak
 interface StreakResponse {
   streakDays: number;
 }
@@ -96,7 +96,7 @@ export class Dashboard implements OnInit {
 
   plansDashboard: PlanDashboardItem[] = [];
 
-  // Kalender (Tabs)
+  //Kalender (Tabs)
   planTabs: PlanTabItem[] = [];
   planCalendars: PlanCalendar[] = [];
   selectedPlanId: number | null = null;
@@ -106,7 +106,7 @@ export class Dashboard implements OnInit {
   private sessionsRaw: SessionResponse[] = [];
   private plansRaw: TrainingPlanResponse[] = [];
 
-  // Palette für Planfarben (stabil über planId%len)
+  //Palette für Planfarben (stabil über planId%len)
   private readonly colorClasses = [
     'plan-color-0',
     'plan-color-1',
@@ -123,22 +123,20 @@ export class Dashboard implements OnInit {
   //wird ausgeführt wenn Seite geladen wird
   ngOnInit(): void {
     this.loadData();
-    this.loadStreak(); // ✅ Streak laden
+    this.loadStreak(); 
   }
 
-  // HEUTE-Logik für 1–30 Kalender
+  //Heute-Logik für den Kalender
   get todayDayOfMonth30(): number {
-    const day = new Date().getDate(); // 1..31
-    return Math.min(day, 30);
+    const day = new Date().getDate(); 
+    return Math.min(day, 30); //maximal 30 Tage --> wenn es der 31. ist wird auf 30 gedeckelt
   }
 
   isTodayCalendarDay(day: number): boolean {
     return day === this.todayDayOfMonth30;
   }
 
-  // ---------------------------
-  // Kalender helpers
-  // ---------------------------
+  //Variablen für den Kalender holen
 
   get selectedPlanDays(): CalendarDayCell[] {
     const cal = this.planCalendars.find((c) => c.planId === this.selectedPlanId);
@@ -165,7 +163,6 @@ export class Dashboard implements OnInit {
       next: (sessionsRes) => {
         const sessions = this.extractCollection(sessionsRes, 'trainingSessions') as any[];
 
-        // normalize
         this.sessionsRaw = (sessions ?? []).map((s: any) => ({
           id: Number(s.id),
           name: s.name,
@@ -221,7 +218,6 @@ export class Dashboard implements OnInit {
       return;
     }
 
-    // ✅ FIX: korrektes Spread (sonst crash)
     const sorted = [...sessions].sort((a, b) => {
       const aMin = this.minDay(a.days);
       const bMin = this.minDay(b.days);
@@ -236,7 +232,7 @@ export class Dashboard implements OnInit {
       focus: 'Session-Vorlage',
     }));
 
-    // Statistik "Sessions diese Woche" bleibt als Platzhalter-Logik
+    //Statistik für Sessions diese Woche 
     this.stats[0].value = sorted.length;
   }
 
@@ -258,7 +254,7 @@ export class Dashboard implements OnInit {
   }
 
   private processExercises(exercises: ExerciseResponse[]): void {
-    //Anzeige der gesamten Übungen
+    //Statistik der gesamten Übungen
     this.stats[1].value = exercises.length;
 
     //die letzten 4 Übungen werden angezeigt
@@ -287,7 +283,7 @@ export class Dashboard implements OnInit {
     });
   }
 
-  // Plan-Tabs + 1-30 Kalender pro Plan bauen
+  //Plan-Tabs + 1-30 Kalender pro Plan bauen
   private buildPlanCalendars(): void {
     if (!this.plansRaw.length) {
       this.planTabs = [];
@@ -305,13 +301,13 @@ export class Dashboard implements OnInit {
     this.planCalendars = this.plansRaw.map((p) => {
       const colorClass = this.getColorClassForPlanId(p.id);
 
-      // Tage 1..30 initialisieren
+      //Tage 1-30 initialisieren
       const days: CalendarDayCell[] = Array.from({ length: 30 }, (_, i) => ({
         day: i + 1,
         sessions: [],
       }));
 
-      // Sessions in Days einsortieren
+      //Sessions in die passenden Tage einsortieren
       const sessionsForPlan = this.sessionsRaw
         .filter((s) => s.planId === p.id)
         .map((s) => ({
@@ -335,7 +331,6 @@ export class Dashboard implements OnInit {
         });
       });
 
-      // sortiere Sessions in jedem Tag minimal stabil (Name)
       days.forEach((cell) => {
         cell.sessions = cell.sessions.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
       });
@@ -348,15 +343,12 @@ export class Dashboard implements OnInit {
       };
     });
 
-    // Default Selected Plan: erster Tab
     if (this.selectedPlanId == null) {
       this.selectedPlanId = this.planTabs[0]?.id ?? null;
     }
   }
 
-  // =========================================================
-  // ✅ STREAK – holt vom Backend /training-executions/stats/streak
-  // =========================================================
+  //Streak von Trainingsausführungen laden
   private loadStreak(): void {
     this.http.get<StreakResponse>(`${this.baseUrl}/training-executions/stats/streak`).subscribe({
       next: (res) => {
@@ -365,25 +357,20 @@ export class Dashboard implements OnInit {
         this.stats[2].sub = days > 0 ? 'ohne Pause' : 'noch keine Serie';
       },
       error: () => {
-        // fallback ohne crash, falls Endpoint nicht erreichbar
         this.stats[2].value = '0 Tage';
         this.stats[2].sub = 'Streak nicht verfügbar (Backend)';
       },
     });
   }
 
-  // ---------------------------
-  // helper
-  // ---------------------------
+  //Helper für unterschiedliche Backend Antwort Formaten
   private extractCollection(res: any, key: string): any[] {
     if (!res) return [];
     if (Array.isArray(res)) return res;
 
-    // falls dein Backend HAL-ähnlich ist
     if (res && Array.isArray(res[key])) return res[key];
     if (res && Array.isArray(res?._embedded?.[key])) return res._embedded[key];
 
-    // falls Pageable
     if (res && Array.isArray(res?.content)) return res.content;
 
     return [];

@@ -9,7 +9,7 @@ import { environment } from '../../../../environment';
 type UiState = 'loading' | 'ready' | 'error';
 
 interface PlannedExerciseFromSession {
-  id: number; // ExerciseExecution.id
+  id: number;
   exerciseId: number;
   exerciseName: string;
   category?: string;
@@ -56,9 +56,9 @@ interface ExecutedExerciseResponse {
 
 interface ActualEntry {
   exerciseId: number;
-  actualSets: number;      // min 1
-  actualReps: number;      // min 1
-  actualWeightKg: number;  // min 0
+  actualSets: number;      
+  actualReps: number;      
+  actualWeightKg: number;  
   done: boolean;
   notes: string;
 }
@@ -99,16 +99,12 @@ export class TrainingStart implements OnInit, OnDestroy {
   startedAt: Date | null = null;
   completedAt: Date | null = null;
 
-  // actual per exerciseId (numeric values used for saving)
   actual: Record<number, ActualEntry> = {};
 
-  // raw inputs per exerciseId (strings to detect invalid characters)
   actualInput: Record<number, ActualInputEntry> = {};
 
-  // errors per exerciseId
   errors: Record<number, FieldErrors> = {};
 
-  // UX
   toast: { type: 'success' | 'error' | 'info'; text: string } | null = null;
   starting = false;
   saving = false;
@@ -118,6 +114,7 @@ export class TrainingStart implements OnInit, OnDestroy {
 
   constructor(private route: ActivatedRoute, private http: HttpClient) {}
 
+  //liest Session ID aus URL und lädt die Session
   ngOnInit(): void {
     this.sub.add(
       this.route.paramMap
@@ -136,6 +133,7 @@ export class TrainingStart implements OnInit, OnDestroy {
             this.state = 'loading';
             this.errorMessage = '';
 
+            //lädt Session Daten 
             return this.http.get<TrainingSessionResponse>(`${this.baseUrl}/training-sessions/${id}`).pipe(
               catchError((err: HttpErrorResponse) => {
                 this.state = 'error';
@@ -152,7 +150,6 @@ export class TrainingStart implements OnInit, OnDestroy {
           this.initActualFromPlan();
           this.restoreLocalDraft();
 
-          // Resume execution if draft had one
           if (this.executionId && this.sessionId) {
             this.loadExecution(this.executionId);
           } else {
@@ -166,10 +163,7 @@ export class TrainingStart implements OnInit, OnDestroy {
     this.sub.unsubscribe();
   }
 
-  // -------------------------
-  // UI Actions
-  // -------------------------
-
+  //prüft ob Training gestartet werden darf 
   startTraining(): void {
     if (!this.session || this.sessionId == null) return;
 
@@ -188,7 +182,6 @@ export class TrainingStart implements OnInit, OnDestroy {
       return;
     }
 
-    // validate once before starting to avoid odd states
     this.validateAllFields();
     if (this.hasValidationErrors()) {
       this.showToast('error', 'Bitte korrigiere die Eingaben (nur gültige Zahlen).');
@@ -197,6 +190,7 @@ export class TrainingStart implements OnInit, OnDestroy {
 
     this.starting = true;
 
+    //TrainingExecution im Backend anlegen und Training aktivieren
     this.http
       .post<TrainingExecutionResponse>(`${this.baseUrl}/training-executions`, { sessionId: this.sessionId })
       .subscribe({
@@ -215,6 +209,7 @@ export class TrainingStart implements OnInit, OnDestroy {
       });
   }
 
+  //speichert Fortschritt aller Übungen eines laufenden trainings
   saveProgress(): void {
     if (!this.session || this.sessionId == null) return;
 
@@ -243,6 +238,7 @@ export class TrainingStart implements OnInit, OnDestroy {
         notes: (a?.notes ?? '').trim() || null,
       };
 
+      //Fortschritt im Backend speichern
       return this.http.put<TrainingExecutionResponse>(
         `${this.baseUrl}/training-executions/${this.executionId}/exercises`,
         body
@@ -265,6 +261,7 @@ export class TrainingStart implements OnInit, OnDestroy {
     });
   }
 
+  //schließt laufendes Training ab 
   finishTraining(): void {
     if (!this.executionId) {
       this.showToast('error', 'Bitte starte zuerst das Training.');
@@ -284,6 +281,7 @@ export class TrainingStart implements OnInit, OnDestroy {
 
     this.finishing = true;
 
+    //finalen Stand im Backend speichern
     const saveRequests =
       this.session?.exerciseExecutions?.map((p) => {
         const a = this.actual[p.exerciseId];
@@ -302,6 +300,7 @@ export class TrainingStart implements OnInit, OnDestroy {
 
     const saveAll$ = saveRequests.length ? forkJoin(saveRequests) : of([]);
 
+    //Nachdem speichern das Trainng abschließen
     saveAll$
       .pipe(
         switchMap(() =>
@@ -327,6 +326,7 @@ export class TrainingStart implements OnInit, OnDestroy {
       });
   }
 
+  //laufendes Training abbrechen
   cancelTraining(): void {
     if (!this.executionId) {
       this.clearLocalDraft();
@@ -335,6 +335,7 @@ export class TrainingStart implements OnInit, OnDestroy {
       return;
     }
 
+    //Training im backend löschen
     this.http.delete(`${this.baseUrl}/training-executions/${this.executionId}`).subscribe({
       next: () => {
         this.clearLocalDraft();
@@ -347,20 +348,17 @@ export class TrainingStart implements OnInit, OnDestroy {
     });
   }
 
-  // -------------------------
-  // Input handling (strict validation)
-  // -------------------------
-
+  //speichert Benutzereingaben lokal als Entwurf
   onRawInputChange(exerciseId: number, field: FieldKey, value: string): void {
     if (!this.actualInput[exerciseId]) this.actualInput[exerciseId] = { sets: '1', reps: '1', weight: '0' };
     this.actualInput[exerciseId][field] = (value ?? '').toString();
 
-    // validate + (only if valid) update numeric actual
     this.validateAndApply(exerciseId, field);
 
     this.persistLocalDraft();
   }
 
+  //blockiert unerlaubte tastatureingaben
   onNumberKeyDown(ev: KeyboardEvent, type: FieldType): void {
     const allowedControl = [
       'Backspace',
@@ -375,9 +373,8 @@ export class TrainingStart implements OnInit, OnDestroy {
     ];
 
     if (allowedControl.includes(ev.key)) return;
-    if (ev.ctrlKey || ev.metaKey) return; // allow copy/paste/select all shortcuts
+    if (ev.ctrlKey || ev.metaKey) return; 
 
-    // block minus / plus / exponent
     if (ev.key === '-' || ev.key === '+' || ev.key.toLowerCase() === 'e') {
       ev.preventDefault();
       return;
@@ -388,7 +385,6 @@ export class TrainingStart implements OnInit, OnDestroy {
       return;
     }
 
-    // float: digits + one decimal separator (dot or comma)
     if (/^\d$/.test(ev.key)) return;
 
     if (ev.key === '.' || ev.key === ',') {
@@ -403,6 +399,7 @@ export class TrainingStart implements OnInit, OnDestroy {
     ev.preventDefault();
   }
 
+  //validiert eingefügte Texte
   onNumberPaste(ev: ClipboardEvent, type: FieldType): void {
     const txt = (ev.clipboardData?.getData('text') ?? '').trim();
     const ok = type === 'int' ? /^\d+$/.test(txt) : /^\d+([.,]\d+)?$/.test(txt);
@@ -411,10 +408,7 @@ export class TrainingStart implements OnInit, OnDestroy {
     }
   }
 
-  // -------------------------
-  // UI computed
-  // -------------------------
-
+ 
   get isInProgress(): boolean {
     return this.executionStatus === 'IN_PROGRESS';
   }
@@ -437,10 +431,7 @@ export class TrainingStart implements OnInit, OnDestroy {
     return Math.round((this.doneCount / total) * 100);
   }
 
-  // -------------------------
-  // Backend load + mapping
-  // -------------------------
-
+  //lädt aktuellen Trainingsstand
   private loadExecutionAndThen(fn: () => void): void {
     if (!this.executionId) {
       fn();
@@ -457,6 +448,7 @@ export class TrainingStart implements OnInit, OnDestroy {
     });
   }
 
+  //lädt eine Trainingseinheit und setzt lokalen Zustand
   private loadExecution(executionId: number): void {
     this.http.get<TrainingExecutionResponse>(`${this.baseUrl}/training-executions/${executionId}`).subscribe({
       next: (te) => {
@@ -474,6 +466,7 @@ export class TrainingStart implements OnInit, OnDestroy {
     });
   }
 
+  //Überträgt aktuellen Trainingsstand in UI Zustand und stellt sicher, dass alle Übungsdaten UI tauglich vorliegen
   private applyExecution(te: TrainingExecutionResponse): void {
     this.executionId = te.id ?? null;
     this.executionStatus = (te.status as any) ?? null;
@@ -496,25 +489,23 @@ export class TrainingStart implements OnInit, OnDestroy {
           };
         }
 
-        // numeric
         this.actual[exId].actualSets = this.clampIntMin(Number(e.actualSets ?? 1), 1);
         this.actual[exId].actualReps = this.clampIntMin(Number(e.actualReps ?? 1), 1);
         this.actual[exId].actualWeightKg = this.clampFloatMin(Number(e.actualWeightKg ?? 0), 0);
         this.actual[exId].done = Boolean(e.done);
         this.actual[exId].notes = (e.notes ?? '') || '';
 
-        // raw strings
         if (!this.actualInput[exId]) this.actualInput[exId] = { sets: '1', reps: '1', weight: '0' };
         this.actualInput[exId].sets = String(this.actual[exId].actualSets);
         this.actualInput[exId].reps = String(this.actual[exId].actualReps);
         this.actualInput[exId].weight = this.formatWeight(this.actual[exId].actualWeightKg);
 
-        // clear errors after loading backend values
         this.errors[exId] = {};
       }
     }
   }
 
+  //initalisiert aktuelle Wrte von Übungen und Input Feldern bevor Training gestartet/fortgesetzt wird
   private initActualFromPlan(): void {
     if (!this.session) return;
 
@@ -556,14 +547,12 @@ export class TrainingStart implements OnInit, OnDestroy {
     };
   }
 
-  // -------------------------
-  // Local draft (resume)
-  // -------------------------
-
+  //erzeugt eindeutigen Schlüssel für Trainingsentwurf einer Session
   private localKey(sessionId: number): string {
     return `trainingExecutionDraft:session:${sessionId}`;
   }
 
+  //speichert aktuellen Trainingsfortschritt als Entwurf
   private persistLocalDraft(): void {
     if (!this.sessionId) return;
     const payload = {
@@ -579,10 +568,10 @@ export class TrainingStart implements OnInit, OnDestroy {
     try {
       localStorage.setItem(this.localKey(this.sessionId), JSON.stringify(payload));
     } catch {
-      // ignore
     }
   }
 
+  //stellt zwischengespeicherten Entwurft wieder her
   private restoreLocalDraft(): void {
     if (!this.sessionId) return;
     const raw = localStorage.getItem(this.localKey(this.sessionId));
@@ -598,7 +587,6 @@ export class TrainingStart implements OnInit, OnDestroy {
       this.startedAt = parsed.startedAt ? new Date(parsed.startedAt) : null;
       this.completedAt = parsed.completedAt ? new Date(parsed.completedAt) : null;
 
-      // restore numeric actual
       if (parsed.actual && typeof parsed.actual === 'object') {
         for (const key of Object.keys(parsed.actual)) {
           const exId = Number(key);
@@ -616,7 +604,6 @@ export class TrainingStart implements OnInit, OnDestroy {
         }
       }
 
-      // restore raw inputs
       if (parsed.actualInput && typeof parsed.actualInput === 'object') {
         for (const key of Object.keys(parsed.actualInput)) {
           const exId = Number(key);
@@ -630,7 +617,6 @@ export class TrainingStart implements OnInit, OnDestroy {
           };
         }
       } else {
-        // ensure raw inputs exist
         for (const exIdStr of Object.keys(this.actual)) {
           const exId = Number(exIdStr);
           if (!this.actualInput[exId]) {
@@ -642,27 +628,25 @@ export class TrainingStart implements OnInit, OnDestroy {
           }
         }
       }
-
-      // restore errors (optional), but we revalidate anyway
       if (parsed.errors && typeof parsed.errors === 'object') {
         this.errors = parsed.errors;
       }
 
       this.validateAllFields();
     } catch {
-      // ignore
     }
   }
 
+  //löscht gespeicherten Entwurf
   private clearLocalDraft(): void {
     if (!this.sessionId) return;
     try {
       localStorage.removeItem(this.localKey(this.sessionId));
     } catch {
-      // ignore
     }
   }
 
+  //setzt aktuellen Trainingslauf komplett zurück
   private resetRuntime(): void {
     this.executionId = null;
     this.executionStatus = null;
@@ -671,10 +655,7 @@ export class TrainingStart implements OnInit, OnDestroy {
     this.initActualFromPlan();
   }
 
-  // -------------------------
-  // Validation helpers
-  // -------------------------
-
+  //validiert alle Eingabefelder aller Übungen
   private validateAllFields(): void {
     if (!this.session) return;
     for (const p of this.session.exerciseExecutions) {
@@ -685,6 +666,7 @@ export class TrainingStart implements OnInit, OnDestroy {
     }
   }
 
+  //übernimmt Wert eines Eingabefelds nur bei gültiger Eingabe
   private validateAndApply(exerciseId: number, field: FieldKey): void {
     if (!this.actual[exerciseId]) return;
     if (!this.actualInput[exerciseId]) this.actualInput[exerciseId] = { sets: '1', reps: '1', weight: '0' };
@@ -692,7 +674,6 @@ export class TrainingStart implements OnInit, OnDestroy {
 
     const raw = (this.actualInput[exerciseId][field] ?? '').toString().trim();
 
-    // empty handling
     if (!raw) {
       if (field === 'weight') {
         this.errors[exerciseId][field] = 'Bitte eine Zahl ≥ 0 eingeben.';
@@ -703,7 +684,6 @@ export class TrainingStart implements OnInit, OnDestroy {
     }
 
     if (field === 'sets' || field === 'reps') {
-      // only digits (no special chars)
       if (!/^\d+$/.test(raw)) {
         this.errors[exerciseId][field] = 'Nur ganze Zahlen ohne Sonderzeichen (≥ 1).';
         return;
@@ -713,7 +693,6 @@ export class TrainingStart implements OnInit, OnDestroy {
         this.errors[exerciseId][field] = 'Muss mindestens 1 sein.';
         return;
       }
-      // valid
       this.errors[exerciseId][field] = undefined;
       const intVal = Math.trunc(n);
       if (field === 'sets') this.actual[exerciseId].actualSets = intVal;
@@ -721,7 +700,6 @@ export class TrainingStart implements OnInit, OnDestroy {
       return;
     }
 
-    // weight: digits with optional decimal separator . or ,
     if (!/^\d+([.,]\d+)?$/.test(raw)) {
       this.errors[exerciseId][field] = 'Nur Zahlen (z.B. 20 oder 20,5). Keine Sonderzeichen.';
       return;
@@ -738,6 +716,7 @@ export class TrainingStart implements OnInit, OnDestroy {
     this.actual[exerciseId].actualWeightKg = this.roundToTenth(n);
   }
 
+  //prüft ob Validierungsfehler existieren
   private hasValidationErrors(): boolean {
     for (const exIdStr of Object.keys(this.errors)) {
       const e = this.errors[Number(exIdStr)];
@@ -747,6 +726,7 @@ export class TrainingStart implements OnInit, OnDestroy {
     return false;
   }
 
+  //Stellt sicher, dass eine Zahl über dem Mindestwert ist
   private clampIntMin(v: any, min: number): number {
     const n = Number(v);
     if (!Number.isFinite(n)) return min;
@@ -754,25 +734,24 @@ export class TrainingStart implements OnInit, OnDestroy {
     return i < min ? min : i;
   }
 
+  //Stellt sicher, dass eine Kommazahl über dem Mindestwer ist
   private clampFloatMin(v: any, min: number): number {
     const n = Number(v);
     if (!Number.isFinite(n)) return min;
     return n < min ? min : this.roundToTenth(n);
   }
 
+  //rundet Zahl auf eine Nachkommastelle
   private roundToTenth(n: number): number {
     return Math.round(n * 10) / 10;
   }
 
+  //formatiert Gewicht auf eine Nachkommastelle
   private formatWeight(n: number): string {
-    // keep dot to avoid locale issues in inputs; user can still type comma
     return Number.isFinite(n) ? String(this.roundToTenth(n)) : '0';
   }
 
-  // -------------------------
-  // Other field events
-  // -------------------------
-
+  //markiert Übung als erledigt/nicht erledigt
   onToggleDone(exerciseId: number, checked: boolean): void {
     const a = this.actual[exerciseId];
     if (!a) return;
@@ -780,6 +759,7 @@ export class TrainingStart implements OnInit, OnDestroy {
     this.persistLocalDraft();
   }
 
+  //aktualisiert Notizen und speichert sie lokal
   onNotesChange(exerciseId: number): void {
     const a = this.actual[exerciseId];
     if (!a) return;
@@ -787,15 +767,13 @@ export class TrainingStart implements OnInit, OnDestroy {
     this.persistLocalDraft();
   }
 
-  // -------------------------
-  // Utilities
-  // -------------------------
-
+  //zeigt Temporäre Benachrichtigung
   private showToast(type: 'success' | 'error' | 'info', text: string): void {
     this.toast = { type, text };
     window.setTimeout(() => (this.toast = null), 2800);
   }
 
+  //wandelt HTTP Fehler in lesbare Fehlermeldung um 
   private humanError(err: HttpErrorResponse, fallback: string): string {
     const detail =
       err?.error?.detail ||

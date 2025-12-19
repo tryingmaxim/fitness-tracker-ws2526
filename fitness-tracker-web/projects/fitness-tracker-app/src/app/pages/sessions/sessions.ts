@@ -110,7 +110,6 @@ export class Sessions implements OnInit {
   selectedExecutions: ExecutionDraft[] = [];
   detailExecutions: ExecutionDraft[] = [];
 
-  /* Snapshot der ursprünglichen Executions nötig für POST / PATCH / DELETE Sync*/
   detailOriginalExecutions: ExecutionDraft[] = [];
 
   detailExerciseSearch = '';
@@ -136,9 +135,7 @@ export class Sessions implements OnInit {
     this.loadExercises();
   }
 
-  // ---------------------------
-  // Suche / Overview
-  // ---------------------------
+  //Suche nach Sessions
   get filteredSessionsForOverview(): TrainingSession[] {
     const term = this.sessionSearch.trim().toLowerCase();
     if (!term) return this.sessions;
@@ -156,13 +153,13 @@ export class Sessions implements OnInit {
       .join(', ');
   }
 
-  //  Übungsnamen IMMER aus ExerciseExecution ableiten (Fallback: exerciseNames)
+  //Übungsnamen aus ExerciseExecution ableiten 
   getExerciseExecution(session: TrainingSession): string[] {
     const fromExecutions = (session.exerciseExecutions ?? [])
       .map((e: any) =>
         (
           e?.exerciseName ??
-          e?.exercise?.name ?? // ✅ wichtig!
+          e?.exercise?.name ?? 
           ''
         )
           .toString()
@@ -186,9 +183,7 @@ export class Sessions implements OnInit {
     return plan?.name ?? '-';
   }
 
-  // ---------------------------
-  // Day Constraints (Frontend-Schutz)
-  // ---------------------------
+  //Sammelt alle Tage die in einem Trainingsplan schon belegt sind
   private getUsedDaysForPlan(planId: number | null, excludeSessionId?: number | null): Set<number> {
     const used = new Set<number>();
     if (!planId) return used;
@@ -277,7 +272,7 @@ export class Sessions implements OnInit {
     this.detailForm.days = [];
   }
 
-  // Wenn im Detail der Plan geändert wird: remove blockierte Tage
+  //Wenn im Detail der Plan geändert wird: remove blockierte Tage
   onDetailPlanChange(): void {
     const id = this.detailForm.id != null ? Number(this.detailForm.id) : null;
     const planId = this.detailForm.planId != null ? Number(this.detailForm.planId) : null;
@@ -297,9 +292,7 @@ export class Sessions implements OnInit {
     }
   }
 
-  // ---------------------------
-  // Exercise Search
-  // ---------------------------
+  //exercise Suche
   onExerciseSearchChange(): void {
     this.applyExerciseSearch();
   }
@@ -313,7 +306,7 @@ export class Sessions implements OnInit {
     this.filteredExercises = this.exercises.filter((ex) => ex.name.toLowerCase().includes(q));
   }
 
-  // Detail: verfügbare Übungen ( filtert live über detailExerciseSearch)
+  //Detail: verfügbare Übungen (filtert live über detailExerciseSearch)
   getAvailableDetailExercises(): Exercise[] {
     const term = (this.detailExerciseSearch ?? '').toLowerCase().trim();
     const usedIds = new Set(this.detailExecutions.map((d) => d.exerciseId));
@@ -323,9 +316,7 @@ export class Sessions implements OnInit {
       .filter((e) => !term || e.name.toLowerCase().includes(term));
   }
 
-  // ---------------------------
-  // Execution Draft helpers
-  // ---------------------------
+  //Helper für Benutzereingaben bei Übungs-Konfigurationen einer Sesson
   private clampInt(val: any, min: number, max: number): number {
     const n = Number(val);
     if (!Number.isFinite(n)) return min;
@@ -339,17 +330,16 @@ export class Sessions implements OnInit {
   }
 
   private isStrictPositiveIntInput(v: any): boolean {
-    // akzeptiert nur "123" oder 123, NICHT "1e2", "12-", "12.3", "12,3", " 12 "
     const s = (v ?? '').toString();
     return /^\d+$/.test(s);
   }
 
   private isStrictNonNegativeNumberInput(v: any): boolean {
-    // erlaubt "0", "12", "12.5", "12,5" – aber NICHT "-1", "1e2", "12-", "kg", "@"
     const s = (v ?? '').toString();
     return /^\d+(?:[.,]\d+)?$/.test(s);
   }
 
+  //Prüft Priorität, Sätze, Wiederholungen und Gewicht pro Übung
   private validateDraft(d: ExecutionDraft): string[] {
     const errors: string[] = [];
     const exName = this.getExerciseName(Number(d.exerciseId));
@@ -377,8 +367,8 @@ export class Sessions implements OnInit {
     return errors;
   }
 
+  //normalisiert Übungs Konfiguration vor dem Speichern
   private normalizeDraft(d: ExecutionDraft): ExecutionDraft {
-    // Normalisierung bleibt ok – aber Validierung entscheidet, ob wir überhaupt speichern dürfen
     const weight = Number(String(d.plannedWeightKg ?? 0).replace(',', '.'));
 
     return {
@@ -392,12 +382,13 @@ export class Sessions implements OnInit {
     };
   }
 
+  //Sortiert übungen nach ihrer Reihenfolge und vergibt fortlaufende Prioritäten
   private renumberAndSort(list: ExecutionDraft[]): ExecutionDraft[] {
     const sorted = [...list].sort((a, b) => Number(a.orderIndex) - Number(b.orderIndex));
-    // erzwingt 1..n ohne Duplikate
     return sorted.map((d, idx) => ({ ...d, orderIndex: idx + 1 }));
   }
 
+  //ermittelt nächste freie Priorität für neue Übung
   private nextOrderIndex(list: ExecutionDraft[]): number {
     const max = list.reduce((m, x) => Math.max(m, Number(x.orderIndex) || 0), 0);
     return Math.max(1, max + 1);
@@ -456,20 +447,17 @@ export class Sessions implements OnInit {
     this.detailExecutions = this.detailExecutions.filter((d) => d.exerciseId !== exerciseId);
   }
 
-  // ---------------------------
-  // Reorder helpers (UI)
-  // ---------------------------
+  //Setzt Reihenfolge aller Übungen neu fortlaufend auf 1...
   private resequenceInPlace(list: ExecutionDraft[]): void {
-    // hält die UI-Reihenfolge als Wahrheit und schreibt orderIndex = 1..n
     list.forEach((d, i) => (d.orderIndex = i + 1));
   }
 
+  //Element in der Liste verschieben
   private moveItem(list: ExecutionDraft[], index: number, direction: -1 | 1): void {
     const newIndex = index + direction;
     if (index < 0 || index >= list.length) return;
     if (newIndex < 0 || newIndex >= list.length) return;
 
-    // swap
     const tmp = list[index];
     list[index] = list[newIndex];
     list[newIndex] = tmp;
@@ -477,7 +465,6 @@ export class Sessions implements OnInit {
     this.resequenceInPlace(list);
   }
 
-  // Für die Session-Detail-Übungen (bestehende Session)
   moveDetailUp(index: number): void {
     this.moveItem(this.detailExecutions, index, -1);
   }
@@ -486,7 +473,6 @@ export class Sessions implements OnInit {
     this.moveItem(this.detailExecutions, index, 1);
   }
 
-  // Für das Erstellen/“selectedExecutions” (neue Session)
   moveCreateUp(index: number): void {
     this.moveItem(this.selectedExecutions, index, -1);
   }
@@ -495,9 +481,8 @@ export class Sessions implements OnInit {
     this.moveItem(this.selectedExecutions, index, 1);
   }
 
-  // Optional: wenn jemand orderIndex manuell tippt -> normalize zu 1..n
+  //Wenn jemand orderIndex manuell tippt -> normalize zu 1... und verhindert Duplikate
   onDetailOrderEdited(): void {
-    // sortiert nach orderIndex, dann 1..n neu (verhindert Duplikate)
     const sorted = [...this.detailExecutions].sort(
       (a, b) => Number(a.orderIndex) - Number(b.orderIndex)
     );
@@ -513,9 +498,7 @@ export class Sessions implements OnInit {
     this.resequenceInPlace(this.selectedExecutions);
   }
 
-  // ------------------------------
-  // CRUD
-  // ------------------------------
+  //neue Session erstellen
   add(): void {
     this.errorMsg = '';
     this.infoMsg = '';
@@ -554,7 +537,7 @@ export class Sessions implements OnInit {
           return;
         }
 
-        // Validierung: blockt bei Sets/Reps < 1, kg < 0, Sonderzeichen
+        //Validierung: blockt bei Sets/Reps < 1, kg < 0, Sonderzeichen
         const validationErrors = this.selectedExecutions.flatMap((d) => this.validateDraft(d));
         if (validationErrors.length) {
           this.creating = false;
@@ -562,7 +545,7 @@ export class Sessions implements OnInit {
           return;
         }
 
-        // Reihenfolge sauber machen (Prioritäten 1..n) und normalisieren
+        //Reihenfolge sauber machen (Prioritäten 1..n) und normalisieren
         const drafts = this.renumberAndSort(this.selectedExecutions).map((d) =>
           this.normalizeDraft(d)
         );
@@ -616,6 +599,7 @@ export class Sessions implements OnInit {
       .join(',');
   }
 
+  //Übung auswählen für Bearbeiten/Löschen
   selectSession(session: TrainingSession): void {
     if (session.id == null) return;
 
@@ -667,7 +651,6 @@ export class Sessions implements OnInit {
 
         this.detailExecutions = normalized;
 
-        // SNAPSHOT für Diff
         this.detailOriginalExecutions = JSON.parse(JSON.stringify(normalized));
 
         this.detailExerciseSearch = '';
@@ -693,6 +676,7 @@ export class Sessions implements OnInit {
     this.updating = false;
   }
 
+  //Ausgewählte Übung bearbeiten
   updateSelectedSession(): void {
     if (!this.detailForm.id) return;
 
@@ -744,7 +728,7 @@ export class Sessions implements OnInit {
     this.infoMsg = '';
     this.updating = true;
 
-    // Validierung: blockt bei Sets/Reps < 1, kg < 0, Sonderzeichen
+    //Validierung: blockt bei Sets/Reps < 1, kg < 0, Sonderzeichen
     const execValidationErrors = this.detailExecutions.flatMap((d) => this.validateDraft(d));
     if (execValidationErrors.length) {
       this.errorMsg = execValidationErrors.join('\n');
@@ -752,7 +736,7 @@ export class Sessions implements OnInit {
       return;
     }
 
-    // Reihenfolge sauber machen (Prioritäten 1..n), damit "Priorität ändern" stabil gespeichert wird
+    //Reihenfolge sauber machen (Prioritäten 1..n), damit "Priorität ändern" stabil gespeichert wird
     this.detailExecutions = this.renumberAndSort(this.detailExecutions).map((d) =>
       this.normalizeDraft(d)
     );
@@ -775,8 +759,8 @@ export class Sessions implements OnInit {
     });
   }
 
+  //Executions einer bestehenden Session mit Backend synchronisieren durch Post, Delete, Patch
   private syncDetailExecutions(sessionId: number): void {
-    // Reihenfolge stabil machen: UI-Reihenfolge -> orderIndex 1..n
     this.detailExecutions = [...this.detailExecutions].map((d, idx) => ({
       ...d,
       orderIndex: idx + 1,
@@ -810,7 +794,7 @@ export class Sessions implements OnInit {
       this.http.delete(`${this.baseUrl}/training-sessions/${sessionId}/executions/${d.executionId}`)
     );
 
-    // ✅ Prüfen ob bei bestehenden Einträgen Reihenfolge geändert wurde
+    //Prüfen ob bei bestehenden Einträgen Reihenfolge geändert wurde
     const orderChangedForExisting = toUpdate.some((d) => {
       const orig = this.detailOriginalExecutions.find((o) => o.executionId === d.executionId);
       return !!orig && Number(orig.orderIndex) !== Number(d.orderIndex);
@@ -848,13 +832,13 @@ export class Sessions implements OnInit {
       });
     };
 
-    // ✅ Wenn KEIN Reorder bei bestehenden: normal updaten
+    //Wenn kein Reorder bei bestehenden: normal updaten
     if (!orderChangedForExisting) {
       runFinalUpdateRequests();
       return;
     }
 
-    // ✅ 2-Phasen Update nur für bestehende Executions (verhindert UNIQUE(session_id, order_index) Kollision)
+    //2-Phasen Update nur für bestehende Executions (verhindert UNIQUE(session_id, order_index) Kollision)
     const existing = this.detailExecutions.filter((d) => !!d.executionId);
 
     const tempShiftRequests = existing.map((d) =>
@@ -881,10 +865,11 @@ export class Sessions implements OnInit {
     this.infoMsg = 'Session wurde vollständig aktualisiert.';
     this.clearSelection();
 
-    // Sessions + Executions neu laden
+    //Sessions + Executions neu laden
     this.loadSessions();
   }
 
+  //Session löschen
   deleteSession(session: TrainingSession, event?: MouseEvent): void {
     if (event) event.stopPropagation();
     if (!session.id) return;
@@ -917,9 +902,8 @@ export class Sessions implements OnInit {
     });
   }
 
-  // ------------------------------
-  // Loader
-  // ------------------------------
+ 
+  //Pläne laden
   private loadPlans(): void {
     this.loadingPlans = true;
     this.http.get<any>(`${this.baseUrl}/training-plans?size=200`).subscribe({
@@ -939,6 +923,7 @@ export class Sessions implements OnInit {
     });
   }
 
+  //Sessions laden
   private loadSessions(): void {
     this.loadingSessions = true;
 
@@ -990,6 +975,7 @@ export class Sessions implements OnInit {
     });
   }
 
+  //Übungen laden
   private loadExercises(): void {
     this.loadingExercises = true;
     this.http.get<any>(`${this.baseUrl}/exercises?size=500`).subscribe({

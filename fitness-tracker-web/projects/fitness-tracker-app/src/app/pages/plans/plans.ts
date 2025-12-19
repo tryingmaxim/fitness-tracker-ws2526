@@ -33,19 +33,19 @@ interface SessionDto {
   title?: string;
   name?: string;
 
-  //  alt (Datum) bleibt optional im Model, wird aber im UI nicht mehr angezeigt
+  //alt Datum bleibt optional im Model, wird aber im UI nicht mehr angezeigt
   plannedDate?: string | Date;
   scheduledDate?: string | Date;
 
-  //  NEU: unser 1-30 Tage System
+  //1-30 Tage System
   days?: number[];
 
-  // Zählwerte
+  //Zählwerte
   exercisesCount?: number;
   exercises?: ExerciseDto[];
   exerciseExecutions?: ExerciseExecutionDto[];
 
-  //  NEU: wie oft durchgeführt
+  //wie oft durchgeführt
   performedCount?: number;
 
   status?: string;
@@ -87,7 +87,7 @@ export class Plans implements OnInit {
 
   baseUrl = environment.apiBaseUrl;
 
-  //  Helper: Tage  anzeigen (1-30)
+  //Tage anzeigen (1-30)
   formatDays(days?: number[] | null): string {
     if (!days || !days.length) return '–';
     return [...days]
@@ -295,19 +295,17 @@ export class Plans implements OnInit {
                     ...session,
                     exerciseExecutions: sorted,
 
-                    //  Count: wenn Backend mitgibt, behalten; sonst sorted length
+                    //vom Backend übernehmen oder berechnen
                     exercisesCount:
                       typeof session.exercisesCount === 'number'
                         ? session.exercisesCount
                         : sorted.length,
 
-                    // performedCount: aus list-response übernehmen (wenn nicht vorhanden -> 0 im UI)
                     performedCount:
                       typeof session.performedCount === 'number'
                         ? session.performedCount
                         : 0,
 
-                    // days bleiben wie geliefert
                     days: Array.isArray(session.days) ? session.days : [],
                   } as SessionDto;
                 }),
@@ -372,7 +370,7 @@ export class Plans implements OnInit {
   trackByPlan = (_: number, p: UiPlan) => p.id;
   trackBySession = (_: number, s: SessionDto) => s.id;
 
-  // (kann drin bleiben, wird aber im UI jetzt nicht mehr benutzt)
+  //(kann drin bleiben, wird aber im UI jetzt nicht mehr benutzt)
   sessionStatusLabel(session: SessionDto): string {
     const rawDate = session.plannedDate ?? session.scheduledDate;
     if (rawDate) {
