@@ -1,8 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { HttpClient} from '@angular/common/http';
 import { environment } from '../../../../environment';
+import { AuthSessionService } from '../../services/auth-session.service';
 
 export interface ExerciseDto {
   id: number;
@@ -15,11 +16,7 @@ export interface ExerciseDto {
 @Component({
   selector: 'app-exercises',
   standalone: true,
-  imports: [
-    CommonModule,      
-    FormsModule,      
-    HttpClientModule   
-  ],
+  imports: [CommonModule, FormsModule],
   templateUrl: './exercises.html',
   styleUrls: ['./exercises.css'],
 })
@@ -30,7 +27,7 @@ export class Exercises implements OnInit {
   filteredExerciseOverview: ExerciseDto[] = [];
   exerciseOverviewSearch = '';
 
-  //Formular für das Neu anlegen von Übungen
+  // Formular für das Neu anlegen von Übungen
   form = {
     name: '',
     category: '',
@@ -38,7 +35,7 @@ export class Exercises implements OnInit {
     description: '',
   };
 
-  //Formular für das Bearbeiten von Übungen
+  // Formular für das Bearbeiten von Übungen
   editForm: {
     name: string;
     category: string;
@@ -60,24 +57,34 @@ export class Exercises implements OnInit {
 
   selectedExercise: ExerciseDto | null = null;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private session: AuthSessionService) {}
 
   ngOnInit(): void {
     this.loadExercises();
   }
 
-  //Übungsliste wird vom Backend geladen
+  // Sprint 4: UI-Status "eingeloggt"
+  get isLoggedIn(): boolean {
+    return this.session.isLoggedIn();
+  }
+
+  // Übungsliste wird vom Backend geladen
   private loadExercises(): void {
     this.loading = true;
     this.error = null;
 
-    //GET /exercise Request an Backend
+    // GET /exercises Request an Backend (öffentlich)
     this.http.get<any>(`${this.baseUrl}/exercises`).subscribe({
-      //Antwort wird in ExerciseDto umgewandelt
       next: (res) => {
         this.exercises = this.normalizeExercisesArray(res);
         this.applyFilter();
         this.loading = false;
+
+        // Falls ausgewählte Übung nicht mehr existiert: Auswahl resetten
+        if (this.selectedExercise) {
+          const stillExists = this.exercises.some((e) => e.id === this.selectedExercise?.id);
+          if (!stillExists) this.resetSelection();
+        }
       },
       error: (err) => {
         console.error(err);
@@ -87,7 +94,7 @@ export class Exercises implements OnInit {
     });
   }
 
-  //Vereinheitlicht verschiedene Backend Antworten zu einem ExerciseDto
+  // Vereinheitlicht verschiedene Backend Antworten zu einem ExerciseDto
   private normalizeExercisesArray(res: any): ExerciseDto[] {
     if (!res) return [];
     if (Array.isArray(res)) return res;
@@ -103,38 +110,36 @@ export class Exercises implements OnInit {
     this.applyFilter();
   }
 
-  //Übungsliste anhand des Suchbegriffs filtern
+  // Übungsliste anhand des Suchbegriffs filtern
   private applyFilter(): void {
     const term = this.exerciseOverviewSearch.trim().toLowerCase();
 
-    //Wenn das Suchfeld leer ist komplette Liste anzeigen
     if (!term) {
       this.filteredExerciseOverview = [...this.exercises];
       return;
     }
 
-    //Suchbegriff in allen Kategorien suchen 
     this.filteredExerciseOverview = this.exercises.filter((e) => {
       const name = e.name?.toLowerCase() ?? '';
       const cat = e.category?.toLowerCase() ?? '';
       const muscles = e.muscleGroups?.toLowerCase() ?? '';
       const desc = e.description?.toLowerCase() ?? '';
-      return (
-        name.includes(term) ||
-        cat.includes(term) ||
-        muscles.includes(term) ||
-        desc.includes(term)
-      );
+      return name.includes(term) || cat.includes(term) || muscles.includes(term) || desc.includes(term);
     });
   }
 
   addExercise(form?: NgForm): void {
+    // Sprint 4: Schreiben nur mit Login
+    if (!this.isLoggedIn) {
+      this.error = 'Bitte anmelden, um Übungen anzulegen.';
+      return;
+    }
+
     const name = this.form.name.trim();
     const category = this.form.category.trim();
     const muscles = this.form.muscleGroups.trim();
     const description = this.form.description?.trim() ?? '';
 
-    //Fehlermeldung wenn ein Feld leer ist 
     if (!name || !category || !muscles) {
       this.error = 'Bitte Name, Kategorie und Muskelgruppen angeben.';
       return;
@@ -146,9 +151,8 @@ export class Exercises implements OnInit {
 
     const dto = { name, category, muscleGroups: muscles, description };
 
-    //POST /exercise Request an Backend
+    // POST /exercises Request an Backend (geschützt)
     this.http.post<ExerciseDto>(`${this.baseUrl}/exercises`, dto).subscribe({
-      //Bestätigung, Zurücksetzen des Formulars und neuladen der Liste 
       next: () => {
         this.info = 'Übung wurde angelegt.';
         this.submitting = false;
@@ -158,7 +162,9 @@ export class Exercises implements OnInit {
       },
       error: (err) => {
         console.error(err);
-        if (err.status === 409) {
+        if (err.status === 401 || err.status === 403) {
+          this.error = 'Nicht berechtigt. Bitte erneut anmelden.';
+        } else if (err.status === 409) {
           this.error = 'Eine Übung mit diesem Namen existiert bereits.';
         } else {
           this.error = 'Fehler beim Anlegen der Übung.';
@@ -168,34 +174,33 @@ export class Exercises implements OnInit {
     });
   }
 
-  //Übung auswählen für Bearbeitung
+  // Übung auswählen (Details ansehen – öffentlich ok)
   selectExercise(ex: ExerciseDto): void {
-    //behält die Originalübung
     this.selectedExercise = ex;
-    //bearbeitbare Kopie der Übung
+
+    // editForm füllen (auch wenn nicht eingeloggt -> nur readonly angezeigt)
     this.editForm = {
       name: ex.name ?? '',
       category: ex.category ?? '',
       muscleGroups: ex.muscleGroups ?? '',
       description: ex.description ?? '',
     };
+
     this.info = null;
     this.error = null;
   }
 
-  //Auswahl zurücksetzen
   resetSelection(): void {
     this.selectedExercise = null;
-    this.editForm = {
-      name: '',
-      category: '',
-      muscleGroups: '',
-      description: '',
-    };
+    this.editForm = { name: '', category: '', muscleGroups: '', description: '' };
   }
 
-  //Bearbeitete Übung speichern 
   saveSelected(): void {
+    // Sprint 4: Schreiben nur mit Login
+    if (!this.isLoggedIn) {
+      this.error = 'Bitte anmelden, um Übungen zu bearbeiten.';
+      return;
+    }
     if (!this.selectedExercise) return;
 
     const name = this.editForm.name.trim();
@@ -214,38 +219,48 @@ export class Exercises implements OnInit {
 
     const dto = { name, category, muscleGroups: muscles, description };
 
-    //PUT /exercise Request an Backend
-    this.http
-      .put<ExerciseDto>(`${this.baseUrl}/exercises/${this.selectedExercise.id}`, dto)
-      .subscribe({
-        next: () => {
-          this.info = 'Übung wurde aktualisiert.';
-          this.saving = false;
-          this.loadExercises();
-        },
-        error: (err) => {
-          console.error(err);
-          if (err.status === 409) {
-            this.error = 'Eine Übung mit diesem Namen existiert bereits.';
-          } else {
-            this.error = 'Aktualisieren der Übung ist fehlgeschlagen.';
-          }
-          this.saving = false;
-        },
-      });
+    // PUT /exercises/{id} (geschützt)
+    this.http.put<ExerciseDto>(`${this.baseUrl}/exercises/${this.selectedExercise.id}`, dto).subscribe({
+      next: () => {
+        this.info = 'Übung wurde aktualisiert.';
+        this.saving = false;
+        this.loadExercises();
+      },
+      error: (err) => {
+        console.error(err);
+        if (err.status === 401 || err.status === 403) {
+          this.error = 'Nicht berechtigt. Bitte erneut anmelden.';
+        } else if (err.status === 409) {
+          this.error = 'Eine Übung mit diesem Namen existiert bereits.';
+        } else {
+          this.error = 'Aktualisieren der Übung ist fehlgeschlagen.';
+        }
+        this.saving = false;
+      },
+    });
   }
-  
-  //Übung löschen 
+
   deleteExercise(ex: ExerciseDto, event?: MouseEvent): void {
     event?.stopPropagation();
+
+    // Sprint 4: Schreiben nur mit Login
+    if (!this.isLoggedIn) {
+      this.error = 'Bitte anmelden, um Übungen zu löschen.';
+      return;
+    }
+
     if (!window.confirm(`Möchtest du "${ex.name}" wirklich löschen?`)) return;
 
-    //DELETE /exercise Request an Backend
+    // DELETE /exercises/{id} (geschützt)
     this.http.delete(`${this.baseUrl}/exercises/${ex.id}`).subscribe({
       next: () => this.loadExercises(),
       error: (err) => {
         console.error(err);
-        this.error = `Fehler beim Löschen von "${ex.name}".`;
+        if (err.status === 401 || err.status === 403) {
+          this.error = 'Nicht berechtigt. Bitte erneut anmelden.';
+        } else {
+          this.error = `Fehler beim Löschen von "${ex.name}".`;
+        }
       },
     });
   }

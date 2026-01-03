@@ -25,48 +25,48 @@ export class LayoutPrivate implements OnInit, OnDestroy {
   private timer?: number;
 
   isDarkMode = true;
-  //speichert den Benutzername des eingeloggten Nutzers
   username: string | null = null;
 
-  //Navigation und Benutzerdaten werden übergeben
   constructor(private router: Router, private auth: AuthService) {}
 
-  //wird ausgeführt wenn Seite geladen wird
   ngOnInit(): void {
-    //Falls der Benutzer nicht eingeloggt navigation zur login Seite
     if (!this.auth.isLoggedIn()) {
       this.router.navigate(['/login']);
       return;
     }
 
-    //Slideshow wird gestartet und alle 4 Sekunden wird das Bild gewechselt
-    this.timer = window.setInterval(() => {
-      this.current = (this.current + 1) % this.slides.length;
-    }, 4000);
+    this.username = this.auth.getUsername() || this.auth.getEmail() || 'Gast';
 
-    document.body.classList.toggle('dark-mode', this.isDarkMode);
-    document.body.classList.toggle('light-mode', !this.isDarkMode);
+    const stored = localStorage.getItem('theme');
+    if (stored === 'light') this.isDarkMode = false;
+    if (stored === 'dark') this.isDarkMode = true;
 
-    //Benutzername holen oder Gast als Fallback
-    this.username = this.auth.getUsername() || 'Gast';
+    this.applyTheme();
+
+    if (this.slides.length > 1) {
+      this.timer = window.setInterval(() => {
+        this.current = (this.current + 1) % this.slides.length;
+      }, 4000);
+    }
   }
 
-  //wird ausgeführt wenn Nutzer Seite verlässt 
   ngOnDestroy(): void {
-    if (this.timer) {
-      clearInterval(this.timer);
-    }
+    if (this.timer) clearInterval(this.timer);
   }
 
   toggleTheme(): void {
     this.isDarkMode = !this.isDarkMode;
-    document.body.classList.toggle('dark-mode', this.isDarkMode);
-    document.body.classList.toggle('light-mode', !this.isDarkMode);
+    localStorage.setItem('theme', this.isDarkMode ? 'dark' : 'light');
+    this.applyTheme();
   }
 
-  //Benutzer wird ausgeloggt und navigation zur login Seite
+  private applyTheme(): void {
+    document.body.classList.remove('light-mode', 'dark-mode');
+    document.body.classList.add(this.isDarkMode ? 'dark-mode' : 'light-mode');
+  }
+
   logout(): void {
     this.auth.logout();
-    this.router.navigate(['/login']);
+    this.router.navigate(['/']);
   }
 }

@@ -1,23 +1,29 @@
-import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
+import { HttpInterceptorFn } from '@angular/common/http';
+import { environment } from '../../../environment';
 import { AuthSessionService } from './auth-session.service';
 
-//Token wird aus der Session abgerufen
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const session = inject(AuthSessionService);
-  const token = session.getToken();
+  const auth = session.getAuthHeader();
 
-  //Falls kein token vorhanden ist oder /login dann wird der request unverändert weitergeleitet
-  if (!token || req.url.endsWith('/login')) {
-    return next(req);
-  }
+  // nix gespeichert -> einfach weiter
+  if (!auth) return next(req);
 
-  //Ansonten wird ein neuer Request erzeugt und der Token hinuzugefügt
-  const authReq = req.clone({
-    setHeaders: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  // Nur API Requests (nicht assets, icons etc.)
+  const apiBase = (environment.apiBaseUrl || '').replace(/\/$/, '');
+  const isApiCall = apiBase
+    ? req.url.startsWith(apiBase)
+    : req.url.startsWith('/api/');
 
-  return next(authReq);
+  if (!isApiCall) return next(req);
+
+  // Authorization nur setzen, wenn nicht schon vorhanden
+  if (req.headers.has('Authorization')) return next(req);
+
+  return next(
+    req.clone({
+      setHeaders: { Authorization: auth },
+    })
+  );
 };

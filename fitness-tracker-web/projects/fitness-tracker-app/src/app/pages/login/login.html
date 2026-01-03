@@ -3,10 +3,7 @@
   <h1>Anmelden</h1>
   <p>Sie haben bereits ein Konto? Dann melden Sie sich mit Ihrem bestehenden Konto an.</p>
 
-  <!-- Entwicklerhinweis: Nur sichtbar, wenn devBypassEmail gesetzt ist -->
-  <p class="dev-hint" *ngIf="devBypassEmail">
-    Dev-Shortcut aktiv: melde dich mit <strong>{{ devBypassEmail }}</strong> an (Passwort beliebig).
-  </p>
+
 
   <div class="login-box">
     <!-- Login-Formular mit Angular ngForm -->
@@ -43,9 +40,9 @@
         {{ error }}
       </div>
 
-      <!-- Submit-Button: deaktiviert während Loading oder wenn Formular ungültig ist -->
+      <!-- Submit-Button -->
       <button type="submit" [disabled]="loading || loginForm.invalid">
-        {{ loading ? 'Anmeldung laeuft...' : 'Anmelden' }}
+        {{ loading ? 'Anmeldung läuft...' : 'Anmelden' }}
       </button>
 
     </form>

@@ -1,0 +1,11 @@
+@import "../exercises/exercises.css";
+
+/* optional: nur public-spezifische Ergänzungen */
+.read-only .meta {
+  margin: 0 0 0.55rem;
+  font-size: 0.95rem;
+}
+.read-only strong {
+  font-weight: 700;
+}
+

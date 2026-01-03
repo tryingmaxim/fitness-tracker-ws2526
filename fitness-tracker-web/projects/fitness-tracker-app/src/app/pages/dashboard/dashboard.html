@@ -15,13 +15,13 @@
       </div>
 
       <div class="actions">
-        <button class="mini-btn primary" type="button" routerLink="/sessions">
+        <button class="mini-btn primary" type="button" routerLink="/app/sessions">
           + Session
         </button>
-        <button class="mini-btn primary" type="button" routerLink="/exercises">
+        <button class="mini-btn primary" type="button" routerLink="/app/exercises">
           + Übung
         </button>
-        <button class="mini-btn primary" type="button" routerLink="/plans">
+        <button class="mini-btn primary" type="button" routerLink="/app/plans">
           + Plan
         </button>
       </div>
@@ -83,7 +83,7 @@
             <button
               class="mini-btn primary tiny"
               type="button"
-              [routerLink]="['/training/start', s.id]">
+              [routerLink]="['/app/training/start', s.id]">
               Training
             </button>
           </div>
@@ -117,7 +117,7 @@
             Schneller Überblick über deine Pläne und wie viele Sessions dazu gehören.
           </p>
         </div>
-        <button class="link-btn" type="button" routerLink="/plans">
+        <button class="link-btn" type="button" routerLink="/app/plans">
           Alle Pläne ansehen
         </button>
       </div>
@@ -140,7 +140,7 @@
           </ng-template>
 
           <footer class="plan-footer">
-            <button class="mini-btn primary" type="button" routerLink="/plans">
+            <button class="mini-btn primary" type="button" routerLink="/app/plans">
               Öffnen
             </button>
           </footer>
@@ -159,7 +159,7 @@
     <section class="panel wide">
       <div class="panel-header">
         <h2>Nächste Sessions</h2>
-        <button class="link-btn" type="button" routerLink="/sessions">
+        <button class="link-btn" type="button" routerLink="/app/sessions">
           Alle Sessions ansehen
         </button>
       </div>
@@ -179,7 +179,7 @@
           <p class="session-meta">{{ s.focus }}</p>
 
           <div class="session-footer">
-            <button class="mini-btn primary" type="button" routerLink="/sessions">
+            <button class="mini-btn primary" type="button" routerLink="/app/sessions">
               Öffnen
             </button>
           </div>
@@ -208,7 +208,7 @@
             </div>
           </div>
 
-          <button class="mini-btn primary tiny" type="button" routerLink="/exercises">
+          <button class="mini-btn primary tiny" type="button" routerLink="/app/exercises">
             Details
           </button>
         </li>

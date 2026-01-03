@@ -1,18 +1,17 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { RouterOutlet, RouterLink } from '@angular/router';
-import { CommonModule, NgIf, NgForOf } from '@angular/common';
+import { RouterOutlet, RouterModule } from '@angular/router';
+import { CommonModule } from '@angular/common';
+import { AuthService } from '../services/auth.service';
 
 @Component({
   selector: 'app-layout-public',
   standalone: true,
-  imports: [CommonModule, NgIf, NgForOf, RouterLink, RouterOutlet],
+  imports: [CommonModule, RouterOutlet, RouterModule],
   templateUrl: './layout-public.html',
   styleUrl: './layout-public.css',
 })
-
-//UI Funktionen (Slideshow und Darkmode)
 export class LayoutPublic implements OnInit, OnDestroy {
-  slides = [
+  slides: string[] = [
     'assets/GymBild1.png',
     'assets/GymBild2.png',
     'assets/GymBild3.jpg',
@@ -23,33 +22,60 @@ export class LayoutPublic implements OnInit, OnDestroy {
   ];
 
   current = 0;
-  private timer?: number;
+  private slideTimer?: number;
 
-  //standardmäßig darkmode
   isDarkMode = true;
 
-  //wird ausgeführt wenn Seite geladen wird
+  constructor(public auth: AuthService) {}
+
   ngOnInit(): void {
-    //Slideshow wird gestartet und alle 4 Sekunden wird das Bild gewechselt
-    this.timer = window.setInterval(() => {
-      this.current = (this.current + 1) % this.slides.length;
-    }, 4000);
+    // Theme laden
+    const stored = localStorage.getItem('theme');
+    if (stored === 'light') this.isDarkMode = false;
+    if (stored === 'dark') this.isDarkMode = true;
+    this.applyTheme();
 
-    document.body.classList.toggle('dark-mode', this.isDarkMode);
-    document.body.classList.toggle('light-mode', !this.isDarkMode);
-  }
-
-  //wird ausgeführt wenn Nutzer Seite verlässt 
-  ngOnDestroy(): void {
-    if (this.timer) {
-      clearInterval(this.timer);
+    // Slideshow
+    if (this.slides.length > 1) {
+      this.slideTimer = window.setInterval(() => {
+        this.current = (this.current + 1) % this.slides.length;
+      }, 4000);
     }
   }
 
-  toggleTheme() {
-    this.isDarkMode = !this.isDarkMode;
+  ngOnDestroy(): void {
+    if (this.slideTimer) clearInterval(this.slideTimer);
+  }
 
-    document.body.classList.toggle('dark-mode', this.isDarkMode);
-    document.body.classList.toggle('light-mode', !this.isDarkMode);
+  get isLoggedIn(): boolean {
+    return this.auth.isLoggedIn();
+  }
+
+  get displayName(): string {
+    return this.auth.getUsername() || this.auth.getEmail() || 'User';
+  }
+
+  // ✅ zentrale Links: public vs private
+  get exercisesLink(): string {
+    return this.isLoggedIn ? '/app/exercises' : '/exercises';
+  }
+
+  get plansLink(): string {
+    return this.isLoggedIn ? '/app/plans' : '/plans';
+  }
+
+  get sessionsLink(): string {
+    return this.isLoggedIn ? '/app/sessions' : '/sessions';
+  }
+
+  toggleTheme(): void {
+    this.isDarkMode = !this.isDarkMode;
+    localStorage.setItem('theme', this.isDarkMode ? 'dark' : 'light');
+    this.applyTheme();
+  }
+
+  private applyTheme(): void {
+    document.body.classList.remove('light-mode', 'dark-mode');
+    document.body.classList.add(this.isDarkMode ? 'dark-mode' : 'light-mode');
   }
 }

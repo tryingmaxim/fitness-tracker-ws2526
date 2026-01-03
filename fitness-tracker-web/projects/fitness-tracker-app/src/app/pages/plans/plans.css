@@ -193,6 +193,52 @@ h1 {
   font-weight: 600;
 }
 
+/* Suchfeld */
+.search {
+  width: 100%;
+  border-radius: 0.7rem;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  padding: 0.6rem 0.85rem;
+  font: inherit;
+  background: rgba(15, 23, 42, 0.96);
+  color: inherit;
+  outline: none;
+  box-sizing: border-box;
+  margin-bottom: 0.9rem;
+}
+
+:host-context(.light-mode) .search {
+  background: #ffffff;
+  border-color: rgba(148, 163, 184, 0.6);
+  color: #0f172a;
+}
+
+.search:focus {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+}
+
+/* Scroll-Container (neu) */
+.list-scroll {
+  max-height: 520px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.list-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+
+.list-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+}
+
+:host-context(.light-mode) .list-scroll::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.12);
+}
+
+/* Liste */
 .list {
   list-style: none;
   margin: 0;
@@ -370,6 +416,13 @@ h1 {
   color: rgba(15, 23, 42, 0.65);
 }
 
+/*  leere Treffer */
+.empty {
+  margin-top: 0.4rem;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
 /*  RESPONSIVE  */
 
 @media (max-width: 1024px) {
@@ -386,6 +439,10 @@ h1 {
   .layout {
     grid-template-columns: minmax(260px, 1.1fr) minmax(320px, 1.4fr);
   }
+
+  .list-scroll {
+    max-height: 480px;
+  }
 }
 
 @media (max-width: 900px) {
@@ -395,6 +452,10 @@ h1 {
 
   .overview-head {
     flex-direction: row; /* bleibt nebeneinander, falls vorher mal anders */
+  }
+
+  .list-scroll {
+    max-height: 420px;
   }
 }
 

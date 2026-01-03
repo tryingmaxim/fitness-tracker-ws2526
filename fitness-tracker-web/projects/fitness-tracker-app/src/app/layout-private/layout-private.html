@@ -9,42 +9,96 @@
   </div>
 
   <nav class="side-nav">
-    <p class="nav-title">Bereich</p>
+    <!-- Header -->
+<div class="nav-header">
+  <p class="nav-title">Navigation</p>
 
-    <p class="nav-user">
-      Angemeldet als <strong>{{ username }}</strong>
-    </p>
+  <div class="user-row online">
+    <span class="status-dot" aria-hidden="true"></span>
+    <div class="user-text">
+      <span class="user-status">Angemeldet als</span>
+      <strong class="user-name">{{ username }}</strong>
+    </div>
+  </div>
+</div>
 
-    <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
-    <a routerLink="/training-progress" routerLinkActive="active"> Trainingsfortschritt</a>
-    <a routerLink="/exercises" routerLinkActive="active">Übungen</a>
-    <a routerLink="/plans" routerLinkActive="active">Pläne</a>
-    <a routerLink="/sessions" routerLinkActive="active">Sessions</a>
-    <a routerLink="/profile" routerLinkActive="active">Profil</a>
 
-    <hr class="nav-separator" />
+    <div class="nav-section">
+      <p class="nav-section-title">Allgemein</p>
 
-    <a (click)="logout()">Abmelden</a>
+      <!-- Klar als Dashboard -->
+      <a routerLink="/app/dashboard" routerLinkActive="active">Dashboard</a>
+
+      <!-- Öffentliche Info-Seiten -->
+      <a routerLink="/app/about" routerLinkActive="active">Über uns</a>
+    </div>
+
+    <div class="nav-section">
+      <p class="nav-section-title">Training</p>
+      <a routerLink="/app/exercises" routerLinkActive="active">Übungen</a>
+      <a routerLink="/app/plans" routerLinkActive="active">Trainingspläne</a>
+      <a routerLink="/app/sessions" routerLinkActive="active">Sessions</a>
+    </div>
+
+    <div class="nav-section">
+      <p class="nav-section-title">
+        Mein Bereich
+        <span class="badge-private">
+          <span class="dot-private"></span> privat
+        </span>
+      </p>
+
+      <a routerLink="/app/dashboard" routerLinkActive="active">
+        Dashboard <span class="mini-dot" aria-hidden="true"></span>
+      </a>
+
+      <a routerLink="/app/training-progress" routerLinkActive="active">
+        Trainingsfortschritt <span class="mini-dot" aria-hidden="true"></span>
+      </a>
+
+      <a routerLink="/app/profile" routerLinkActive="active">
+        Profil <span class="mini-dot" aria-hidden="true"></span>
+      </a>
+
+      <p class="nav-hint">
+        Training starten findest du im Dashboard und im Trainingsfortschritt.
+      </p>
+    </div>
+
+    <div class="nav-section">
+      <p class="nav-section-title">Rechtliches</p>
+      <a routerLink="/app/agb" routerLinkActive="active">AGB</a>
+      <a routerLink="/app/impressum" routerLinkActive="active">Impressum</a>
+    </div>
+
+    <div class="nav-section">
+      <p class="nav-section-title">Account</p>
+      <button type="button" class="nav-logout-btn" (click)="logout()">
+        Abmelden
+      </button>
+    </div>
   </nav>
 </div>
 
-<!-- Slideshow im Hintergrund -->
-<div class="slideshow">
+<!-- Slideshow -->
+<div class="slideshow" aria-hidden="true">
   <img
     *ngFor="let img of slides; let i = index"
     class="slide"
+    [class.active]="i === current"
     [src]="img"
-    [style.opacity]="i === current ? '1' : '0'"
     alt=""
   />
   <div class="overlay"></div>
 </div>
 
-<!-- Theme Toggle oben rechts -->
+<!-- Theme Toggle -->
 <button class="theme-toggle" (click)="toggleTheme()">
   <span *ngIf="isDarkMode">◑</span>
   <span *ngIf="!isDarkMode">◐</span>
 </button>
 
 <!-- Private Seiten -->
-<router-outlet></router-outlet>
+<div class="page-content">
+  <router-outlet></router-outlet>
+</div>

@@ -1,6 +1,7 @@
 package de.hsaa.fitness_tracker_service.trainingExecution;
 
 import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSession;
+import de.hsaa.fitness_tracker_service.user.User; // ✅ NEU
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -14,6 +15,11 @@ public class TrainingExecution {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
+
+	// NEU: Owner/User der Durchführung (Sprint 4: Trainingshistorie pro User)
+	@ManyToOne(optional = false, fetch = FetchType.LAZY)
+	@JoinColumn(name = "user_id", nullable = false, updatable = false)
+	private User user;
 
 	@ManyToOne(optional = true)
 	@JoinColumn(name = "session_id", nullable = true)
@@ -51,6 +57,16 @@ public class TrainingExecution {
 
 	public void setId(Long id) {
 		this.id = id;
+	}
+
+	// NEU Sprint 4
+	public User getUser() {
+		return user;
+	}
+
+	// NEU Sprint 4
+	public void setUser(User user) {
+		this.user = user;
 	}
 
 	public TrainingSession getSession() {

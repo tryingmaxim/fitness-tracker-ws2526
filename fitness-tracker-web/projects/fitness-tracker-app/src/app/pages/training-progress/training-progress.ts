@@ -2,10 +2,11 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule, NgForOf, NgIf } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { HttpClient, HttpClientModule, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { environment } from '../../../../environment';
+import { AuthSessionService } from '../../services/auth-session.service'; // ✅ NEU
 
 interface TrainingSessionListItem {
   id: number;
@@ -87,7 +88,7 @@ interface UiSessionProgress {
 @Component({
   selector: 'app-training-progress',
   standalone: true,
-  imports: [CommonModule, NgIf, NgForOf, FormsModule, RouterModule, HttpClientModule],
+  imports: [CommonModule, NgIf, NgForOf, FormsModule, RouterModule],
   templateUrl: './training-progress.html',
   styleUrl: './training-progress.css',
 })
@@ -113,7 +114,13 @@ export class TrainingProgress implements OnInit {
   executionsError = '';
   executionCache = new Map<number, TrainingExecutionDto[]>();
 
-  constructor(private http: HttpClient) {}
+  // ✅ NEU: Session Service rein, um Login-Status abzufragen (nur UI)
+  constructor(private http: HttpClient, private authSession: AuthSessionService) {}
+
+  // ✅ NEU: wird im HTML genutzt (Button nur wenn eingeloggt)
+  get isLoggedIn(): boolean {
+    return this.authSession.isLoggedIn();
+  }
 
   ngOnInit(): void {
     this.load();
@@ -131,6 +138,12 @@ export class TrainingProgress implements OnInit {
     const sessionsReq$ = this.http.get<any>(`${this.baseUrl}/training-sessions?size=200`).pipe(
       catchError((err) => {
         console.error(err);
+
+        // ✅ Sprint 4: ohne Auth -> 401 / 403 sauber anzeigen
+        if (err?.status === 401 || err?.status === 403) {
+          this.errorMsg = 'Bitte anmelden, um deinen Trainingsfortschritt zu sehen.';
+        }
+
         return of(null);
       })
     );
@@ -138,11 +151,17 @@ export class TrainingProgress implements OnInit {
     const executionsReq$ = this.http.get<TrainingExecutionDto[]>(`${this.baseUrl}/training-executions`).pipe(
       catchError((err) => {
         console.error(err);
+
+        // ✅ Sprint 4: ohne Auth -> 401 / 403 sauber anzeigen
+        if (err?.status === 401 || err?.status === 403) {
+          this.errorMsg = 'Bitte anmelden, um deinen Trainingsfortschritt zu sehen.';
+        }
+
         return of([] as TrainingExecutionDto[]);
       })
     );
 
-    //beide Requests parallel laden 
+    //beide Requests parallel laden
     forkJoin([sessionsReq$, executionsReq$]).subscribe({
       next: ([sessionsRes, executionsRes]) => {
         const rawSessions = this.extractCollection(sessionsRes, 'trainingSessions') as TrainingSessionListItem[];
@@ -153,7 +172,7 @@ export class TrainingProgress implements OnInit {
 
         const sessionMap = new Map<number, UiSessionProgress>();
 
-        //für jede Session ein UI Modell bauen 
+        //für jede Session ein UI Modell bauen
         for (const s of rawSessions ?? []) {
           if (!s || !Number.isFinite(Number(s.id))) continue;
 
@@ -184,7 +203,7 @@ export class TrainingProgress implements OnInit {
           this.applyLatestRunToSessionFromRuns(ui, runs);
         }
 
-        //Sonderfall bei gelöschten Sessions, aber Trainingsfortschritt soll trotzdem sichtbar bleiben 
+        //Sonderfall bei gelöschten Sessions, aber Trainingsfortschritt soll trotzdem sichtbar bleiben
         for (const [sid, runs] of executionGrouped.entries()) {
           if (!runs || runs.length === 0) continue;
           if (sessionMap.has(sid)) continue;
@@ -243,7 +262,7 @@ export class TrainingProgress implements OnInit {
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  //zeigt Sessions im UI basierend auf Filtern an 
+  //zeigt Sessions im UI basierend auf Filtern an
   get filteredSessions(): UiSessionProgress[] {
     const term = this.search.trim().toLowerCase();
     return this.sessions
@@ -301,6 +320,12 @@ export class TrainingProgress implements OnInit {
           console.error(err);
           this.detailsLoading = false;
 
+          // ✅ Sprint 4: 401/403 klar
+          if (err?.status === 401 || err?.status === 403) {
+            this.detailsError = 'Bitte anmelden, um Session-Details zu sehen.';
+            return;
+          }
+
           const runs = this.executionCache.get(sessionId) ?? [];
           const latest = runs[0] ?? null;
           const ui = this.sessions.find((x) => x.id === sessionId) ?? null;
@@ -335,6 +360,12 @@ export class TrainingProgress implements OnInit {
         error: (err) => {
           console.error(err);
           this.executionsLoading = false;
+
+          // ✅ Sprint 4: 401/403 klar
+          if (err?.status === 401 || err?.status === 403) {
+            this.executionsError = 'Bitte anmelden, um Trainingsläufe zu sehen.';
+            return;
+          }
 
           const status = err?.status;
           const detail = err?.error?.detail || err?.error?.message;

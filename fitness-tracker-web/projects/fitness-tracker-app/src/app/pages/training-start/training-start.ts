@@ -2,7 +2,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { HttpClient, HttpClientModule, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Subscription, forkJoin, of, switchMap, catchError } from 'rxjs';
 import { environment } from '../../../../environment';
 
@@ -81,7 +81,7 @@ interface FieldErrors {
 @Component({
   selector: 'app-training-start',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, HttpClientModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './training-start.html',
   styleUrl: './training-start.css',
 })

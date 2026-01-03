@@ -1,4 +1,4 @@
-<!-- Gemeinsames Hamburger-Menü -->
+<!-- Hamburger + Side-Navigation -->
 <div class="nav-wrapper">
   <div class="nav-hover-area">
     <div class="hamburger">
@@ -7,42 +7,84 @@
       <span></span>
     </div>
   </div>
+
   <nav class="side-nav">
-    <p class="nav-title" style="color: #ffffff; opacity: 0.85;">
-        Navigation
-    </p>
-    <a routerLink="/">Home</a>
-    <a routerLink="/login">Anmelden</a>
-    <a routerLink="/register">Registrieren</a>
-    <a routerLink="/about">Über uns</a> 
+    <p class="nav-title">Navigation</p>
 
-    <!-- Linie als Trennung -->
-    <hr class="nav-separator" />
+    <!-- Status -->
+    <div class="user-row" [class.online]="isLoggedIn" [class.offline]="!isLoggedIn">
+      <span class="status-dot" aria-hidden="true"></span>
+      <span *ngIf="isLoggedIn; else guest">
+        Angemeldet als <strong>{{ displayName }}</strong>
+      </span>
+      <ng-template #guest> Nicht angemeldet </ng-template>
+    </div>
 
-    <a routerLink="/agb">AGB</a>
-    <a routerLink="/impressum">Impressum</a>
-    
+    <div class="nav-section">
+      <p class="nav-section-title">Allgemein</p>
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Home</a>
+      <a routerLink="/about" routerLinkActive="active">Über uns</a>
+    </div>
+
+    <div class="nav-section">
+      <p class="nav-section-title">Training</p>
+
+      <!-- ✅ leiten automatisch auf public oder private -->
+      <a [routerLink]="exercisesLink" routerLinkActive="active">Übungen</a>
+      <a [routerLink]="plansLink" routerLinkActive="active">Trainingspläne</a>
+      <a [routerLink]="sessionsLink" routerLinkActive="active">Sessions</a>
+
+      <!-- Optionaler Hinweis: eingeloggt = private -->
+      <p class="muted" *ngIf="isLoggedIn" style="margin: 6px 0 0; font-size: 0.82rem; opacity: 0.8;">
+        Du siehst die private Verwaltung (angemeldet).
+      </p>
+    </div>
+
+    <div class="nav-section">
+      <p class="nav-section-title">Mein Bereich</p>
+
+      <ng-container *ngIf="!isLoggedIn; else loggedInLinks">
+        <a routerLink="/login" routerLinkActive="active">Anmelden</a>
+        <a routerLink="/register" routerLinkActive="active">Registrieren</a>
+      </ng-container>
+
+      <ng-template #loggedInLinks>
+        <a routerLink="/app/dashboard" routerLinkActive="active">
+          Zum Dashboard
+          <span class="mini-dot online" aria-hidden="true"></span>
+        </a>
+        <a routerLink="/app/training-progress" routerLinkActive="active">Fortschritt</a>
+        <a routerLink="/app/profile" routerLinkActive="active">Profil</a>
+      </ng-template>
+    </div>
+
+    <div class="nav-section">
+      <p class="nav-section-title">Rechtliches</p>
+      <a routerLink="/agb" routerLinkActive="active">AGB</a>
+      <a routerLink="/impressum" routerLinkActive="active">Impressum</a>
+    </div>
   </nav>
 </div>
 
 <!-- Slideshow -->
-<div class="slideshow">
+<div class="slideshow" aria-hidden="true">
   <img
     *ngFor="let img of slides; let i = index"
     class="slide"
+    [class.active]="i === current"
     [src]="img"
-    [style.opacity]="i === current ? '1' : '0'"
     alt=""
   />
   <div class="overlay"></div>
 </div>
 
-<!-- Theme Toggle oben rechts -->
+<!-- Theme Toggle -->
 <button class="theme-toggle" (click)="toggleTheme()">
   <span *ngIf="isDarkMode">◑</span>
   <span *ngIf="!isDarkMode">◐</span>
 </button>
 
-
-<router-outlet></router-outlet>
-
+<!-- Seiteninhalt -->
+<div class="page-content">
+  <router-outlet></router-outlet>
+</div>

@@ -1,36 +1,109 @@
 <div class="register-container">
-  <!-- Titel und kurze Beschreibung der Registrierung -->
   <h1>Registrieren</h1>
   <p>Erstellen Sie Ihr persönliches FitnessTracker-Konto.</p>
 
   <div class="register-box">
+    <!-- Meldungen -->
+    <div class="alerts" *ngIf="error || info">
+      <div class="alert error" *ngIf="error">
+        <span class="alert-title">Fehler</span>
+        <span class="alert-text">{{ error }}</span>
+      </div>
+
+      <div class="alert success" *ngIf="info">
+        <span class="alert-title">Erfolg</span>
+        <span class="alert-text">{{ info }}</span>
+      </div>
+    </div>
+
     <!-- Registrierungsformular -->
-    <form>
-      <!-- Zeile für Vorname und Nachname -->
+    <form #regForm="ngForm" (ngSubmit)="onSubmit(regForm)" novalidate>
+      <!-- Vorname / Nachname -->
       <div class="row" style="display:flex; gap:1rem;">
         <div class="field" style="flex:1;">
           <label for="firstName">Vorname</label>
-          <input id="firstName" name="firstName" placeholder="Max" required />
+          <input
+            id="firstName"
+            name="firstName"
+            placeholder="Max"
+            required
+            [(ngModel)]="form.firstName"
+            #firstName="ngModel"
+            [disabled]="loading"
+            [class.invalid]="firstName.invalid && (firstName.touched || regForm.submitted)"
+          />
+          <div class="field-error" *ngIf="firstName.invalid && (firstName.touched || regForm.submitted)">
+            Bitte gib deinen Vornamen ein.
+          </div>
         </div>
+
         <div class="field" style="flex:1;">
           <label for="lastName">Nachname</label>
-          <input id="lastName" name="lastName" placeholder="Mustermann" required />
+          <input
+            id="lastName"
+            name="lastName"
+            placeholder="Mustermann"
+            required
+            [(ngModel)]="form.lastName"
+            #lastName="ngModel"
+            [disabled]="loading"
+            [class.invalid]="lastName.invalid && (lastName.touched || regForm.submitted)"
+          />
+          <div class="field-error" *ngIf="lastName.invalid && (lastName.touched || regForm.submitted)">
+            Bitte gib deinen Nachnamen ein.
+          </div>
         </div>
       </div>
 
-      <!-- E-Mail-Feld -->
+      <!-- E-Mail -->
       <label for="email">E-Mail</label>
-      <input id="email" name="email" type="email" placeholder="E-Mail-Adresse eingeben" required />
+      <input
+        id="email"
+        name="email"
+        type="email"
+        placeholder="E-Mail-Adresse eingeben"
+        required
+        email
+        pattern="^[^\s@]+@[^\s@]+\.[^\s@]{2,}$"
+        [(ngModel)]="form.email"
+        #emailModel="ngModel"
+        [disabled]="loading"
+        [class.invalid]="emailModel.invalid && (emailModel.touched || regForm.submitted)"
+      />
+      <div class="field-error" *ngIf="emailModel.invalid && (emailModel.touched || regForm.submitted)">
+        Bitte gib eine gültige E-Mail-Adresse ein (z. B. name@domain.de).
+      </div>
 
-      <!-- Zeile für Alter und Geschlecht -->
+      <!-- Alter / Geschlecht -->
       <div class="row" style="display:flex; gap:1rem;">
         <div class="field" style="flex:1;">
           <label for="age">Alter</label>
-          <input id="age" name="age" type="number" min="12" max="100" placeholder="z. B. 25" required />
+          <input
+            id="age"
+            name="age"
+            type="number"
+            min="12"
+            max="100"
+            placeholder="z. B. 25"
+            required
+            [(ngModel)]="form.age"
+            #ageModel="ngModel"
+            [disabled]="loading"
+            [class.invalid]="ageModel.invalid && (ageModel.touched || regForm.submitted)"
+          />
+          <div class="field-error" *ngIf="ageModel.invalid && (ageModel.touched || regForm.submitted)">
+            Bitte gib ein gültiges Alter zwischen 12 und 100 an.
+          </div>
         </div>
+
         <div class="field" style="flex:1;">
           <label for="gender">Geschlecht (optional)</label>
-          <select id="gender" name="gender">
+          <select
+            id="gender"
+            name="gender"
+            [(ngModel)]="form.gender"
+            [disabled]="loading"
+          >
             <option value="">Bitte wählen</option>
             <option value="m">Männlich</option>
             <option value="w">Weiblich</option>
@@ -39,28 +112,75 @@
         </div>
       </div>
 
-      <!-- Passwortfelder -->
+      <!-- Passwort -->
       <label for="password">Passwort</label>
-      <input id="password" name="password" type="password" placeholder="Mind. 8 Zeichen" minlength="8" required />
+      <input
+        id="password"
+        name="password"
+        type="password"
+        placeholder="Mind. 8 Zeichen"
+        minlength="8"
+        required
+        [(ngModel)]="form.password"
+        #passwordModel="ngModel"
+        [disabled]="loading"
+        [class.invalid]="passwordModel.invalid && (passwordModel.touched || regForm.submitted)"
+      />
+      <div class="field-error" *ngIf="passwordModel.invalid && (passwordModel.touched || regForm.submitted)">
+        Passwort muss mindestens 8 Zeichen lang sein.
+      </div>
 
       <label for="passwordConfirm">Passwort bestätigen</label>
-      <input id="passwordConfirm" name="passwordConfirm" type="password" placeholder="Passwort wiederholen" minlength="8" required />
+      <input
+        id="passwordConfirm"
+        name="passwordConfirm"
+        type="password"
+        placeholder="Passwort wiederholen"
+        minlength="8"
+        required
+        [(ngModel)]="form.passwordConfirm"
+        #passwordConfirmModel="ngModel"
+        [disabled]="loading"
+        [class.invalid]="
+          (passwordConfirmModel.invalid && (passwordConfirmModel.touched || regForm.submitted)) ||
+          ((passwordConfirmModel.touched || regForm.submitted) && form.passwordConfirm && form.password !== form.passwordConfirm)
+        "
+      />
 
-      <!-- Akzeptanz der Datenschutz- und Nutzungsbedingungen -->
+      <div class="field-error" *ngIf="passwordConfirmModel.invalid && (passwordConfirmModel.touched || regForm.submitted)">
+        Bitte bestätige dein Passwort (mind. 8 Zeichen).
+      </div>
+      <div class="field-error" *ngIf="(passwordConfirmModel.touched || regForm.submitted) && form.passwordConfirm && form.password !== form.passwordConfirm">
+        Die Passwörter stimmen nicht überein.
+      </div>
+
+      <!-- Terms -->
       <div class="terms-container">
-        <input type="checkbox" id="terms" name="terms" required />
+        <input
+          type="checkbox"
+          id="terms"
+          name="terms"
+          required
+          [(ngModel)]="form.terms"
+          #termsModel="ngModel"
+          [disabled]="loading"
+        />
         <label for="terms" class="terms-label">
-            Ich akzeptiere die
-            <a routerLink="/agb">Datenschutzerklärung und die Nutzungsbedingungen.</a>
+          Ich akzeptiere die
+          <a routerLink="/agb">Datenschutzerklärung und die Nutzungsbedingungen.</a>
         </label>
       </div>
 
-      <!-- Button zum Abschicken des Formulars -->
-      <button type="submit">Konto erstellen</button>
+      <div class="field-error center" *ngIf="termsModel.invalid && (termsModel.touched || regForm.submitted)">
+        Bitte akzeptiere die Nutzungsbedingungen.
+      </div>
+
+      <button type="submit" [disabled]="loading">
+        {{ loading ? 'Wird erstellt...' : 'Konto erstellen' }}
+      </button>
     </form>
   </div>
 
-  <!-- Hinweis für bereits registrierte Nutzer -->
   <div class="login-hint">
     Sie haben bereits ein Konto?
     <a routerLink="/login">Hier anmelden</a>.

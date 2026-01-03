@@ -62,7 +62,7 @@
   padding: 0.8rem 1rem;
   border-radius: 0.7rem;
   font-size: 1rem;
-  margin-bottom: 1.1rem;
+  margin-bottom: 0.55rem; /* Platz für inline error */
   outline: none;
   border: 1px solid rgba(148, 163, 184, 0.4);
   background: rgba(15, 23, 42, 0.9);
@@ -86,6 +86,79 @@
   border-color: #22c55e;
 }
 
+/*  Invalid state */
+.register-box input.invalid,
+.register-box select.invalid {
+  border-color: rgba(239, 68, 68, 0.95);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18);
+}
+
+/*  Inline error under fields */
+.field-error {
+  margin: 0 0 0.85rem;
+  font-size: 0.88rem;
+  color: #fecaca; /* light red for dark mode */
+}
+
+:host-context(.light-mode) .field-error {
+  color: #b91c1c;
+}
+
+.field-error.center {
+  text-align: center;
+}
+
+/* Alert boxes (UX) */
+.alerts {
+  margin-bottom: 1rem;
+}
+
+.alert {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  padding: 0.9rem 1rem;
+  border-radius: 0.9rem;
+  border: 1px solid transparent;
+  margin-bottom: 0.6rem;
+}
+
+.alert-title {
+  font-weight: 800;
+  line-height: 1.2;
+  min-width: 3.6rem;
+}
+
+.alert-text {
+  line-height: 1.35rem;
+}
+
+/* Error alert */
+.alert.error {
+  background: rgba(239, 68, 68, 0.14);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #fee2e2;
+}
+
+:host-context(.light-mode) .alert.error {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.25);
+  color: #7f1d1d;
+}
+
+/* ✅ Success alert */
+.alert.success {
+  background: rgba(34, 197, 94, 0.16);
+  border: 1px solid rgba(34, 197, 94, 0.45);
+  color: #dcfce7;
+}
+
+:host-context(.light-mode) .alert.success {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.35);
+  color: #14532d;
+}
+
 /* AGB Bereich */
 .terms-container {
   display: flex;
@@ -93,7 +166,7 @@
   justify-content: center;
   gap: 0.6rem;
   margin-top: 0.2rem;
-  margin-bottom: 1.2rem;
+  margin-bottom: 0.6rem;
   font-size: 0.95rem;
   text-align: center;
   color: inherit;
@@ -130,12 +203,20 @@
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  margin-top: 0.4rem;
 }
 
 .register-box button:hover {
   background: #16a34a;
   transform: translateY(-1px);
   box-shadow: 0 10px 24px rgba(34, 197, 94, 0.4);
+}
+
+.register-box button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 /* Login-Hinweis */
@@ -169,7 +250,7 @@
     padding: 0 1rem;
   }
   .register-box {
-    padding: 1.6rem 1.4rem;  /* kompakter auf kleineren Screens */
+    padding: 1.6rem 1.4rem; /* kompakter auf kleineren Screens */
   }
   .row {
     flex-direction: column; /* Felder untereinander statt nebeneinander */
@@ -179,5 +260,5 @@
 .terms-label {
   display: inline;
   line-height: 1.25rem;
-  margin-top: 1px;  /* optische Ausrichtung zur Checkbox */
+  margin-top: 1px; /* optische Ausrichtung zur Checkbox */
 }

@@ -4,6 +4,8 @@ import de.hsaa.fitness_tracker_service.execution.ExerciseExecution;
 import de.hsaa.fitness_tracker_service.execution.ExerciseExecutionRepository;
 import de.hsaa.fitness_tracker_service.trainingsSessionDay.SessionDay;
 import de.hsaa.fitness_tracker_service.trainingExecution.TrainingExecutionRepository;
+import de.hsaa.fitness_tracker_service.user.User;
+import de.hsaa.fitness_tracker_service.user.UserRepository;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -16,6 +18,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -29,15 +34,18 @@ public class TrainingSessionController {
     private final TrainingSessionService service;
     private final TrainingExecutionRepository trainingExecutionRepo;
     private final ExerciseExecutionRepository exerciseExecutionRepo;
+    private final UserRepository userRepo; // ✅ NEU
 
     public TrainingSessionController(
         TrainingSessionService service,
         TrainingExecutionRepository trainingExecutionRepo,
-        ExerciseExecutionRepository exerciseExecutionRepo
+        ExerciseExecutionRepository exerciseExecutionRepo,
+        UserRepository userRepo // ✅ NEU
     ) {
         this.service = service;
         this.trainingExecutionRepo = trainingExecutionRepo;
         this.exerciseExecutionRepo = exerciseExecutionRepo;
+        this.userRepo = userRepo;
     }
 
     public record CreateSessionRequest(
@@ -65,6 +73,7 @@ public class TrainingSessionController {
         String notes
     ) {}
 
+    // ✅ DTO ist hier (Record)
     public record TrainingSessionResponse(
         Long id,
         String name,
@@ -128,7 +137,9 @@ public class TrainingSessionController {
     @GetMapping
     public Page<TrainingSessionResponse> list(@PageableDefault(size = 20) Pageable pageable) {
         Page<TrainingSession> page = service.list(pageable);
-        Map<Long, Long> performed = loadPerformedCounts(page.getContent());
+
+        User currentUser = resolveCurrentUserOrNull();
+        Map<Long, Long> performed = loadPerformedCounts(page.getContent(), currentUser);
         Map<Long, Long> exerciseCounts = loadExerciseCounts(page.getContent());
 
         return page.map(s -> toDto(
@@ -145,7 +156,9 @@ public class TrainingSessionController {
         @PageableDefault(size = 20) Pageable pageable
     ) {
         Page<TrainingSession> page = service.listByPlan(planId, pageable);
-        Map<Long, Long> performed = loadPerformedCounts(page.getContent());
+
+        User currentUser = resolveCurrentUserOrNull();
+        Map<Long, Long> performed = loadPerformedCounts(page.getContent(), currentUser);
         Map<Long, Long> exerciseCounts = loadExerciseCounts(page.getContent());
 
         return page.map(s -> toDto(
@@ -160,8 +173,13 @@ public class TrainingSessionController {
     public TrainingSessionResponse get(@PathVariable Long id) {
         TrainingSession s = service.get(id);
 
-        // ✅ wichtig: Session ODER Snapshot zählen
-        long performedCount = trainingExecutionRepo.countBySessionOrSnapshot(id);
+        User currentUser = resolveCurrentUserOrNull();
+
+        // ✅ Sprint 4: performedCount nur für eingeloggten User, public -> 0
+        long performedCount = 0L;
+        if (currentUser != null) {
+            performedCount = trainingExecutionRepo.countBySessionOrSnapshotAndUser(id, currentUser);
+        }
 
         long exerciseCount = s.getExerciseExecutions() != null ? s.getExerciseExecutions().size() : 0L;
         return toDto(s, true, exerciseCount, performedCount);
@@ -186,8 +204,11 @@ public class TrainingSessionController {
     ) {
         var updated = service.update(id, req.planId(), req.name(), req.days());
 
-        // ✅ Session ODER Snapshot zählen
-        long performedCount = trainingExecutionRepo.countBySessionOrSnapshot(id);
+        User currentUser = resolveCurrentUserOrNull();
+        long performedCount = 0L;
+        if (currentUser != null) {
+            performedCount = trainingExecutionRepo.countBySessionOrSnapshotAndUser(id, currentUser);
+        }
 
         long exerciseCount = updated.getExerciseExecutions() != null
             ? updated.getExerciseExecutions().size()
@@ -203,8 +224,11 @@ public class TrainingSessionController {
     ) {
         var updated = service.update(id, req.planId(), req.name(), req.days());
 
-        // ✅ Session ODER Snapshot zählen
-        long performedCount = trainingExecutionRepo.countBySessionOrSnapshot(id);
+        User currentUser = resolveCurrentUserOrNull();
+        long performedCount = 0L;
+        if (currentUser != null) {
+            performedCount = trainingExecutionRepo.countBySessionOrSnapshotAndUser(id, currentUser);
+        }
 
         long exerciseCount = updated.getExerciseExecutions() != null
             ? updated.getExerciseExecutions().size()
@@ -213,32 +237,36 @@ public class TrainingSessionController {
         return toDto(updated, true, exerciseCount, performedCount);
     }
 
-    // ✅ Delete ist jetzt clean: Service macht snapshot + detach + delete in 1 Transaktion
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long id) {
         service.delete(id);
     }
 
-    private Map<Long, Long> loadPerformedCounts(List<TrainingSession> sessions) {
+    // ✅ performedCounts: user-spezifisch wenn eingeloggt, sonst leer -> 0
+    private Map<Long, Long> loadPerformedCounts(List<TrainingSession> sessions, User currentUser) {
         List<Long> ids = sessions.stream()
             .map(TrainingSession::getId)
             .filter(Objects::nonNull)
             .toList();
         if (ids.isEmpty()) return Map.of();
 
+        if (currentUser == null) {
+            return Map.of(); // public -> performedCount überall 0
+        }
+
         Map<Long, Long> out = new HashMap<>();
 
-        // Counts, wo Session noch existiert
-        List<Object[]> rows1 = trainingExecutionRepo.countBySessionIds(ids);
+        // Counts, wo Session noch existiert (nur für User)
+        List<Object[]> rows1 = trainingExecutionRepo.countBySessionIdsAndUser(ids, currentUser);
         for (Object[] r : rows1) {
             Long id = (Long) r[0];
             Long cnt = (Long) r[1];
             out.merge(id, cnt, Long::sum);
         }
 
-        // Counts, wo Session gelöscht/detached ist -> snapshot
-        List<Object[]> rows2 = trainingExecutionRepo.countBySessionIdSnapshots(ids);
+        // Counts, wo Session gelöscht/detached ist -> snapshot (nur für User)
+        List<Object[]> rows2 = trainingExecutionRepo.countBySessionIdSnapshotsAndUser(ids, currentUser);
         for (Object[] r : rows2) {
             Long id = (Long) r[0];
             Long cnt = (Long) r[1];
@@ -258,5 +286,18 @@ public class TrainingSessionController {
         List<Object[]> rows = exerciseExecutionRepo.countBySessionIds(ids);
         return rows.stream()
             .collect(Collectors.toMap(r -> (Long) r[0], r -> (Long) r[1]));
+    }
+
+    // ✅ liefert User wenn eingeloggt, sonst null (damit GET public bleibt)
+    private User resolveCurrentUserOrNull() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) return null;
+        if (!auth.isAuthenticated()) return null;
+        if (auth instanceof AnonymousAuthenticationToken) return null;
+
+        String username = auth.getName();
+        if (username == null || username.isBlank() || "anonymousUser".equalsIgnoreCase(username)) return null;
+
+        return userRepo.findByUsername(username).orElse(null);
     }
 }

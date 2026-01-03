@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -37,8 +38,8 @@ public class TrainingExecutionController {
 			LocalDateTime startedAt, LocalDateTime completedAt, List<ExecutedExerciseResponse> executedExercises) {
 	}
 
-	public record StreakResponse(int streakDays) {
-	}
+	public record StreakResponse(int streakDays, LocalDate lastTrainingDay) {}
+
 
 	private static TrainingExecutionResponse toDto(TrainingExecution te) {
 		List<ExecutedExerciseResponse> execs = List.of();
@@ -101,7 +102,7 @@ public class TrainingExecutionController {
 
 	@GetMapping("/stats/streak")
 	public StreakResponse streak() {
-		return new StreakResponse(service.calculateCompletedStreakDays());
+		return new StreakResponse(service.calculateCompletedStreakDays(), null);
 	}
 
 	@PostMapping("/{id}/complete")

@@ -1,9 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule, NgIf, NgForOf } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../environment';
 import { forkJoin } from 'rxjs';
+import { AuthSessionService } from '../../services/auth-session.service';
 
 interface TrainingPlan {
   id: number;
@@ -63,7 +64,7 @@ interface ExecutionDraft {
 @Component({
   selector: 'app-sessions',
   standalone: true,
-  imports: [CommonModule, NgIf, NgForOf, FormsModule, HttpClientModule],
+  imports: [CommonModule, NgIf, NgForOf, FormsModule],
   templateUrl: './sessions.html',
   styleUrl: './sessions.css',
 })
@@ -127,7 +128,12 @@ export class Sessions implements OnInit {
   errorMsg = '';
   infoMsg = '';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private session: AuthSessionService) {}
+
+  // Sprint 4: UI/Logik "eingeloggt"
+  get isLoggedIn(): boolean {
+    return this.session.isLoggedIn();
+  }
 
   ngOnInit(): void {
     this.loadPlans();
@@ -153,18 +159,10 @@ export class Sessions implements OnInit {
       .join(', ');
   }
 
-  //Übungsnamen aus ExerciseExecution ableiten 
+  //Übungsnamen aus ExerciseExecution ableiten
   getExerciseExecution(session: TrainingSession): string[] {
     const fromExecutions = (session.exerciseExecutions ?? [])
-      .map((e: any) =>
-        (
-          e?.exerciseName ??
-          e?.exercise?.name ?? 
-          ''
-        )
-          .toString()
-          .trim()
-      )
+      .map((e: any) => (e?.exerciseName ?? e?.exercise?.name ?? '').toString().trim())
       .filter(Boolean);
 
     if (fromExecutions.length) return fromExecutions;
@@ -211,9 +209,7 @@ export class Sessions implements OnInit {
   }
 
   isDaySelectedDetail(day: number): boolean {
-    return (
-      Array.isArray(this.detailForm.days) && this.detailForm.days.some((d) => Number(d) === day)
-    );
+    return Array.isArray(this.detailForm.days) && this.detailForm.days.some((d) => Number(d) === day);
   }
 
   isDayBlockedCreate(day: number): boolean {
@@ -241,9 +237,7 @@ export class Sessions implements OnInit {
       this.form.days.push(day);
     }
 
-    this.form.days = Array.from(new Set(this.form.days.map((d) => Number(d)))).sort(
-      (a, b) => a - b
-    );
+    this.form.days = Array.from(new Set(this.form.days.map((d) => Number(d)))).sort((a, b) => a - b);
   }
 
   clearDaysCreate(): void {
@@ -252,7 +246,6 @@ export class Sessions implements OnInit {
 
   toggleDayDetail(day: number): void {
     if (day < 1 || day > 30) return;
-
     if (!this.isDaySelectedDetail(day) && this.isDayBlockedDetail(day)) return;
 
     if (!Array.isArray(this.detailForm.days)) this.detailForm.days = [];
@@ -263,9 +256,7 @@ export class Sessions implements OnInit {
       this.detailForm.days.push(day);
     }
 
-    this.detailForm.days = Array.from(new Set(this.detailForm.days.map((d) => Number(d)))).sort(
-      (a, b) => a - b
-    );
+    this.detailForm.days = Array.from(new Set(this.detailForm.days.map((d) => Number(d)))).sort((a, b) => a - b);
   }
 
   clearDaysDetail(): void {
@@ -306,7 +297,7 @@ export class Sessions implements OnInit {
     this.filteredExercises = this.exercises.filter((ex) => ex.name.toLowerCase().includes(q));
   }
 
-  //Detail: verfügbare Übungen (filtert live über detailExerciseSearch)
+  //Detail: verfügbare Übungen
   getAvailableDetailExercises(): Exercise[] {
     const term = (this.detailExerciseSearch ?? '').toLowerCase().trim();
     const usedIds = new Set(this.detailExecutions.map((d) => d.exerciseId));
@@ -316,7 +307,6 @@ export class Sessions implements OnInit {
       .filter((e) => !term || e.name.toLowerCase().includes(term));
   }
 
-  //Helper für Benutzereingaben bei Übungs-Konfigurationen einer Sesson
   private clampInt(val: any, min: number, max: number): number {
     const n = Number(val);
     if (!Number.isFinite(n)) return min;
@@ -339,23 +329,18 @@ export class Sessions implements OnInit {
     return /^\d+(?:[.,]\d+)?$/.test(s);
   }
 
-  //Prüft Priorität, Sätze, Wiederholungen und Gewicht pro Übung
   private validateDraft(d: ExecutionDraft): string[] {
     const errors: string[] = [];
     const exName = this.getExerciseName(Number(d.exerciseId));
 
     if (!this.isStrictPositiveIntInput(d.orderIndex) || Number(d.orderIndex) < 1) {
-      errors.push(
-        `${exName}: Reihenfolge (Priorität) muss eine ganze Zahl ≥ 1 sein (ohne Sonderzeichen).`
-      );
+      errors.push(`${exName}: Reihenfolge (Priorität) muss eine ganze Zahl ≥ 1 sein (ohne Sonderzeichen).`);
     }
     if (!this.isStrictPositiveIntInput(d.plannedSets) || Number(d.plannedSets) < 1) {
       errors.push(`${exName}: Sätze müssen eine ganze Zahl ≥ 1 sein (ohne Sonderzeichen).`);
     }
     if (!this.isStrictPositiveIntInput(d.plannedReps) || Number(d.plannedReps) < 1) {
-      errors.push(
-        `${exName}: Wiederholungen müssen eine ganze Zahl ≥ 1 sein (ohne Sonderzeichen).`
-      );
+      errors.push(`${exName}: Wiederholungen müssen eine ganze Zahl ≥ 1 sein (ohne Sonderzeichen).`);
     }
     if (
       !this.isStrictNonNegativeNumberInput(d.plannedWeightKg) ||
@@ -367,7 +352,6 @@ export class Sessions implements OnInit {
     return errors;
   }
 
-  //normalisiert Übungs Konfiguration vor dem Speichern
   private normalizeDraft(d: ExecutionDraft): ExecutionDraft {
     const weight = Number(String(d.plannedWeightKg ?? 0).replace(',', '.'));
 
@@ -382,13 +366,11 @@ export class Sessions implements OnInit {
     };
   }
 
-  //Sortiert übungen nach ihrer Reihenfolge und vergibt fortlaufende Prioritäten
   private renumberAndSort(list: ExecutionDraft[]): ExecutionDraft[] {
     const sorted = [...list].sort((a, b) => Number(a.orderIndex) - Number(b.orderIndex));
     return sorted.map((d, idx) => ({ ...d, orderIndex: idx + 1 }));
   }
 
-  //ermittelt nächste freie Priorität für neue Übung
   private nextOrderIndex(list: ExecutionDraft[]): number {
     const max = list.reduce((m, x) => Math.max(m, Number(x.orderIndex) || 0), 0);
     return Math.max(1, max + 1);
@@ -447,12 +429,10 @@ export class Sessions implements OnInit {
     this.detailExecutions = this.detailExecutions.filter((d) => d.exerciseId !== exerciseId);
   }
 
-  //Setzt Reihenfolge aller Übungen neu fortlaufend auf 1...
   private resequenceInPlace(list: ExecutionDraft[]): void {
     list.forEach((d, i) => (d.orderIndex = i + 1));
   }
 
-  //Element in der Liste verschieben
   private moveItem(list: ExecutionDraft[], index: number, direction: -1 | 1): void {
     const newIndex = index + direction;
     if (index < 0 || index >= list.length) return;
@@ -481,25 +461,26 @@ export class Sessions implements OnInit {
     this.moveItem(this.selectedExecutions, index, 1);
   }
 
-  //Wenn jemand orderIndex manuell tippt -> normalize zu 1... und verhindert Duplikate
   onDetailOrderEdited(): void {
-    const sorted = [...this.detailExecutions].sort(
-      (a, b) => Number(a.orderIndex) - Number(b.orderIndex)
-    );
+    const sorted = [...this.detailExecutions].sort((a, b) => Number(a.orderIndex) - Number(b.orderIndex));
     this.detailExecutions = sorted;
     this.resequenceInPlace(this.detailExecutions);
   }
 
   onCreateOrderEdited(): void {
-    const sorted = [...this.selectedExecutions].sort(
-      (a, b) => Number(a.orderIndex) - Number(b.orderIndex)
-    );
+    const sorted = [...this.selectedExecutions].sort((a, b) => Number(a.orderIndex) - Number(b.orderIndex));
     this.selectedExecutions = sorted;
     this.resequenceInPlace(this.selectedExecutions);
   }
 
-  //neue Session erstellen
+  // neue Session erstellen (nur mit Login)
   add(): void {
+    if (!this.isLoggedIn) {
+      this.errorMsg = 'Bitte anmelden, um Sessions anzulegen.';
+      this.infoMsg = '';
+      return;
+    }
+
     this.errorMsg = '';
     this.infoMsg = '';
 
@@ -537,7 +518,6 @@ export class Sessions implements OnInit {
           return;
         }
 
-        //Validierung: blockt bei Sets/Reps < 1, kg < 0, Sonderzeichen
         const validationErrors = this.selectedExecutions.flatMap((d) => this.validateDraft(d));
         if (validationErrors.length) {
           this.creating = false;
@@ -545,10 +525,7 @@ export class Sessions implements OnInit {
           return;
         }
 
-        //Reihenfolge sauber machen (Prioritäten 1..n) und normalisieren
-        const drafts = this.renumberAndSort(this.selectedExecutions).map((d) =>
-          this.normalizeDraft(d)
-        );
+        const drafts = this.renumberAndSort(this.selectedExecutions).map((d) => this.normalizeDraft(d));
 
         const requests = drafts.map((d) =>
           this.http.post(`${this.baseUrl}/training-sessions/${sessionId}/executions`, {
@@ -566,14 +543,22 @@ export class Sessions implements OnInit {
           error: (err) => {
             console.error('Konnte ExerciseExecutions nicht anlegen', err);
             this.creating = false;
-            this.errorMsg = 'Session wurde angelegt, aber Übungen konnten nicht zugeordnet werden.';
+            if (err?.status === 401 || err?.status === 403) {
+              this.errorMsg = 'Nicht berechtigt. Bitte erneut anmelden.';
+            } else {
+              this.errorMsg = 'Session wurde angelegt, aber Übungen konnten nicht zugeordnet werden.';
+            }
             this.loadSessions();
           },
         });
       },
       error: (err) => {
         this.creating = false;
-        this.errorMsg = err?.error?.detail || 'Session konnte nicht angelegt werden.';
+        if (err?.status === 401 || err?.status === 403) {
+          this.errorMsg = 'Nicht berechtigt. Bitte erneut anmelden.';
+        } else {
+          this.errorMsg = err?.error?.detail || 'Session konnte nicht angelegt werden.';
+        }
         console.error(err);
       },
     });
@@ -599,7 +584,6 @@ export class Sessions implements OnInit {
       .join(',');
   }
 
-  //Übung auswählen für Bearbeiten/Löschen
   selectSession(session: TrainingSession): void {
     if (session.id == null) return;
 
@@ -650,13 +634,10 @@ export class Sessions implements OnInit {
           .sort((a, b) => a.orderIndex - b.orderIndex);
 
         this.detailExecutions = normalized;
-
         this.detailOriginalExecutions = JSON.parse(JSON.stringify(normalized));
-
         this.detailExerciseSearch = '';
         this.detailLoading = false;
       },
-
       error: (err) => {
         console.error('Details konnten nicht geladen werden', err);
         this.errorMsg = 'Details zur Session konnten nicht geladen werden.';
@@ -676,8 +657,14 @@ export class Sessions implements OnInit {
     this.updating = false;
   }
 
-  //Ausgewählte Übung bearbeiten
+  // ausgewählte Session aktualisieren (nur mit Login)
   updateSelectedSession(): void {
+    if (!this.isLoggedIn) {
+      this.errorMsg = 'Bitte anmelden, um Sessions zu bearbeiten.';
+      this.infoMsg = '';
+      return;
+    }
+
     if (!this.detailForm.id) return;
 
     const id = Number(this.detailForm.id);
@@ -728,7 +715,6 @@ export class Sessions implements OnInit {
     this.infoMsg = '';
     this.updating = true;
 
-    //Validierung: blockt bei Sets/Reps < 1, kg < 0, Sonderzeichen
     const execValidationErrors = this.detailExecutions.flatMap((d) => this.validateDraft(d));
     if (execValidationErrors.length) {
       this.errorMsg = execValidationErrors.join('\n');
@@ -736,10 +722,7 @@ export class Sessions implements OnInit {
       return;
     }
 
-    //Reihenfolge sauber machen (Prioritäten 1..n), damit "Priorität ändern" stabil gespeichert wird
-    this.detailExecutions = this.renumberAndSort(this.detailExecutions).map((d) =>
-      this.normalizeDraft(d)
-    );
+    this.detailExecutions = this.renumberAndSort(this.detailExecutions).map((d) => this.normalizeDraft(d));
 
     if (!Object.keys(payload).length && executionsChanged) {
       this.syncDetailExecutions(id);
@@ -753,13 +736,15 @@ export class Sessions implements OnInit {
       error: (err) => {
         console.error(err);
         this.updating = false;
-        this.errorMsg =
-          err?.error?.detail || err?.error?.message || 'Session konnte nicht aktualisiert werden.';
+        if (err?.status === 401 || err?.status === 403) {
+          this.errorMsg = 'Nicht berechtigt. Bitte erneut anmelden.';
+        } else {
+          this.errorMsg = err?.error?.detail || err?.error?.message || 'Session konnte nicht aktualisiert werden.';
+        }
       },
     });
   }
 
-  //Executions einer bestehenden Session mit Backend synchronisieren durch Post, Delete, Patch
   private syncDetailExecutions(sessionId: number): void {
     this.detailExecutions = [...this.detailExecutions].map((d, idx) => ({
       ...d,
@@ -794,7 +779,6 @@ export class Sessions implements OnInit {
       this.http.delete(`${this.baseUrl}/training-sessions/${sessionId}/executions/${d.executionId}`)
     );
 
-    //Prüfen ob bei bestehenden Einträgen Reihenfolge geändert wurde
     const orderChangedForExisting = toUpdate.some((d) => {
       const orig = this.detailOriginalExecutions.find((o) => o.executionId === d.executionId);
       return !!orig && Number(orig.orderIndex) !== Number(d.orderIndex);
@@ -802,17 +786,14 @@ export class Sessions implements OnInit {
 
     const runFinalUpdateRequests = () => {
       const updateRequests = toUpdate.map((d) =>
-        this.http.patch(
-          `${this.baseUrl}/training-sessions/${sessionId}/executions/${d.executionId}`,
-          {
-            exerciseId: d.exerciseId,
-            orderIndex: d.orderIndex,
-            plannedSets: d.plannedSets,
-            plannedReps: d.plannedReps,
-            plannedWeightKg: d.plannedWeightKg,
-            notes: d.notes,
-          }
-        )
+        this.http.patch(`${this.baseUrl}/training-sessions/${sessionId}/executions/${d.executionId}`, {
+          exerciseId: d.exerciseId,
+          orderIndex: d.orderIndex,
+          plannedSets: d.plannedSets,
+          plannedReps: d.plannedReps,
+          plannedWeightKg: d.plannedWeightKg,
+          notes: d.notes,
+        })
       );
 
       const all = [...createRequests, ...updateRequests, ...deleteRequests];
@@ -827,27 +808,26 @@ export class Sessions implements OnInit {
         error: (err) => {
           console.error(err);
           this.updating = false;
-          this.errorMsg = 'Übungen konnten nicht gespeichert werden.';
+          if (err?.status === 401 || err?.status === 403) {
+            this.errorMsg = 'Nicht berechtigt. Bitte erneut anmelden.';
+          } else {
+            this.errorMsg = 'Übungen konnten nicht gespeichert werden.';
+          }
         },
       });
     };
 
-    //Wenn kein Reorder bei bestehenden: normal updaten
     if (!orderChangedForExisting) {
       runFinalUpdateRequests();
       return;
     }
 
-    //2-Phasen Update nur für bestehende Executions (verhindert UNIQUE(session_id, order_index) Kollision)
     const existing = this.detailExecutions.filter((d) => !!d.executionId);
 
     const tempShiftRequests = existing.map((d) =>
-      this.http.patch(
-        `${this.baseUrl}/training-sessions/${sessionId}/executions/${d.executionId}`,
-        {
-          orderIndex: Number(d.orderIndex) + 1000,
-        }
-      )
+      this.http.patch(`${this.baseUrl}/training-sessions/${sessionId}/executions/${d.executionId}`, {
+        orderIndex: Number(d.orderIndex) + 1000,
+      })
     );
 
     forkJoin(tempShiftRequests).subscribe({
@@ -864,15 +844,19 @@ export class Sessions implements OnInit {
     this.updating = false;
     this.infoMsg = 'Session wurde vollständig aktualisiert.';
     this.clearSelection();
-
-    //Sessions + Executions neu laden
     this.loadSessions();
   }
 
-  //Session löschen
+  // Session löschen (nur mit Login)
   deleteSession(session: TrainingSession, event?: MouseEvent): void {
     if (event) event.stopPropagation();
     if (!session.id) return;
+
+    if (!this.isLoggedIn) {
+      this.errorMsg = 'Bitte anmelden, um Sessions zu löschen.';
+      this.infoMsg = '';
+      return;
+    }
 
     const confirmed = window.confirm(`Möchtest du die Session "${session.name}" wirklich löschen?`);
     if (!confirmed) return;
@@ -897,13 +881,15 @@ export class Sessions implements OnInit {
         console.error(err);
         this.deleting = false;
         this.deleteId = null;
-        this.errorMsg = err?.error?.detail || 'Session konnte nicht gelöscht werden.';
+        if (err?.status === 401 || err?.status === 403) {
+          this.errorMsg = 'Nicht berechtigt. Bitte erneut anmelden.';
+        } else {
+          this.errorMsg = err?.error?.detail || 'Session konnte nicht gelöscht werden.';
+        }
       },
     });
   }
 
- 
-  //Pläne laden
   private loadPlans(): void {
     this.loadingPlans = true;
     this.http.get<any>(`${this.baseUrl}/training-plans?size=200`).subscribe({
@@ -923,7 +909,6 @@ export class Sessions implements OnInit {
     });
   }
 
-  //Sessions laden
   private loadSessions(): void {
     this.loadingSessions = true;
 
@@ -934,8 +919,7 @@ export class Sessions implements OnInit {
         this.sessions = (list ?? []).map((s: any) => ({
           id: Number(s.id),
           name: s.name,
-          planId:
-            s.planId != null ? Number(s.planId) : s.plan?.id != null ? Number(s.plan.id) : null,
+          planId: s.planId != null ? Number(s.planId) : s.plan?.id != null ? Number(s.plan.id) : null,
           planName: s.planName ?? s.plan?.name,
           days: Array.isArray(s.days)
             ? s.days.map((d: any) => Number(d)).filter((d: number) => d >= 1 && d <= 30)
@@ -975,7 +959,6 @@ export class Sessions implements OnInit {
     });
   }
 
-  //Übungen laden
   private loadExercises(): void {
     this.loadingExercises = true;
     this.http.get<any>(`${this.baseUrl}/exercises?size=500`).subscribe({
@@ -988,7 +971,7 @@ export class Sessions implements OnInit {
           muscleGroups: e.muscleGroups,
         }));
         this.filteredExercises = [...this.exercises];
-        this.applyExerciseSearch(); // sorgt dafür, dass Suche sofort passt
+        this.applyExerciseSearch();
         this.loadingExercises = false;
       },
       error: (err) => {

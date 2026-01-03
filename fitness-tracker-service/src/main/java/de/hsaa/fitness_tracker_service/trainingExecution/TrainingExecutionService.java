@@ -5,7 +5,12 @@ import de.hsaa.fitness_tracker_service.exercise.ExerciseRepository;
 import de.hsaa.fitness_tracker_service.execution.ExerciseExecution;
 import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSession;
 import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSessionRepository;
+import de.hsaa.fitness_tracker_service.user.User;
+import de.hsaa.fitness_tracker_service.user.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,15 +26,18 @@ public class TrainingExecutionService {
     private final TrainingExecutionRepository repo;
     private final TrainingSessionRepository sessionRepo;
     private final ExerciseRepository exerciseRepo;
+    private final UserRepository userRepo;
 
     public TrainingExecutionService(
         TrainingExecutionRepository repo,
         TrainingSessionRepository sessionRepo,
-        ExerciseRepository exerciseRepo
+        ExerciseRepository exerciseRepo,
+        UserRepository userRepo
     ) {
         this.repo = repo;
         this.sessionRepo = sessionRepo;
         this.exerciseRepo = exerciseRepo;
+        this.userRepo = userRepo;
     }
 
     public TrainingExecution start(Long sessionId) {
@@ -39,7 +47,10 @@ public class TrainingExecutionService {
             throw new IllegalArgumentException("session must contain at least one exercise");
         }
 
+        User currentUser = getCurrentUser();
+
         TrainingExecution te = new TrainingExecution();
+        te.setUser(currentUser); // ✅ WICHTIG: Owner setzen
         te.setSession(session);
 
         // Snapshot der Session-Metadaten für Progress/History
@@ -80,8 +91,11 @@ public class TrainingExecutionService {
 
     @Transactional(readOnly = true)
     public TrainingExecution get(Long id) {
-        return repo.findWithExercisesById(id)
+        TrainingExecution te = repo.findWithExercisesById(id)
             .orElseThrow(() -> new EntityNotFoundException("training execution not found"));
+
+        assertOwner(te);
+        return te;
     }
 
     public TrainingExecution upsertExecutedExercise(
@@ -93,7 +107,7 @@ public class TrainingExecutionService {
         boolean done,
         String notes
     ) {
-        TrainingExecution te = get(executionId);
+        TrainingExecution te = get(executionId); // get() prüft Owner already
 
         if (te.getStatus() != TrainingExecution.Status.IN_PROGRESS) {
             throw new IllegalArgumentException("training is not editable");
@@ -130,7 +144,7 @@ public class TrainingExecutionService {
     }
 
     public TrainingExecution complete(Long id) {
-        TrainingExecution te = get(id);
+        TrainingExecution te = get(id); // Owner check
 
         if (te.getStatus() != TrainingExecution.Status.IN_PROGRESS) {
             throw new IllegalArgumentException("training already completed");
@@ -142,7 +156,7 @@ public class TrainingExecutionService {
     }
 
     public void cancel(Long id) {
-        TrainingExecution te = get(id);
+        TrainingExecution te = get(id); // Owner check
 
         if (te.getStatus() == TrainingExecution.Status.COMPLETED) {
             throw new IllegalArgumentException("completed trainings cannot be deleted");
@@ -153,42 +167,56 @@ public class TrainingExecutionService {
 
     @Transactional(readOnly = true)
     public List<TrainingExecution> listBySession(Long sessionId) {
-        return repo.findWithExercisesBySessionOrSnapshot(sessionId);
+        User currentUser = getCurrentUser();
+        return repo.findWithExercisesBySessionOrSnapshotAndUser(sessionId, currentUser);
     }
 
     @Transactional(readOnly = true)
     public List<TrainingExecution> listAll() {
-        return repo.findAllWithExercises();
+        User currentUser = getCurrentUser();
+        return repo.findAllWithExercisesByUser(currentUser);
     }
 
     @Transactional(readOnly = true)
     public int calculateCompletedStreakDays() {
-        List<TrainingExecution> list = repo.findByStatusOrderByCompletedAtDesc(TrainingExecution.Status.COMPLETED);
+        User currentUser = getCurrentUser();
+
+        List<TrainingExecution> list =
+        	    repo.findByUserAndStatusAndCompletedAtIsNotNullOrderByCompletedAtDesc(
+        	        currentUser,
+        	        TrainingExecution.Status.COMPLETED
+        	    );
+
+
         if (list.isEmpty()) return 0;
 
-        HashSet<LocalDate> seen = new HashSet<>();
-        List<LocalDate> dates = list.stream()
-            .map(te -> te.getCompletedAt() != null ? te.getCompletedAt().toLocalDate() : null)
-            .filter(d -> d != null)
-            .filter(seen::add)
-            .toList();
-
-        if (dates.isEmpty()) return 0;
-
-        int streak = 1;
-        LocalDate cursor = dates.get(0);
-
-        for (int i = 1; i < dates.size(); i++) {
-            LocalDate next = dates.get(i);
-            if (next.equals(cursor.minusDays(1))) {
-                streak++;
-                cursor = next;
-            } else {
-                break;
-            }
+        // distinct Tage in Reihenfolge: newest -> oldest
+        java.util.LinkedHashSet<LocalDate> daysDesc = new java.util.LinkedHashSet<>();
+        for (TrainingExecution te : list) {
+            daysDesc.add(te.getCompletedAt().toLocalDate());
         }
+
+        if (daysDesc.isEmpty()) return 0;
+
+        LocalDate today = LocalDate.now();
+        LocalDate lastDay = daysDesc.iterator().next();
+
+        // Wenn letztes Training NICHT heute oder gestern war -> aktueller Streak = 0
+        if (lastDay.isBefore(today.minusDays(1))) {
+            return 0;
+        }
+
+        int streak = 0;
+        LocalDate cursor = lastDay;
+
+        while (daysDesc.contains(cursor)) {
+            streak++;
+            cursor = cursor.minusDays(1);
+        }
+
         return streak;
     }
+
 
     private TrainingSession requireSessionWithPlannedExercises(Long id) {
         return sessionRepo.findWithExecutionsById(id)
@@ -198,5 +226,29 @@ public class TrainingExecutionService {
     private Exercise requireExercise(Long id) {
         return exerciseRepo.findById(id)
             .orElseThrow(() -> new EntityNotFoundException("exercise not found"));
+    }
+
+    // aktueller User aus SecurityContext → DB User holen
+    private User getCurrentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = auth != null ? auth.getName() : null;
+
+        if (username == null || username.isBlank()) {
+            throw new AccessDeniedException("Not authenticated");
+        }
+
+        return userRepo.findByUsername(username)
+            .orElseThrow(() -> new IllegalStateException("User not found: " + username));
+    }
+
+    // 403 wenn nicht Owner
+    private void assertOwner(TrainingExecution te) {
+        User currentUser = getCurrentUser();
+        if (te.getUser() == null || te.getUser().getId() == null) {
+            throw new AccessDeniedException("Owner missing");
+        }
+        if (!te.getUser().getId().equals(currentUser.getId())) {
+            throw new AccessDeniedException("Forbidden");
+        }
     }
 }

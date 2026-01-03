@@ -1,75 +1,65 @@
 <div class="page profile-page">
-  <!-- HEADER: Enthält Avatar, Titel des Bereichs und Metadaten -->
   <header class="profile-header">
-    <!-- Avatar des Nutzers, wird durch Initialen ersetzt -->
     <div class="avatar">
       {{ initials }}
     </div>
 
-    <!-- Profil-Titel und kurze Beschreibung -->
     <div class="profile-title">
       <p class="eyebrow">Mein Bereich</p>
       <h1>Mein Profil</h1>
       <p class="sub">Übersicht deiner persönlichen Daten</p>
+      <p class="muted" *ngIf="loading">Profil wird geladen…</p>
     </div>
 
-    <!-- Metadaten: Status und E-Mail des Nutzers -->
     <div class="profile-meta">
       <span class="tag">Angemeldet</span>
       <p class="meta-email">{{ user.email }}</p>
     </div>
   </header>
 
+  <!-- Meldungen -->
+  <div class="alerts" *ngIf="error || info">
+    <div class="alert error" *ngIf="error">{{ error }}</div>
+    <div class="alert info" *ngIf="info">{{ info }}</div>
+  </div>
+
   <!-- NUTZERDATEN SECTION -->
   <section class="profile-section">
     <h2>Nutzerdaten</h2>
 
-    <!-- Anzeige-Modus: Zeigt die Daten des Nutzers an -->
     <div class="profile-grid" *ngIf="!isEditing; else editUserSection">
       <div class="info-card">
         <span class="label">Vorname</span>
-        <span class="value">{{ user.firstName }}</span>
+        <span class="value">{{ user.firstName || '–' }}</span>
       </div>
 
       <div class="info-card">
         <span class="label">Nachname</span>
-        <span class="value">{{ user.lastName }}</span>
+        <span class="value">{{ user.lastName || '–' }}</span>
       </div>
 
       <div class="info-card">
         <span class="label">E-Mail</span>
-        <span class="value">{{ user.email }}</span>
+        <span class="value">{{ user.email || '–' }}</span>
       </div>
     </div>
 
-    <!-- Edit-Modus: Ermöglicht Bearbeitung der Nutzerdaten -->
     <ng-template #editUserSection>
       <div class="profile-grid">
         <div class="info-card">
           <span class="label">Vorname</span>
-          <input
-            class="value-input"
-            type="text"
-            [(ngModel)]="editedUser.firstName"
-          />
+          <input class="value-input" type="text" [(ngModel)]="editedUser.firstName" />
         </div>
 
         <div class="info-card">
           <span class="label">Nachname</span>
-          <input
-            class="value-input"
-            type="text"
-            [(ngModel)]="editedUser.lastName"
-          />
+          <input class="value-input" type="text" [(ngModel)]="editedUser.lastName" />
         </div>
 
+        <!--  Email bleibt in Edit-Mode nur Anzeige, kein Input -->
         <div class="info-card">
           <span class="label">E-Mail</span>
-          <input
-            class="value-input"
-            type="email"
-            [(ngModel)]="editedUser.email"
-          />
+          <span class="value">{{ user.email || '–' }}</span>
         </div>
       </div>
     </ng-template>
@@ -79,65 +69,54 @@
   <section class="profile-section">
     <h2>Körperdaten</h2>
 
-    <!-- Anzeige-Modus: Zeigt Alter und Geschlecht an -->
     <div class="profile-grid" *ngIf="!isEditing; else editBodySection">
       <div class="info-card">
         <span class="label">Alter</span>
-        <span class="value">{{ user.age }} Jahre</span>
+        <span class="value">
+          {{ user.age != null ? (user.age + ' Jahre') : 'Nicht angegeben' }}
+        </span>
       </div>
 
       <div class="info-card">
         <span class="label">Geschlecht</span>
         <span class="value">
-          {{ user.gender || 'Nicht angegeben' }}
+          {{ genderLabel(user.gender) }}
         </span>
       </div>
     </div>
 
-    <!-- Edit-Modus: Ermöglicht Bearbeitung von Alter und Geschlecht -->
     <ng-template #editBodySection>
       <div class="profile-grid">
         <div class="info-card">
           <span class="label">Alter</span>
-          <input
-            class="value-input"
-            type="number"
-            min="0"
-            [(ngModel)]="editedUser.age"
-          />
+          <input class="value-input" type="number" min="0" [(ngModel)]="editedUser.age" />
         </div>
 
         <div class="info-card">
           <span class="label">Geschlecht (optional)</span>
-          <select
-            class="value-input"
-            [(ngModel)]="editedUser.gender"
-          >
+          <select class="value-input" [(ngModel)]="editedUser.gender">
             <option value="">Bitte wählen</option>
-            <option value="Männlich">Männlich</option>
-            <option value="Weiblich">Weiblich</option>
-            <option value="Divers">Divers</option>
-            <option value="Keine Angabe">Keine Angabe</option>
+            <option value="m">Männlich</option>
+            <option value="w">Weiblich</option>
+            <option value="d">Divers</option>
           </select>
         </div>
       </div>
     </ng-template>
   </section>
 
-  <!-- ACTIONS: Buttons für Bearbeiten, Speichern, Abbrechen und Logout -->
   <footer class="actions">
-    <!-- Anzeige, wenn nicht im Bearbeitungsmodus -->
     <ng-container *ngIf="!isEditing; else editButtons">
       <button class="btn-secondary" (click)="startEdit()">Profil bearbeiten</button>
     </ng-container>
 
-    <!-- Buttons für Bearbeitungsmodus: Abbrechen und Speichern -->
     <ng-template #editButtons>
-      <button class="btn-secondary" (click)="cancelEdit()">Abbrechen</button>
-      <button class="btn-secondary" (click)="saveEdit()">Änderungen speichern</button>
+      <button class="btn-secondary" (click)="cancelEdit()" [disabled]="saving">Abbrechen</button>
+      <button class="btn-secondary" (click)="saveEdit()" [disabled]="saving">
+        {{ saving ? 'Speichern…' : 'Änderungen speichern' }}
+      </button>
     </ng-template>
 
-    <!-- Logout-Button -->
     <button class="btn-logout" (click)="logout()">Abmelden</button>
   </footer>
 </div>

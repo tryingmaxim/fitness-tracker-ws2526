@@ -6,7 +6,7 @@
         <p class="eyebrow">Training</p>
         <h1>Trainingsfortschritt</h1>
         <p class="subtitle">
-          Hier siehst du deine Sessions untereinander – plus gespeicherte Trainingsläufe (Datum/Uhrzeit, Dauer & Werte).
+          Hier siehst du <strong>deine persönliche Trainingshistorie</strong> – Sessions + gespeicherte Runs (Datum/Uhrzeit, Dauer & Werte).
         </p>
       </div>
 
@@ -101,10 +101,12 @@
               {{ expandedSessionId === s.id ? 'Details schließen' : 'Details anzeigen' }}
             </button>
 
+            <!-- Sprint 4: ohne Anmeldung darf Training-Start nicht sichtbar/aktiv sein -->
             <button
+              *ngIf="isLoggedIn"
               class="mini-btn primary"
               type="button"
-              [routerLink]="['/training/start', s.id]"
+              [routerLink]="['/app/training/start', s.id]"
               [disabled]="s.isDeleted"
             >
               Training starten
