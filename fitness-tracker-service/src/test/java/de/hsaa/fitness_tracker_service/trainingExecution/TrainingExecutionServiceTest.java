@@ -6,14 +6,21 @@ import de.hsaa.fitness_tracker_service.execution.ExerciseExecution;
 import de.hsaa.fitness_tracker_service.trainingsPlan.TrainingPlan;
 import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSession;
 import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSessionRepository;
+import de.hsaa.fitness_tracker_service.user.User;
+import de.hsaa.fitness_tracker_service.user.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,327 +30,546 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class TrainingExecutionServiceTest {
 
-	@Mock
-	TrainingExecutionRepository repo;
-	@Mock
-	TrainingSessionRepository sessionRepo;
-	@Mock
-	ExerciseRepository exerciseRepo;
-
-	@InjectMocks
-	TrainingExecutionService service;
-
-	@Test
-	void shouldStartTrainingExecutionCreatesExecutedExerciseCopiesPlannedValuesAndSnapshots() {
-		TrainingPlan plan = new TrainingPlan();
-		plan.setName("P");
-
-		TrainingSession session = mock(TrainingSession.class);
-		when(session.getId()).thenReturn(1L);
-		when(session.getName()).thenReturn("S");
-		when(session.getPlan()).thenReturn(plan);
-
-		Exercise ex = new Exercise();
-		ex.setId(2L);
-		ex.setName("Bench");
-		ex.setCategory("Free");
-
-		ExerciseExecution planned = new ExerciseExecution();
-		planned.setExercise(ex);
-		planned.setPlannedSets(3);
-		planned.setPlannedReps(10);
-		planned.setPlannedWeightKg(50.0);
-		planned.setOrderIndex(1);
-
-		when(session.getExerciseExecutions()).thenReturn(new java.util.LinkedHashSet<>(java.util.List.of(planned)));
-
-		when(sessionRepo.findWithExecutionsById(1L)).thenReturn(Optional.of(session));
-		when(repo.save(any())).thenAnswer(i -> i.getArgument(0));
-
-		TrainingExecution te = service.start(1L);
-
-		assertEquals(TrainingExecution.Status.IN_PROGRESS, te.getStatus());
-		assertEquals(1L, te.getSessionIdSnapshot());
-		assertEquals("S", te.getSessionNameSnapshot());
-		assertEquals("P", te.getPlanNameSnapshot());
-		assertEquals(1, te.getExecutedExercises().size());
-	}
-
-	@Test
-	void shouldThrowExceptionWhenStartSessionNotFound() {
-		when(sessionRepo.findWithExecutionsById(1L)).thenReturn(Optional.empty());
-		assertThrows(EntityNotFoundException.class, () -> service.start(1L));
-	}
-
-	@Test
-	void shouldThrowExceptionWhenSessionHasNoExercises() {
-		TrainingSession session = mock(TrainingSession.class);
-		when(session.getExerciseExecutions()).thenReturn(new java.util.LinkedHashSet<>());
-
-		when(sessionRepo.findWithExecutionsById(1L)).thenReturn(Optional.of(session));
-
-		assertThrows(IllegalArgumentException.class, () -> service.start(1L));
-	}
-
-	@Test
-	void shouldGetTrainingExecution() {
-		TrainingExecution te = new TrainingExecution();
-		when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
-		assertSame(te, service.get(1L));
-	}
+    @Mock TrainingExecutionRepository repo;
+    @Mock TrainingSessionRepository sessionRepo;
+    @Mock ExerciseRepository exerciseRepo;
+    @Mock UserRepository userRepo;
 
-	@Test
-	void shouldThrowExceptionWhenTrainingExecutionNotFound() {
-		when(repo.findWithExercisesById(1L)).thenReturn(Optional.empty());
-		assertThrows(EntityNotFoundException.class, () -> service.get(1L));
-	}
-
-	@Test
-	void shouldCompleteTrainingExecution() {
-		TrainingExecution te = new TrainingExecution();
-		te.setStatus(TrainingExecution.Status.IN_PROGRESS);
-		te.setStartedAt(LocalDateTime.now());
-
-		when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
-
-		TrainingExecution result = service.complete(1L);
-
-		assertSame(te, result);
-		assertEquals(TrainingExecution.Status.COMPLETED, result.getStatus());
-		assertNotNull(result.getCompletedAt());
-	}
-
-	@Test
-	void shouldThrowExceptionWhenCompletingAlreadyCompletedTraining() {
-		TrainingExecution te = new TrainingExecution();
-		te.setStatus(TrainingExecution.Status.COMPLETED);
-		te.setCompletedAt(LocalDateTime.now());
+    @InjectMocks TrainingExecutionService service;
 
-		when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
-
-		assertThrows(IllegalArgumentException.class, () -> service.complete(1L));
-	}
+    @AfterEach
+    void cleanupSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
 
-	@Test
-	void shouldCancelTrainingExecutionWhenNotCompleted() {
-		TrainingExecution te = new TrainingExecution();
-		te.setStatus(TrainingExecution.Status.IN_PROGRESS);
+    private void mockAuthUser(String username) {
+        Authentication auth = mock(Authentication.class);
+        when(auth.getName()).thenReturn(username);
+        SecurityContextHolder.getContext().setAuthentication(auth);
+    }
 
-		when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
+    // --- start() -------------------------------------------------------------
 
-		service.cancel(1L);
+    @Test
+    void shouldStartTrainingExecutionSetsOwnerAndCreatesExecutedExerciseAndSnapshots() {
+        mockAuthUser("alice");
 
-		verify(repo).delete(te);
-	}
+        User current = mock(User.class);
+        when(userRepo.findByUsername("alice")).thenReturn(Optional.of(current));
 
-	@Test
-	void shouldThrowExceptionWhenCancelCompletedTraining() {
-		TrainingExecution te = new TrainingExecution();
-		te.setStatus(TrainingExecution.Status.COMPLETED);
+        TrainingPlan plan = new TrainingPlan();
+        plan.setName("P");
 
-		when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
+        TrainingSession session = mock(TrainingSession.class);
+        when(session.getId()).thenReturn(1L);
+        when(session.getName()).thenReturn("S");
+        when(session.getPlan()).thenReturn(plan);
 
-		assertThrows(IllegalArgumentException.class, () -> service.cancel(1L));
-		verify(repo, never()).delete(any());
-	}
+        Exercise ex = new Exercise();
+        ex.setId(2L);
+        ex.setName("Bench");
+        ex.setCategory("Free");
 
-	@Test
-	void shouldThrowExceptionWhenUpsertOnNotInProgress() {
-		TrainingExecution te = new TrainingExecution();
-		te.setStatus(TrainingExecution.Status.COMPLETED);
+        ExerciseExecution planned = new ExerciseExecution();
+        planned.setExercise(ex);
+        planned.setPlannedSets(3);
+        planned.setPlannedReps(10);
+        planned.setPlannedWeightKg(50.0);
+        planned.setOrderIndex(1);
 
-		when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
+        when(session.getExerciseExecutions()).thenReturn(new LinkedHashSet<>(List.of(planned)));
 
-		assertThrows(IllegalArgumentException.class,
-				() -> service.upsertExecutedExercise(1L, 2L, 0, 0, 0.0, false, null));
-	}
+        when(sessionRepo.findWithExecutionsById(1L)).thenReturn(Optional.of(session));
+        when(repo.save(any())).thenAnswer(i -> i.getArgument(0));
 
-	@Test
-	void shouldThrowExceptionWhenUpsertActualSetsInvalid() {
-		TrainingExecution te = new TrainingExecution();
-		te.setStatus(TrainingExecution.Status.IN_PROGRESS);
+        TrainingExecution te = service.start(1L);
 
-		when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
+        assertEquals(TrainingExecution.Status.IN_PROGRESS, te.getStatus());
+        assertNotNull(te.getStartedAt());
+        assertNull(te.getCompletedAt());
 
-		assertThrows(IllegalArgumentException.class,
-				() -> service.upsertExecutedExercise(1L, 2L, -1, 0, 0.0, false, null));
-	}
+        assertSame(current, te.getUser());
 
-	@Test
-	void shouldThrowExceptionWhenUpsertActualRepsInvalid() {
-		TrainingExecution te = new TrainingExecution();
-		te.setStatus(TrainingExecution.Status.IN_PROGRESS);
+        assertEquals(1L, te.getSessionIdSnapshot());
+        assertEquals("S", te.getSessionNameSnapshot());
+        assertEquals("P", te.getPlanNameSnapshot());
 
-		when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
+        assertEquals(1, te.getExecutedExercises().size());
+        ExecutedExercise ee = te.getExecutedExercises().iterator().next();
 
-		assertThrows(IllegalArgumentException.class,
-				() -> service.upsertExecutedExercise(1L, 2L, 0, -1, 0.0, false, null));
-	}
+        assertSame(te, ee.getTrainingExecution());
+        assertSame(ex, ee.getExercise());
 
-	@Test
-	void shouldThrowExceptionWhenUpsertActualWeightInvalid() {
-		TrainingExecution te = new TrainingExecution();
-		te.setStatus(TrainingExecution.Status.IN_PROGRESS);
+        assertEquals("Bench", ee.getExerciseNameSnapshot());
+        assertEquals("Free", ee.getExerciseCategorySnapshot());
 
-		when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
+        assertEquals(3, ee.getPlannedSets());
+        assertEquals(10, ee.getPlannedReps());
+        assertEquals(50.0, ee.getPlannedWeightKg());
 
-		assertThrows(IllegalArgumentException.class,
-				() -> service.upsertExecutedExercise(1L, 2L, 0, 0, -0.1, false, null));
-	}
+        assertEquals(0, ee.getActualSets());
+        assertEquals(0, ee.getActualReps());
+        assertEquals(0.0, ee.getActualWeightKg());
+        assertFalse(ee.isDone());
+        assertNull(ee.getNotes());
+    }
 
-	@Test
-	void shouldThrowExceptionWhenExerciseNotFoundDuringUpsert() throws Exception {
-	    TrainingExecution te = new TrainingExecution();
-	    te.setStatus(TrainingExecution.Status.IN_PROGRESS);
+    @Test
+    void shouldThrowUnauthorizedWhenStartWithoutAuthentication() {
+        // keine Auth setzen, aber Session existiert -> Exception muss aus getCurrentUser kommen
 
-	    Exercise ex = new Exercise();
-	    var f = Exercise.class.getDeclaredField("id");
-	    f.setAccessible(true);
-	    f.set(ex, 2L);
+        TrainingSession session = mock(TrainingSession.class);
+        when(session.getExerciseExecutions()).thenReturn(
+                new LinkedHashSet<>(List.of(mock(ExerciseExecution.class)))
+        );
 
-	    ExecutedExercise row = new ExecutedExercise();
-	    row.setExercise(ex);
-	    te.getExecutedExercises().add(row);
+        when(sessionRepo.findWithExecutionsById(1L)).thenReturn(Optional.of(session));
 
-	    when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
-	    when(exerciseRepo.findById(2L)).thenReturn(Optional.empty());
+        assertThrows(AccessDeniedException.class, () -> service.start(1L));
+    }
 
-	    assertThrows(EntityNotFoundException.class,
-	            () -> service.upsertExecutedExercise(1L, 2L, 0, 0, 0.0, false, null));
-	}
+    @Test
+    void shouldThrowExceptionWhenStartSessionNotFound() {
+        // Keine Auth nötig, weil vorher EntityNotFound fliegt
+        when(sessionRepo.findWithExecutionsById(1L)).thenReturn(Optional.empty());
 
+        assertThrows(EntityNotFoundException.class, () -> service.start(1L));
+    }
 
-	@Test
-	void shouldUpsertExecutedExerciseHappyPathTrimsNotesAndUpdatesSnapshotsWhenBlank() {
-		TrainingExecution te = new TrainingExecution();
-		te.setStatus(TrainingExecution.Status.IN_PROGRESS);
+    @Test
+    void shouldThrowExceptionWhenSessionHasNoExercises() {
+        // Keine Auth nötig, weil vorher IllegalArgument fliegt
+        TrainingSession session = mock(TrainingSession.class);
+        when(session.getExerciseExecutions()).thenReturn(new LinkedHashSet<>());
 
-		Exercise existing = mock(Exercise.class);
-		when(existing.getId()).thenReturn(2L);
+        when(sessionRepo.findWithExecutionsById(1L)).thenReturn(Optional.of(session));
 
-		ExecutedExercise row = new ExecutedExercise();
-		row.setExercise(existing);
-		row.setExerciseNameSnapshot("  ");
-		row.setExerciseCategorySnapshot(null);
-		te.getExecutedExercises().add(row);
+        assertThrows(IllegalArgumentException.class, () -> service.start(1L));
+    }
 
-		Exercise exFromRepo = mock(Exercise.class);
-		when(exFromRepo.getName()).thenReturn("Bench");
-		when(exFromRepo.getCategory()).thenReturn("Free");
+    // --- get() / owner -------------------------------------------------------
 
-		when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
-		when(exerciseRepo.findById(2L)).thenReturn(Optional.of(exFromRepo));
-		TrainingExecution result = service.upsertExecutedExercise(1L, 2L, 5, 12, 42.5, true, "  ok  ");
+    @Test
+    void shouldGetTrainingExecutionWhenOwnerMatches() {
+        mockAuthUser("alice");
 
-		assertSame(te, result);
-		assertEquals("Bench", row.getExerciseNameSnapshot());
-		assertEquals("Free", row.getExerciseCategorySnapshot());
-		assertEquals("ok", row.getNotes());
-	}
+        User current = mock(User.class);
+        when(current.getId()).thenReturn(10L);
+        when(userRepo.findByUsername("alice")).thenReturn(Optional.of(current));
 
-	@Test
-	void shouldUpsertExecutedExerciseHappyPathSetsNullNotesWhenNullProvided() {
-		TrainingExecution te = new TrainingExecution();
-		te.setStatus(TrainingExecution.Status.IN_PROGRESS);
+        TrainingExecution te = new TrainingExecution();
+        te.setUser(current);
 
-		Exercise existing = mock(Exercise.class);
-		when(existing.getId()).thenReturn(2L);
+        when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
 
-		ExecutedExercise row = new ExecutedExercise();
-		row.setExercise(existing);
-		row.setNotes("old");
-		te.getExecutedExercises().add(row);
+        assertSame(te, service.get(1L));
+    }
 
-		Exercise exFromRepo = mock(Exercise.class);
-		when(exFromRepo.getName()).thenReturn("Bench");
-		when(exFromRepo.getCategory()).thenReturn("Free");
+    @Test
+    void shouldThrowForbiddenWhenGetNotOwner() {
+        mockAuthUser("alice");
 
-		when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
-		when(exerciseRepo.findById(2L)).thenReturn(Optional.of(exFromRepo));
+        User current = mock(User.class);
+        when(current.getId()).thenReturn(10L);
+        when(userRepo.findByUsername("alice")).thenReturn(Optional.of(current));
 
-		TrainingExecution result = service.upsertExecutedExercise(1L, 2L, 1, 2, 3.0, false, null);
+        User other = mock(User.class);
+        when(other.getId()).thenReturn(99L);
 
-		assertSame(te, result);
-		assertNull(row.getNotes());
-	}
+        TrainingExecution te = new TrainingExecution();
+        te.setUser(other);
 
-	@Test
-	void shouldThrowExceptionWhenUpsertExerciseNotPartOfExecution() {
-		TrainingExecution te = new TrainingExecution();
-		te.setStatus(TrainingExecution.Status.IN_PROGRESS);
+        when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
 
-		Exercise different = mock(Exercise.class);
+        assertThrows(AccessDeniedException.class, () -> service.get(1L));
+    }
 
-		ExecutedExercise row = new ExecutedExercise();
-		row.setExercise(different);
-		te.getExecutedExercises().add(row);
+    @Test
+    void shouldThrowExceptionWhenTrainingExecutionNotFound() {
+        // Keine Auth nötig, weil vorher EntityNotFound fliegt
+        when(repo.findWithExercisesById(1L)).thenReturn(Optional.empty());
 
-		when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
+        assertThrows(EntityNotFoundException.class, () -> service.get(1L));
+    }
 
-		assertThrows(EntityNotFoundException.class,
-				() -> service.upsertExecutedExercise(1L, 2L, 0, 0, 0.0, false, null));
-	}
+    // --- complete() / cancel() ----------------------------------------------
 
-	@Test
-	void shouldListBySessionUsesRepositoryQuery() {
-		List<TrainingExecution> list = List.of(new TrainingExecution());
-		when(repo.findWithExercisesBySessionOrSnapshot(1L)).thenReturn(list);
+    @Test
+    void shouldCompleteTrainingExecution() {
+        mockAuthUser("alice");
 
-		List<TrainingExecution> result = service.listBySession(1L);
+        User current = mock(User.class);
+        when(current.getId()).thenReturn(10L);
+        when(userRepo.findByUsername("alice")).thenReturn(Optional.of(current));
 
-		assertSame(list, result);
-		verify(repo).findWithExercisesBySessionOrSnapshot(1L);
-	}
+        TrainingExecution te = new TrainingExecution();
+        te.setUser(current);
+        te.setStatus(TrainingExecution.Status.IN_PROGRESS);
+        te.setStartedAt(LocalDateTime.now());
 
-	@Test
-	void shouldListAllUsesRepositoryQuery() {
-		List<TrainingExecution> list = List.of(new TrainingExecution());
-		when(repo.findAllWithExercises()).thenReturn(list);
+        when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
 
-		List<TrainingExecution> result = service.listAll();
+        TrainingExecution result = service.complete(1L);
 
-		assertSame(list, result);
-		verify(repo).findAllWithExercises();
-	}
+        assertSame(te, result);
+        assertEquals(TrainingExecution.Status.COMPLETED, result.getStatus());
+        assertNotNull(result.getCompletedAt());
+    }
 
-	@Test
-	void shouldCalculateCompletedStreakDaysReturnsZeroWhenNoCompleted() {
-		when(repo.findByStatusOrderByCompletedAtDesc(TrainingExecution.Status.COMPLETED)).thenReturn(List.of());
-		assertEquals(0, service.calculateCompletedStreakDays());
-	}
+    @Test
+    void shouldThrowExceptionWhenCompletingAlreadyCompletedTraining() {
+        mockAuthUser("alice");
 
-	@Test
-	void shouldCalculateCompletedStreakDaysCountsConsecutiveUniqueDays() {
-		TrainingExecution te1 = new TrainingExecution();
-		te1.setStatus(TrainingExecution.Status.COMPLETED);
-		te1.setCompletedAt(LocalDateTime.of(2025, 12, 18, 10, 0));
+        User current = mock(User.class);
+        when(current.getId()).thenReturn(10L);
+        when(userRepo.findByUsername("alice")).thenReturn(Optional.of(current));
 
-		TrainingExecution te2 = new TrainingExecution();
-		te2.setStatus(TrainingExecution.Status.COMPLETED);
-		te2.setCompletedAt(LocalDateTime.of(2025, 12, 17, 9, 0));
+        TrainingExecution te = new TrainingExecution();
+        te.setUser(current);
+        te.setStatus(TrainingExecution.Status.COMPLETED);
+        te.setCompletedAt(LocalDateTime.now());
 
-		TrainingExecution te3 = new TrainingExecution();
-		te3.setStatus(TrainingExecution.Status.COMPLETED);
-		te3.setCompletedAt(LocalDateTime.of(2025, 12, 17, 20, 0));
+        when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
 
-		TrainingExecution te4 = new TrainingExecution();
-		te4.setStatus(TrainingExecution.Status.COMPLETED);
-		te4.setCompletedAt(LocalDateTime.of(2025, 12, 15, 8, 0));
+        assertThrows(IllegalArgumentException.class, () -> service.complete(1L));
+    }
 
-		when(repo.findByStatusOrderByCompletedAtDesc(TrainingExecution.Status.COMPLETED))
-				.thenReturn(List.of(te1, te2, te3, te4));
+    @Test
+    void shouldCancelTrainingExecutionWhenNotCompleted() {
+        mockAuthUser("alice");
 
-		assertEquals(2, service.calculateCompletedStreakDays());
-	}
+        User current = mock(User.class);
+        when(current.getId()).thenReturn(10L);
+        when(userRepo.findByUsername("alice")).thenReturn(Optional.of(current));
 
-	@Test
-	void shouldCalculateCompletedStreakDaysReturnsZeroWhenCompletedAtNull() {
-		TrainingExecution te1 = new TrainingExecution();
-		te1.setStatus(TrainingExecution.Status.COMPLETED);
-		te1.setCompletedAt(null);
+        TrainingExecution te = new TrainingExecution();
+        te.setUser(current);
+        te.setStatus(TrainingExecution.Status.IN_PROGRESS);
 
-		when(repo.findByStatusOrderByCompletedAtDesc(TrainingExecution.Status.COMPLETED)).thenReturn(List.of(te1));
+        when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
 
-		assertEquals(0, service.calculateCompletedStreakDays());
-	}
+        service.cancel(1L);
+
+        verify(repo).delete(te);
+    }
+
+    @Test
+    void shouldThrowExceptionWhenCancelCompletedTraining() {
+        mockAuthUser("alice");
+
+        User current = mock(User.class);
+        when(current.getId()).thenReturn(10L);
+        when(userRepo.findByUsername("alice")).thenReturn(Optional.of(current));
+
+        TrainingExecution te = new TrainingExecution();
+        te.setUser(current);
+        te.setStatus(TrainingExecution.Status.COMPLETED);
+
+        when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
+
+        assertThrows(IllegalArgumentException.class, () -> service.cancel(1L));
+        verify(repo, never()).delete(any());
+    }
+
+    // --- upsertExecutedExercise() -------------------------------------------
+
+    @Test
+    void shouldThrowExceptionWhenUpsertOnNotInProgress() {
+        mockAuthUser("alice");
+
+        User current = mock(User.class);
+        when(current.getId()).thenReturn(10L);
+        when(userRepo.findByUsername("alice")).thenReturn(Optional.of(current));
+
+        TrainingExecution te = new TrainingExecution();
+        te.setUser(current);
+        te.setStatus(TrainingExecution.Status.COMPLETED);
+
+        when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.upsertExecutedExercise(1L, 2L, 0, 0, 0.0, false, null));
+    }
+
+    @Test
+    void shouldThrowExceptionWhenUpsertActualSetsInvalid() {
+        mockAuthUser("alice");
+
+        User current = mock(User.class);
+        when(current.getId()).thenReturn(10L);
+        when(userRepo.findByUsername("alice")).thenReturn(Optional.of(current));
+
+        TrainingExecution te = new TrainingExecution();
+        te.setUser(current);
+        te.setStatus(TrainingExecution.Status.IN_PROGRESS);
+
+        when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.upsertExecutedExercise(1L, 2L, -1, 0, 0.0, false, null));
+    }
+
+    @Test
+    void shouldThrowExceptionWhenUpsertActualRepsInvalid() {
+        mockAuthUser("alice");
+
+        User current = mock(User.class);
+        when(current.getId()).thenReturn(10L);
+        when(userRepo.findByUsername("alice")).thenReturn(Optional.of(current));
+
+        TrainingExecution te = new TrainingExecution();
+        te.setUser(current);
+        te.setStatus(TrainingExecution.Status.IN_PROGRESS);
+
+        when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.upsertExecutedExercise(1L, 2L, 0, -1, 0.0, false, null));
+    }
+
+    @Test
+    void shouldThrowExceptionWhenUpsertActualWeightInvalid() {
+        mockAuthUser("alice");
+
+        User current = mock(User.class);
+        when(current.getId()).thenReturn(10L);
+        when(userRepo.findByUsername("alice")).thenReturn(Optional.of(current));
+
+        TrainingExecution te = new TrainingExecution();
+        te.setUser(current);
+        te.setStatus(TrainingExecution.Status.IN_PROGRESS);
+
+        when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.upsertExecutedExercise(1L, 2L, 0, 0, -0.1, false, null));
+    }
+
+    @Test
+    void shouldThrowExceptionWhenExerciseNotFoundDuringUpsert() {
+        mockAuthUser("alice");
+
+        User current = mock(User.class);
+        when(current.getId()).thenReturn(10L);
+        when(userRepo.findByUsername("alice")).thenReturn(Optional.of(current));
+
+        TrainingExecution te = new TrainingExecution();
+        te.setUser(current);
+        te.setStatus(TrainingExecution.Status.IN_PROGRESS);
+
+        Exercise existing = new Exercise();
+        existing.setId(2L);
+
+        ExecutedExercise row = new ExecutedExercise();
+        row.setExercise(existing);
+        te.getExecutedExercises().add(row);
+
+        when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
+        when(exerciseRepo.findById(2L)).thenReturn(Optional.empty());
+
+        assertThrows(EntityNotFoundException.class,
+                () -> service.upsertExecutedExercise(1L, 2L, 0, 0, 0.0, false, null));
+    }
+
+    @Test
+    void shouldUpsertExecutedExerciseHappyPathTrimsNotesAndUpdatesSnapshotsWhenBlank() {
+        mockAuthUser("alice");
+
+        User current = mock(User.class);
+        when(current.getId()).thenReturn(10L);
+        when(userRepo.findByUsername("alice")).thenReturn(Optional.of(current));
+
+        TrainingExecution te = new TrainingExecution();
+        te.setUser(current);
+        te.setStatus(TrainingExecution.Status.IN_PROGRESS);
+
+        // echte Exercise => kein unnecessary stubbing
+        Exercise existing = new Exercise();
+        existing.setId(2L);
+
+        ExecutedExercise row = new ExecutedExercise();
+        row.setExercise(existing);
+        row.setExerciseNameSnapshot("  ");
+        row.setExerciseCategorySnapshot("   ");
+        te.getExecutedExercises().add(row);
+
+        Exercise exFromRepo = mock(Exercise.class);
+        when(exFromRepo.getName()).thenReturn("Bench");
+        when(exFromRepo.getCategory()).thenReturn("Free");
+
+        when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
+        when(exerciseRepo.findById(2L)).thenReturn(Optional.of(exFromRepo));
+
+        TrainingExecution result = service.upsertExecutedExercise(1L, 2L, 5, 12, 42.5, true, "  ok  ");
+
+        assertSame(te, result);
+        assertEquals("Bench", row.getExerciseNameSnapshot());
+        assertEquals("Free", row.getExerciseCategorySnapshot());
+        assertEquals("ok", row.getNotes());
+        assertEquals(5, row.getActualSets());
+        assertEquals(12, row.getActualReps());
+        assertEquals(42.5, row.getActualWeightKg());
+        assertTrue(row.isDone());
+    }
+
+    @Test
+    void shouldUpsertExecutedExerciseSetsNullNotesWhenNullProvided() {
+        mockAuthUser("alice");
+
+        User current = mock(User.class);
+        when(current.getId()).thenReturn(10L);
+        when(userRepo.findByUsername("alice")).thenReturn(Optional.of(current));
+
+        TrainingExecution te = new TrainingExecution();
+        te.setUser(current);
+        te.setStatus(TrainingExecution.Status.IN_PROGRESS);
+
+        Exercise existing = new Exercise();
+        existing.setId(2L);
+
+        ExecutedExercise row = new ExecutedExercise();
+        row.setExercise(existing);
+        row.setNotes("old");
+        te.getExecutedExercises().add(row);
+
+        Exercise exFromRepo = mock(Exercise.class);
+        when(exFromRepo.getName()).thenReturn("Bench");
+        when(exFromRepo.getCategory()).thenReturn("Free");
+
+        when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
+        when(exerciseRepo.findById(2L)).thenReturn(Optional.of(exFromRepo));
+
+        TrainingExecution result = service.upsertExecutedExercise(1L, 2L, 1, 2, 3.0, false, null);
+
+        assertSame(te, result);
+        assertNull(row.getNotes());
+    }
+
+    @Test
+    void shouldThrowExceptionWhenUpsertExerciseNotPartOfExecution() {
+        mockAuthUser("alice");
+
+        User current = mock(User.class);
+        when(current.getId()).thenReturn(10L);
+        when(userRepo.findByUsername("alice")).thenReturn(Optional.of(current));
+
+        TrainingExecution te = new TrainingExecution();
+        te.setUser(current);
+        te.setStatus(TrainingExecution.Status.IN_PROGRESS);
+
+        Exercise different = new Exercise();
+        different.setId(999L);
+
+        ExecutedExercise row = new ExecutedExercise();
+        row.setExercise(different);
+        te.getExecutedExercises().add(row);
+
+        when(repo.findWithExercisesById(1L)).thenReturn(Optional.of(te));
+        when(exerciseRepo.findById(2L)).thenReturn(Optional.of(mock(Exercise.class)));
+
+        assertThrows(EntityNotFoundException.class,
+                () -> service.upsertExecutedExercise(1L, 2L, 0, 0, 0.0, false, null));
+    }
+
+    // --- list ----------------------------------------------------------------
+
+    @Test
+    void shouldListBySessionUsesRepositoryQueryWithUser() {
+        mockAuthUser("alice");
+
+        User current = mock(User.class);
+        when(userRepo.findByUsername("alice")).thenReturn(Optional.of(current));
+
+        List<TrainingExecution> list = List.of(new TrainingExecution());
+        when(repo.findWithExercisesBySessionOrSnapshotAndUser(1L, current)).thenReturn(list);
+
+        List<TrainingExecution> result = service.listBySession(1L);
+
+        assertSame(list, result);
+        verify(repo).findWithExercisesBySessionOrSnapshotAndUser(1L, current);
+    }
+
+    @Test
+    void shouldListAllUsesRepositoryQueryWithUser() {
+        mockAuthUser("alice");
+
+        User current = mock(User.class);
+        when(userRepo.findByUsername("alice")).thenReturn(Optional.of(current));
+
+        List<TrainingExecution> list = List.of(new TrainingExecution());
+        when(repo.findAllWithExercisesByUser(current)).thenReturn(list);
+
+        List<TrainingExecution> result = service.listAll();
+
+        assertSame(list, result);
+        verify(repo).findAllWithExercisesByUser(current);
+    }
+
+    // --- streak --------------------------------------------------------------
+
+    @Test
+    void shouldCalculateCompletedStreakDaysReturnsZeroWhenNoCompleted() {
+        mockAuthUser("alice");
+
+        User current = mock(User.class);
+        when(userRepo.findByUsername("alice")).thenReturn(Optional.of(current));
+
+        when(repo.findByUserAndStatusAndCompletedAtIsNotNullOrderByCompletedAtDesc(
+                current, TrainingExecution.Status.COMPLETED
+        )).thenReturn(List.of());
+
+        assertEquals(0, service.calculateCompletedStreakDays());
+    }
+
+    @Test
+    void shouldCalculateCompletedStreakDaysCountsConsecutiveUniqueDays() {
+        mockAuthUser("alice");
+
+        User current = mock(User.class);
+        when(userRepo.findByUsername("alice")).thenReturn(Optional.of(current));
+
+        LocalDateTime now = LocalDateTime.now();
+
+        TrainingExecution te1 = new TrainingExecution();
+        te1.setStatus(TrainingExecution.Status.COMPLETED);
+        te1.setCompletedAt(now.minusHours(1)); // today
+
+        TrainingExecution te2 = new TrainingExecution();
+        te2.setStatus(TrainingExecution.Status.COMPLETED);
+        te2.setCompletedAt(now.minusDays(1).withHour(9)); // yesterday
+
+        TrainingExecution te3 = new TrainingExecution();
+        te3.setStatus(TrainingExecution.Status.COMPLETED);
+        te3.setCompletedAt(now.minusDays(1).withHour(20)); // yesterday (duplicate day)
+
+        TrainingExecution te4 = new TrainingExecution();
+        te4.setStatus(TrainingExecution.Status.COMPLETED);
+        te4.setCompletedAt(now.minusDays(3).withHour(8)); // gap
+
+        when(repo.findByUserAndStatusAndCompletedAtIsNotNullOrderByCompletedAtDesc(
+                current, TrainingExecution.Status.COMPLETED
+        )).thenReturn(List.of(te1, te2, te3, te4));
+
+        assertEquals(2, service.calculateCompletedStreakDays());
+    }
+
+    @Test
+    void shouldCalculateCompletedStreakDaysReturnsZeroWhenLastTrainingOlderThanYesterday() {
+        mockAuthUser("alice");
+
+        User current = mock(User.class);
+        when(userRepo.findByUsername("alice")).thenReturn(Optional.of(current));
+
+        LocalDateTime now = LocalDateTime.now();
+
+        TrainingExecution teOld = new TrainingExecution();
+        teOld.setStatus(TrainingExecution.Status.COMPLETED);
+        teOld.setCompletedAt(now.minusDays(2).withHour(10)); // older than yesterday
+
+        when(repo.findByUserAndStatusAndCompletedAtIsNotNullOrderByCompletedAtDesc(
+                current, TrainingExecution.Status.COMPLETED
+        )).thenReturn(List.of(teOld));
+
+        assertEquals(0, service.calculateCompletedStreakDays());
+    }
 }

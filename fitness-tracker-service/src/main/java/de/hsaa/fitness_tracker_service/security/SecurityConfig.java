@@ -19,7 +19,7 @@ public class SecurityConfig {
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         http
-            // ✅ H2 Console braucht: CSRF aus für /h2-console/** + Frame erlaubt
+            //  H2 Console braucht: CSRF aus für /h2-console/** + Frame erlaubt
             .csrf(csrf -> csrf
                 .ignoringRequestMatchers("/h2-console/**")
                 .disable()
