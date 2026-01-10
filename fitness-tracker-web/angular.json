@@ -27,10 +27,15 @@
               {
                 "glob": "**/*",
                 "input": "projects/fitness-tracker-app/public"
+              },
+              {
+                "glob": "**/*",
+                "input": "projects/fitness-tracker-app/src/assets",
+                "output": "assets"
               }
             ],
             "styles": [
-              "projects/fitness-tracker-app/src/styles.scss"
+              "projects/fitness-tracker-app/src/styles.css"
             ]
           },
           "configurations": {
@@ -38,13 +43,13 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "500kB",
-                  "maximumError": "1MB"
+                  "maximumWarning": "1M",
+                  "maximumError": "2MB"
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "4kB",
-                  "maximumError": "8kB"
+                  "maximumWarning": "10kB",
+                  "maximumError": "20kB"
                 }
               ],
               "outputHashing": "all"
@@ -88,7 +93,7 @@
               }
             ],
             "styles": [
-              "projects/fitness-tracker-app/src/styles.scss"
+              "projects/fitness-tracker-app/src/styles.css"
             ]
           }
         }

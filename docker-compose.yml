@@ -1,18 +1,16 @@
-services:
-  api:
-    build:
-      context: ./fitness-tracker-service
-    image: fitness-tracker/api:dev
-    container_name: fitness-tracker-api
-    ports:
-      - '8080:8080'
+version: "3.9"
 
-  web:
-    build:
-      context: ./fitness-tracker-web
-    image: fitness-tracker/web:dev
-    container_name: fitness-tracker-web
-    depends_on:
-      - api
+services:
+  backend:
+    build: ./fitness-tracker-service
+    container_name: fitness-tracker-backend
     ports:
-      - '4200:80'
+      - "8081:8081"
+
+  frontend:
+    build: ./fitness-tracker-web
+    container_name: fitness-tracker-frontend
+    ports:
+      - "8082:80"
+    depends_on:
+      - backend
