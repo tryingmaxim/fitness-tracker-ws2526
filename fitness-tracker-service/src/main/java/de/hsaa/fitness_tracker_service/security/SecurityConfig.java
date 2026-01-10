@@ -3,6 +3,7 @@ package de.hsaa.fitness_tracker_service.security;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -10,6 +11,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -32,24 +34,31 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // H2 Console (DEV only)
+                // H2 Console (DEV)
                 .requestMatchers("/h2-console/**").permitAll()
 
-                // public READ
+                // PUBLIC GET
                 .requestMatchers(HttpMethod.GET,
                     "/api/v1/exercises/**",
                     "/api/v1/training-plans/**",
                     "/api/v1/training-sessions/**"
                 ).permitAll()
 
-                // public REGISTER
+                // PUBLIC REGISTER
                 .requestMatchers(HttpMethod.POST,
                     "/api/v1/users/register"
                 ).permitAll()
 
+                // EVERYTHING ELSE → LOGIN REQUIRED
                 .anyRequest().authenticated()
             )
-            .httpBasic();
+
+            // 🔥 WICHTIG: verhindert Browser-Basic-Auth-Popup
+            .httpBasic(basic ->
+                basic.authenticationEntryPoint(
+                    new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)
+                )
+            );
 
         return http.build();
     }
