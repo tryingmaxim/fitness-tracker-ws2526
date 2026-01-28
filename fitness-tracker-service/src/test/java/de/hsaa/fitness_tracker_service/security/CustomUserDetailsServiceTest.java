@@ -1,7 +1,14 @@
 package de.hsaa.fitness_tracker_service.security;
 
-import de.hsaa.fitness_tracker_service.user.User;
-import de.hsaa.fitness_tracker_service.user.UserRepository;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.Optional;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -11,10 +18,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import de.hsaa.fitness_tracker_service.user.User;
+import de.hsaa.fitness_tracker_service.user.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
 class CustomUserDetailsServiceTest {

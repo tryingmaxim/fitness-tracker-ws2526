@@ -1,6 +1,5 @@
 package de.hsaa.fitness_tracker_service.common;
 
-import jakarta.persistence.EntityNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -9,6 +8,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+
+import jakarta.persistence.EntityNotFoundException;
 
 //@RestControllerAdvice=fängt Exceptions aus allen Controllern zentral ab
 @RestControllerAdvice

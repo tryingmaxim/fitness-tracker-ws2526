@@ -1,10 +1,17 @@
 package de.hsaa.fitness_tracker_service.execution;
 
-import de.hsaa.fitness_tracker_service.exercise.Exercise;
-import de.hsaa.fitness_tracker_service.exercise.ExerciseRepository;
-import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSession;
-import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSessionRepository;
-import jakarta.persistence.EntityNotFoundException;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.List;
+import java.util.Optional;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -12,11 +19,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 
-import java.util.List;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import de.hsaa.fitness_tracker_service.exercise.Exercise;
+import de.hsaa.fitness_tracker_service.exercise.ExerciseRepository;
+import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSession;
+import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSessionRepository;
+import jakarta.persistence.EntityNotFoundException;
 
 @ExtendWith(MockitoExtension.class)
 class ExerciseExecutionServiceTest {

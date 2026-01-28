@@ -1,23 +1,23 @@
 package de.hsaa.fitness_tracker_service.trainingExecution;
 
-import de.hsaa.fitness_tracker_service.exercise.Exercise;
-import de.hsaa.fitness_tracker_service.exercise.ExerciseRepository;
-import de.hsaa.fitness_tracker_service.execution.ExerciseExecution;
-import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSession;
-import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSessionRepository;
-import de.hsaa.fitness_tracker_service.user.User;
-import de.hsaa.fitness_tracker_service.user.UserRepository;
-import jakarta.persistence.EntityNotFoundException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.List;
+import de.hsaa.fitness_tracker_service.execution.ExerciseExecution;
+import de.hsaa.fitness_tracker_service.exercise.Exercise;
+import de.hsaa.fitness_tracker_service.exercise.ExerciseRepository;
+import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSession;
+import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSessionRepository;
+import de.hsaa.fitness_tracker_service.user.User;
+import de.hsaa.fitness_tracker_service.user.UserRepository;
+import jakarta.persistence.EntityNotFoundException;
 
 @Service
 @Transactional

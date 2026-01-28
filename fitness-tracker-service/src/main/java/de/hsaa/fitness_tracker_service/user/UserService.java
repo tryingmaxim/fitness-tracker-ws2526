@@ -1,7 +1,5 @@
 package de.hsaa.fitness_tracker_service.user;
 
-import jakarta.persistence.EntityNotFoundException;
-
 import java.util.List;
 
 import org.springframework.dao.DataIntegrityViolationException;
@@ -11,6 +9,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import jakarta.persistence.EntityNotFoundException;
 
 @Service
 @Transactional
@@ -32,13 +32,11 @@ public class UserService {
         }
 
         User u = new User();
-        u.setUsername(email); // ✅ username = email
+        u.setUsername(email);
         u.setFirstName(normalize(req.firstName()));
         u.setLastName(normalize(req.lastName()));
         u.setAge(req.age());
         u.setGender(normalize(req.gender()));
-
-        // Passwort hashen
         u.setPassword(encoder.encode(req.password()));
 
         return repo.save(u);
@@ -58,7 +56,7 @@ public class UserService {
         if (patch.age() != null) u.setAge(patch.age());
         if (patch.gender() != null) u.setGender(normalize(patch.gender()));
 
-        return u; // JPA flush automatisch
+        return u;
     }
 
     private String getCurrentUsername() {

@@ -15,14 +15,11 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Login-Name (E-Mail)
     @Column(nullable = false, unique = true)
     private String username;
 
     @Column(nullable = false)
     private String password;
-
-    // ===== Profilfelder (optional) =====
 
     @Column(name = "first_name")
     private String firstName;
@@ -35,8 +32,6 @@ public class User {
 
     @Column
     private String gender;
-
-    // ===== Getter / Setter =====
 
     public Long getId() {
         return id;

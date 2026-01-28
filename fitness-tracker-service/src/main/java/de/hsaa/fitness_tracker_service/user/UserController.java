@@ -1,17 +1,22 @@
 package de.hsaa.fitness_tracker_service.user;
 
+import java.util.List;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.util.UriComponentsBuilder;
+
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-
-import java.util.List;
-
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.util.UriComponentsBuilder;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -49,7 +54,6 @@ public class UserController {
             String gender
     ) {}
 
-    // PUBLIC Registrierung
     @PostMapping("/register")
     public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest body, UriComponentsBuilder uri) {
         User saved = service.register(body);
@@ -57,13 +61,11 @@ public class UserController {
         return ResponseEntity.created(location).body(toDto(saved));
     }
 
-    // PRIVATE: eigene Daten
     @GetMapping("/me")
     public UserResponse me() {
         return toDto(service.getMe());
     }
 
-    // PRIVATE: Profil bearbeiten
     @PutMapping("/me")
     public UserResponse updateMe(@RequestBody UpdateMeRequest body) {
         return toDto(service.updateMe(body));
@@ -73,7 +75,7 @@ public class UserController {
         return new UserResponse(
                 u.getId(),
                 u.getUsername(),
-                u.getUsername(), // email = username
+                u.getUsername(),
                 u.getFirstName(),
                 u.getLastName(),
                 u.getAge(),

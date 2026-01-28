@@ -1,14 +1,14 @@
 package de.hsaa.fitness_tracker_service.trainingExecution;
 
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import de.hsaa.fitness_tracker_service.user.User;
-
-import java.util.List;
-import java.util.Optional;
 
 public interface TrainingExecutionRepository extends JpaRepository<TrainingExecution, Long> {
 

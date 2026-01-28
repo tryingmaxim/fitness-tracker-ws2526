@@ -1,14 +1,23 @@
 package de.hsaa.fitness_tracker_service.trainingExecution;
 
-import de.hsaa.fitness_tracker_service.exercise.Exercise;
-import de.hsaa.fitness_tracker_service.exercise.ExerciseRepository;
-import de.hsaa.fitness_tracker_service.execution.ExerciseExecution;
-import de.hsaa.fitness_tracker_service.trainingsPlan.TrainingPlan;
-import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSession;
-import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSessionRepository;
-import de.hsaa.fitness_tracker_service.user.User;
-import de.hsaa.fitness_tracker_service.user.UserRepository;
-import jakarta.persistence.EntityNotFoundException;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Optional;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,13 +28,15 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-import java.time.LocalDateTime;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import de.hsaa.fitness_tracker_service.execution.ExerciseExecution;
+import de.hsaa.fitness_tracker_service.exercise.Exercise;
+import de.hsaa.fitness_tracker_service.exercise.ExerciseRepository;
+import de.hsaa.fitness_tracker_service.trainingsPlan.TrainingPlan;
+import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSession;
+import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSessionRepository;
+import de.hsaa.fitness_tracker_service.user.User;
+import de.hsaa.fitness_tracker_service.user.UserRepository;
+import jakarta.persistence.EntityNotFoundException;
 
 @ExtendWith(MockitoExtension.class)
 class TrainingExecutionServiceTest {

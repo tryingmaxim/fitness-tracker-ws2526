@@ -1,15 +1,16 @@
 package de.hsaa.fitness_tracker_service.execution;
 
+import java.util.List;
+
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import de.hsaa.fitness_tracker_service.exercise.Exercise;
 import de.hsaa.fitness_tracker_service.exercise.ExerciseRepository;
 import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSession;
 import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSessionRepository;
 import jakarta.persistence.EntityNotFoundException;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @Transactional

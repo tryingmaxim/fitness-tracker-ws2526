@@ -1,8 +1,9 @@
 package de.hsaa.fitness_tracker_service.trainingsPlan;
 
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
-import java.util.Optional;
 
 //@Repository-Schicht für DB-Zugriffe(CRUD+Custom-Queries)
 public interface TrainingPlanRepository extends JpaRepository<TrainingPlan, Long> {

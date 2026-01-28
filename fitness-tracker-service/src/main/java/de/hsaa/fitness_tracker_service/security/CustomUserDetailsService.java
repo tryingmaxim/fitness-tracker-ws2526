@@ -1,9 +1,12 @@
 package de.hsaa.fitness_tracker_service.security;
 
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Service;
+
 import de.hsaa.fitness_tracker_service.user.User;
 import de.hsaa.fitness_tracker_service.user.UserRepository;
-import org.springframework.security.core.userdetails.*;
-import org.springframework.stereotype.Service;
 
 @Service
 public class CustomUserDetailsService implements UserDetailsService {

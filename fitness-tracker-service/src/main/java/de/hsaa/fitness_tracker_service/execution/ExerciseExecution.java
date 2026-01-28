@@ -1,11 +1,18 @@
 package de.hsaa.fitness_tracker_service.execution;
 
-import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSession;
-import de.hsaa.fitness_tracker_service.exercise.Exercise;
-
 import com.fasterxml.jackson.annotation.JsonBackReference;
 
-import jakarta.persistence.*;
+import de.hsaa.fitness_tracker_service.exercise.Exercise;
+import de.hsaa.fitness_tracker_service.trainingsSession.TrainingSession;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 

@@ -1,13 +1,7 @@
 package de.hsaa.fitness_tracker_service.trainingsSession;
 
-import de.hsaa.fitness_tracker_service.trainingsPlan.TrainingPlan;
-import de.hsaa.fitness_tracker_service.trainingsPlan.TrainingPlanRepository;
-import de.hsaa.fitness_tracker_service.trainingExecution.TrainingExecution;
-import de.hsaa.fitness_tracker_service.trainingExecution.TrainingExecutionRepository;
-import de.hsaa.fitness_tracker_service.trainingsSessionDay.SessionDay;
-import de.hsaa.fitness_tracker_service.trainingsSessionDay.SessionDayRepository;
-
-import jakarta.persistence.EntityNotFoundException;
+import java.util.List;
+import java.util.Objects;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -15,7 +9,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
+import de.hsaa.fitness_tracker_service.trainingExecution.TrainingExecution;
+import de.hsaa.fitness_tracker_service.trainingExecution.TrainingExecutionRepository;
+import de.hsaa.fitness_tracker_service.trainingsPlan.TrainingPlan;
+import de.hsaa.fitness_tracker_service.trainingsPlan.TrainingPlanRepository;
+import de.hsaa.fitness_tracker_service.trainingsSessionDay.SessionDay;
+import de.hsaa.fitness_tracker_service.trainingsSessionDay.SessionDayRepository;
+import jakarta.persistence.EntityNotFoundException;
 
 @Service
 @Transactional
