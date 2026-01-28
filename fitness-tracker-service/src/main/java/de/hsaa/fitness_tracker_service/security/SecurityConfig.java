@@ -34,26 +34,19 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // H2 Console (DEV)
                 .requestMatchers("/h2-console/**").permitAll()
 
-                // PUBLIC GET
                 .requestMatchers(HttpMethod.GET,
                     "/api/v1/exercises/**",
                     "/api/v1/training-plans/**",
                     "/api/v1/training-sessions/**"
                 ).permitAll()
-
-                // PUBLIC REGISTER
                 .requestMatchers(HttpMethod.POST,
                     "/api/v1/users/register"
                 ).permitAll()
-
-                // EVERYTHING ELSE → LOGIN REQUIRED
                 .anyRequest().authenticated()
             )
 
-            // 🔥 WICHTIG: verhindert Browser-Basic-Auth-Popup
             .httpBasic(basic ->
                 basic.authenticationEntryPoint(
                     new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)
