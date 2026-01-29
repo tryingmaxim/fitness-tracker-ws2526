@@ -1,12 +1,19 @@
-import { Component } from '@angular/core';
+import { Component, HostListener } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { AuthService } from './services/auth.service';
 
-//Routing ermöglicht anzeigen verschiedener Unterseiten, abhängig von der URL
 @Component({
   selector: 'app-root',
   standalone: true,
   imports: [RouterOutlet],
   templateUrl: './app.html',
-  styleUrl: './app.css'
+  styleUrl: './app.css',
 })
-export class AppComponent {}
+export class AppComponent {
+  constructor(private readonly authService: AuthService) {}
+
+  @HostListener('window:beforeunload')
+  onBeforeUnload(): void {
+    this.authService.logout();
+  }
+}

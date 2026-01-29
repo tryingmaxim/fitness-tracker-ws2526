@@ -18,8 +18,6 @@ export class Login implements OnInit {
   loading = false;
   error: string | null = null;
 
-  devBypassEmail = environment.devAuthBypass?.enabled ? environment.devAuthBypass.email : null;
-
   constructor(
     private router: Router,
     private auth: AuthService,
@@ -39,11 +37,7 @@ export class Login implements OnInit {
 
     this.error = null;
 
-    // Dev-Shortcut: wenn Feld leer, autofill
-    if (this.devBypassEmail && !this.email) {
-      this.email = this.devBypassEmail;
-    }
-
+  
     this.loading = true;
 
     this.auth.login(this.email, this.password).subscribe({

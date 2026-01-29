@@ -1,82 +1,85 @@
 import { Injectable } from '@angular/core';
 
+const STORAGE_KEYS = {
+  AUTH_HEADER: 'auth_basic_header',
+  USERNAME: 'username',
+  EMAIL: 'user_email',
+} as const;
+
+const AUTH_SCHEMES = {
+  BASIC: 'basic ',
+  BEARER: 'bearer ',
+} as const;
+
 @Injectable({
   providedIn: 'root',
 })
 export class AuthSessionService {
-  // Statt JWT Token speichern wir für Basic Auth den Authorization Header
-  private readonly authHeaderKey = 'auth_basic_header';
-  private readonly usernameKey = 'username';
-  private readonly emailKey = 'user_email';
+  setBasicAuthSession(email: string, password: string, username?: string): void {
+    const normalizedEmail = this.normalizeText(email);
+    const normalizedUsername = this.normalizeText(username ?? normalizedEmail);
+    const credentials = `${normalizedEmail}:${password ?? ''}`;
 
-  // Login Daten werden in localStorage gespeichert
-  // (email wird weiter benutzt; username kann gleich email sein)
-  setSessionBasic(email: string, password: string, username?: string): void {
-    const trimmedEmail = (email ?? '').trim();
-    const raw = `${trimmedEmail}:${password ?? ''}`;
+    const authHeader = this.createBasicAuthHeader(credentials);
 
-    // btoa kann bei Sonderzeichen Probleme machen -> robust machen
-    const base64 = this.toBase64Utf8(raw);
-    const headerValue = `Basic ${base64}`;
-
-    localStorage.setItem(this.authHeaderKey, headerValue);
-    localStorage.setItem(this.usernameKey, (username ?? trimmedEmail).trim());
-    localStorage.setItem(this.emailKey, trimmedEmail);
+    localStorage.setItem(STORAGE_KEYS.AUTH_HEADER, authHeader);
+    localStorage.setItem(STORAGE_KEYS.USERNAME, normalizedUsername);
+    localStorage.setItem(STORAGE_KEYS.EMAIL, normalizedEmail);
   }
 
-  // Backward-Compat: falls irgendwo noch setSession(token,...) aufgerufen wird,
-  // speichern wir das Token NICHT mehr als Bearer, sondern behandeln "token"
-  // als fertigen Authorization Header wenn er so aussieht, ansonsten speichern wir ihn als Basic-Header-Nutzlast.
-  // (So crasht nichts, selbst wenn noch alte Calls drin sind.)
   setSession(tokenOrHeader: string, username: string, email: string): void {
-    const value = (tokenOrHeader ?? '').trim();
+    const normalizedHeader = this.normalizeText(tokenOrHeader);
+    const authHeader = this.normalizeAuthHeader(normalizedHeader);
 
-    if (value.toLowerCase().startsWith('basic ')) {
-      localStorage.setItem(this.authHeaderKey, value);
-    } else if (value.toLowerCase().startsWith('bearer ')) {
-      // Falls noch irgendwo Bearer reinkommt, speichern wir es trotzdem als auth header,
-      // damit Requests nicht komplett kaputt gehen. (Sprint will aber Basic.)
-      localStorage.setItem(this.authHeaderKey, value);
-    } else {
-      // Fallback: wenn nur base64 o.ä. übergeben wurde
-      localStorage.setItem(this.authHeaderKey, `Basic ${value}`);
-    }
-
-    localStorage.setItem(this.usernameKey, username);
-    localStorage.setItem(this.emailKey, email);
+    localStorage.setItem(STORAGE_KEYS.AUTH_HEADER, authHeader);
+    localStorage.setItem(STORAGE_KEYS.USERNAME, this.normalizeText(username));
+    localStorage.setItem(STORAGE_KEYS.EMAIL, this.normalizeText(email));
   }
 
-  // beim Logout werden die Daten aus dem localStorage gelöscht
   clear(): void {
-    localStorage.removeItem(this.authHeaderKey);
-    localStorage.removeItem(this.usernameKey);
-    localStorage.removeItem(this.emailKey);
+    Object.values(STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
   }
 
-  // Gibt den kompletten Authorization Header zurück ("Basic ...")
   getAuthHeader(): string | null {
-    return localStorage.getItem(this.authHeaderKey);
+    return localStorage.getItem(STORAGE_KEYS.AUTH_HEADER);
   }
 
-  // Für alte Aufrufe: getToken() bleibt bestehen, liefert aber jetzt den Auth Header
   getToken(): string | null {
     return this.getAuthHeader();
   }
 
   getUsername(): string | null {
-    return localStorage.getItem(this.usernameKey);
+    return localStorage.getItem(STORAGE_KEYS.USERNAME);
   }
 
   getEmail(): string | null {
-    return localStorage.getItem(this.emailKey);
+    return localStorage.getItem(STORAGE_KEYS.EMAIL);
   }
 
   isLoggedIn(): boolean {
-    return !!this.getAuthHeader();
+    return Boolean(this.getAuthHeader());
+  }
+
+  private normalizeAuthHeader(value: string): string {
+    const lowerValue = value.toLowerCase();
+
+    if (lowerValue.startsWith(AUTH_SCHEMES.BASIC) || lowerValue.startsWith(AUTH_SCHEMES.BEARER)) {
+      return value;
+    }
+
+    return `Basic ${value}`;
+  }
+
+  private createBasicAuthHeader(credentials: string): string {
+    const base64Credentials = this.toBase64Utf8(credentials);
+    return `Basic ${base64Credentials}`;
   }
 
   private toBase64Utf8(input: string): string {
-    // robust für Umlaute / Sonderzeichen
     return btoa(unescape(encodeURIComponent(input)));
+  }
+
+  private normalizeText(value: string | null | undefined): string {
+    return (value ?? '').trim();
   }
 }

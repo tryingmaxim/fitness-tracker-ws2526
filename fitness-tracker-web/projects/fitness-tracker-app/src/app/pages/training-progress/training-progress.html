@@ -1,20 +1,19 @@
 <div class="tp-shell">
   <div class="tp-wrapper-card">
-
     <div class="tp-hero">
       <div class="tp-title">
         <p class="eyebrow">Training</p>
         <h1>Trainingsfortschritt</h1>
         <p class="subtitle">
-          Hier siehst du <strong>deine persönliche Trainingshistorie</strong> – Sessions + gespeicherte Runs (Datum/Uhrzeit, Dauer & Werte).
+          Hier siehst du <strong>deine persönliche Trainingshistorie</strong> – Sessions und gespeicherte Runs.
         </p>
       </div>
 
       <div class="tp-actions">
-        <button class="mini-btn primary" type="button" (click)="load()" [disabled]="loading">
+        <button class="mini-btn primary" type="button" (click)="load()" [disabled]="isLoading">
           Neu laden
         </button>
-        <button class="mini-btn" type="button" (click)="clearFilters()" [disabled]="loading">
+        <button class="mini-btn" type="button" (click)="resetFilters()" [disabled]="isLoading">
           Filter zurücksetzen
         </button>
       </div>
@@ -25,7 +24,7 @@
         <h2>Übersicht</h2>
         <div class="tp-badges">
           <span class="chip">{{ filteredSessions.length }} Treffer</span>
-          <span class="chip subtle" *ngIf="loading">Lade…</span>
+          <span class="chip subtle" *ngIf="isLoading">Lade…</span>
         </div>
       </div>
 
@@ -35,35 +34,45 @@
           <input
             class="input"
             type="text"
-            placeholder="Session / Plan / Tag (z.B. 5)…"
-            [(ngModel)]="search"
-            [disabled]="loading"
+            placeholder="Session / Plan / Tag…"
+            [(ngModel)]="searchTerm"
+            (ngModelChange)="rebuildDerivedLists()"
+            [disabled]="isLoading"
           />
         </div>
 
         <div class="field">
           <label>Plan</label>
-          <select class="input" [(ngModel)]="planFilter" [disabled]="loading">
-            <option value="ALL">Alle Pläne</option>
+          <select
+            class="input"
+            [(ngModel)]="planFilter"
+            (ngModelChange)="rebuildDerivedLists()"
+            [disabled]="isLoading"
+          >
+            <option [ngValue]="ALL_FILTER">Alle Pläne</option>
             <option *ngFor="let p of plansForFilter" [ngValue]="p.id">{{ p.name }}</option>
           </select>
         </div>
 
         <div class="field">
           <label>Status</label>
-          <select class="input" [(ngModel)]="statusFilter" [disabled]="loading">
-            <option value="ALL">Alle</option>
-            <option value="DONE">Mind. 1x durchgeführt</option>
-            <option value="NEVER">Noch nie durchgeführt</option>
+          <select
+            class="input"
+            [(ngModel)]="statusFilter"
+            (ngModelChange)="rebuildDerivedLists()"
+            [disabled]="isLoading"
+          >
+            <option [ngValue]="ALL_STATUS_FILTER">Alle</option>
+            <option [ngValue]="'DONE'">Mind. 1× durchgeführt</option>
+            <option [ngValue]="'NEVER'">Noch nie durchgeführt</option>
           </select>
         </div>
       </div>
 
-      <div class="msg error" *ngIf="errorMsg">{{ errorMsg }}</div>
-      <div class="msg info" *ngIf="!errorMsg && infoMsg">{{ infoMsg }}</div>
+      <div class="msg error" *ngIf="errorMessage">{{ errorMessage }}</div>
+      <div class="msg info" *ngIf="!errorMessage && infoMessage">{{ infoMessage }}</div>
 
-      <div class="tp-list" *ngIf="!loading && filteredSessions.length">
-
+      <div class="tp-list" *ngIf="!isLoading && filteredSessions.length">
         <article class="tp-card" *ngFor="let s of filteredSessions">
           <header class="tp-card-head">
             <div class="tp-card-main">
@@ -80,19 +89,21 @@
 
               <div class="tp-mini-stats">
                 <span class="pill">Übungen: <strong>{{ s.exerciseCount }}</strong></span>
-                <span class="pill">Letzter Run: <strong>{{ s.lastSavedAt ? (s.lastSavedAt | date:'dd.MM.yyyy HH:mm') : '-' }}</strong></span>
-                <span class="pill">Dauer: <strong>{{ formatDuration(s.lastDurationSeconds) }}</strong></span>
+                <span class="pill">
+                  Letzter Run:
+                  <strong>{{ s.lastSavedAt ? (s.lastSavedAt | date:'dd.MM.yyyy HH:mm') : '-' }}</strong>
+                </span>
                 <span class="pill">Status: <strong>{{ s.lastStatus ?? '-' }}</strong></span>
               </div>
 
               <div class="muted small" *ngIf="s.isDeleted">
-                Session wurde gelöscht – die gespeicherten Runs bleiben hier sichtbar.
+                Session wurde gelöscht – gespeicherte Runs bleiben sichtbar.
               </div>
             </div>
 
             <div class="tp-metric">
               <div class="tp-metric-label">Durchgeführt</div>
-              <div class="tp-metric-value">{{ s.performedCount }}x</div>
+              <div class="tp-metric-value">{{ s.performedCount }}×</div>
             </div>
           </header>
 
@@ -101,7 +112,6 @@
               {{ expandedSessionId === s.id ? 'Details schließen' : 'Details anzeigen' }}
             </button>
 
-            <!-- Sprint 4: ohne Anmeldung darf Training-Start nicht sichtbar/aktiv sein -->
             <button
               *ngIf="isLoggedIn"
               class="mini-btn primary"
@@ -114,29 +124,14 @@
           </div>
 
           <div class="tp-details" *ngIf="expandedSessionId === s.id">
-
-            <div class="msg info" *ngIf="detailsLoading">
-              Lade Session-Details…
-            </div>
-
-            <div class="msg info" *ngIf="executionsLoading">
-              Lade Trainingsläufe…
-            </div>
-
-            <div class="msg error" *ngIf="detailsError">
-              {{ detailsError }}
-            </div>
-
-            <div class="msg error" *ngIf="executionsError">
-              {{ executionsError }}
-            </div>
+            <div class="msg info" *ngIf="isDetailsLoading">Lade Session-Details…</div>
+            <div class="msg error" *ngIf="detailsErrorMessage">{{ detailsErrorMessage }}</div>
 
             <ng-container *ngIf="getDetail(s.id) as detail">
-
               <div class="detail-block">
                 <div class="detail-title">Übungen in der Session</div>
 
-                <div class="ex-table" *ngIf="detail.exerciseExecutions?.length; else noExTpl">
+                <div class="ex-table" *ngIf="detail.exerciseExecutions.length; else noExercises">
                   <div class="ex-row ex-head">
                     <div>#</div>
                     <div>Übung</div>
@@ -157,7 +152,7 @@
                     </div>
 
                     <div class="mono">
-                      <ng-container *ngIf="latestExerciseOfRun(s.id, ex.exerciseId) as rx; else noActualTpl">
+                      <ng-container *ngIf="getLatestExerciseOfLatestRun(s.id, ex.exerciseId) as rx; else noActual">
                         {{ rx.actualSets }} × {{ rx.actualReps }} × {{ rx.actualWeightKg }}kg
                         <span class="muted">•</span>
                         {{ rx.done ? '✓' : '—' }}
@@ -166,42 +161,31 @@
                           <span class="muted">{{ rx.notes }}</span>
                         </ng-container>
                       </ng-container>
-
-                      <ng-template #noActualTpl>—</ng-template>
+                      <ng-template #noActual>—</ng-template>
                     </div>
                   </div>
                 </div>
 
-                <ng-template #noExTpl>
+                <ng-template #noExercises>
                   <div class="muted">Keine Übungen verfügbar.</div>
                 </ng-template>
               </div>
+            </ng-container>
 
-              <div class="detail-block">
-                <div class="detail-title">Trainingsläufe</div>
+            <div class="detail-block">
+              <div class="detail-title">Trainingsläufe</div>
 
-                <div class="runs" *ngIf="runsForSession(s.id).length; else noRunsTpl">
-                  <div class="run-card" *ngFor="let run of runsForSession(s.id)">
-                    <div class="run-top">
-                      <div class="run-left">
-                        <div class="run-title">
-                          {{ formatDateTimeIso(run.completedAt || run.startedAt) }}
-                          <span class="run-status" [class.completed]="run.status==='COMPLETED'">
-                            {{ run.status }}
-                          </span>
-                        </div>
-
-                        <div class="run-meta muted">
-                          Start: <strong>{{ formatDateTimeIso(run.startedAt) }}</strong>
-                          <span class="sep">•</span>
-                          Ende: <strong>{{ formatDateTimeIso(run.completedAt) }}</strong>
-                          <span class="sep">•</span>
-                          Execution: <strong>#{{ run.id }}</strong>
-                        </div>
-                      </div>
+              <ng-container *ngIf="runsForSession(s.id) as runs">
+                <div class="runs" *ngIf="runs.length; else noRuns">
+                  <div class="run-card" *ngFor="let run of runs">
+                    <div class="run-title">
+                      {{ formatDateTimeIso(run.completedAt || run.startedAt) }}
+                      <span class="run-status" [class.completed]="run.status === 'COMPLETED'">
+                        {{ run.status }}
+                      </span>
                     </div>
 
-                    <div class="run-exercises" *ngIf="run.executedExercises?.length">
+                    <div class="run-exercises" *ngIf="run.executedExercises.length">
                       <div class="rex-head">
                         <div>Übung</div>
                         <div>Geplant</div>
@@ -211,12 +195,8 @@
 
                       <div class="rex-row" *ngFor="let rx of run.executedExercises">
                         <div class="rex-name">
-                          <div class="ex-name">
-                            {{ (rx.exerciseName && rx.exerciseName.trim()) ? rx.exerciseName : ('Übung #' + rx.exerciseId) }}
-                          </div>
-                          <div class="muted small" *ngIf="rx.exerciseCategory">
-                            {{ rx.exerciseCategory }}
-                          </div>
+                          <div class="ex-name">{{ resolveExerciseName(rx.exerciseName, rx.exerciseId) }}</div>
+                          <div class="muted small" *ngIf="rx.exerciseCategory">{{ rx.exerciseCategory }}</div>
                           <div class="muted small" *ngIf="rx.notes">{{ rx.notes }}</div>
                         </div>
 
@@ -233,21 +213,17 @@
                     </div>
                   </div>
                 </div>
+              </ng-container>
 
-                <ng-template #noRunsTpl>
-                  <div class="muted">
-                    Noch keine Runs gespeichert. (Training starten → Zwischenspeichern oder Abschließen.)
-                  </div>
-                </ng-template>
-
-              </div>
-            </ng-container>
-
+              <ng-template #noRuns>
+                <div class="muted">Noch keine Runs gespeichert.</div>
+              </ng-template>
+            </div>
           </div>
         </article>
       </div>
 
-      <div class="empty" *ngIf="!loading && !filteredSessions.length && !errorMsg">
+      <div class="empty" *ngIf="!isLoading && !filteredSessions.length && !errorMessage">
         <div class="empty-title">Keine Treffer</div>
         <div class="empty-sub">Passe Filter/Suche an oder speichere zuerst Trainingsläufe.</div>
       </div>

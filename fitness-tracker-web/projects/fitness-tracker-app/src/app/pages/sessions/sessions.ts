@@ -1,65 +1,62 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule, NgIf, NgForOf } from '@angular/common';
+import { CommonModule, NgForOf, NgIf } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../../environment';
-import { forkJoin } from 'rxjs';
+import { forkJoin, Observable, of } from 'rxjs';
+import { map, switchMap, tap } from 'rxjs/operators';
+
 import { AuthSessionService } from '../../services/auth-session.service';
+import { SessionsApiService } from './sessions-api.service';
+import {
+  CreateTrainingSessionRequest,
+  ExecutionDraft,
+  ExecutionRequest,
+  Exercise,
+  PlannedExerciseResponse,
+  TrainingPlan,
+  TrainingSession,
+  UpdateTrainingSessionRequest,
+} from './sessions.models';
 
-interface TrainingPlan {
-  id: number;
-  name: string;
-  description?: string;
-}
+const DAY_RANGE = { MIN: 1, MAX: 30 } as const;
 
-interface PlannedExerciseResponse {
-  id: number;
-  exerciseId?: number;
-  exerciseName?: string;
+const DEFAULT_EXECUTION_VALUES = {
+  SETS: 3,
+  REPS: 10,
+  WEIGHT_KG: 0,
+} as const;
 
-  exercise?: {
-    id: number;
-    name: string;
-    category?: string | null;
-    muscleGroups?: string | null;
-  };
+const VALIDATION_LIMITS = {
+  ORDER_INDEX_MIN: 1,
+  ORDER_INDEX_MAX: 999,
+  SETS_MIN: 1,
+  SETS_MAX: 99,
+  REPS_MIN: 1,
+  REPS_MAX: 999,
+  WEIGHT_MIN: 0,
+  WEIGHT_MAX: 9999,
+} as const;
 
-  category?: string | null;
-  muscleGroups?: string | null;
-  orderIndex?: number | null;
-  plannedSets?: number | null;
-  plannedReps?: number | null;
-  plannedWeightKg?: number | null;
-  notes?: string | null;
-}
+const ORDER_INDEX_SHIFT = 1000;
 
-interface TrainingSession {
-  id?: number;
+type SessionFormState = {
+  planId: number | null;
   name: string;
   days: number[];
-  planId: number | null;
-  planName?: string;
+};
 
-  exerciseExecutions?: PlannedExerciseResponse[];
-  exerciseNames?: string[];
-}
-
-interface Exercise {
-  id: number;
+type DetailOriginalState = {
+  id: number | null;
   name: string;
-  category?: string;
-  muscleGroups?: string;
-}
+  planId: number | null;
+  daysKey: string;
+};
 
-interface ExecutionDraft {
-  executionId?: number | null;
-  exerciseId: number;
-  orderIndex: number;
-  plannedSets: number;
-  plannedReps: number;
-  plannedWeightKg: number;
-  notes: string | null;
-}
+type ExecutionSyncPlan = {
+  toCreate: ExecutionDraft[];
+  toDelete: ExecutionDraft[];
+  toUpdate: ExecutionDraft[];
+  hasOrderChangeForExisting: boolean;
+};
 
 @Component({
   selector: 'app-sessions',
@@ -69,519 +66,218 @@ interface ExecutionDraft {
   styleUrl: './sessions.css',
 })
 export class Sessions implements OnInit {
-  private readonly baseUrl = environment.apiBaseUrl;
-
   plans: TrainingPlan[] = [];
   sessions: TrainingSession[] = [];
+  exercises: Exercise[] = [];
 
-  readonly dayOptions: number[] = Array.from({ length: 30 }, (_, i) => i + 1);
-
-  private readonly defaultPlannedSets = 3;
-  private readonly defaultPlannedReps = 10;
-  private readonly defaultPlannedWeightKg = 0;
-
-  form = {
-    planId: null as number | null,
-    name: '',
-    days: [] as number[],
-  };
-
-  detailForm = {
-    id: null as number | null,
-    planId: null as number | null,
-    name: '',
-    days: [] as number[],
-  };
-
-  private detailOriginal: {
-    id: number | null;
-    name: string;
-    planId: number | null;
-    daysKey: string;
-  } | null = null;
+  filteredExercises: Exercise[] = [];
+  availableDetailExercises: Exercise[] = [];
 
   selectedSession: TrainingSession | null = null;
 
-  sessionSearch = '';
+  readonly dayOptions: number[] = Array.from({ length: DAY_RANGE.MAX }, (_, index) => index + 1);
 
-  exercises: Exercise[] = [];
-  filteredExercises: Exercise[] = [];
+  sessionSearch = '';
   exerciseSearch = '';
+  detailExerciseSearch = '';
 
   selectedExecutions: ExecutionDraft[] = [];
   detailExecutions: ExecutionDraft[] = [];
 
-  detailOriginalExecutions: ExecutionDraft[] = [];
-
-  detailExerciseSearch = '';
-
   loadingPlans = false;
   loadingSessions = false;
   loadingExercises = false;
-  creating = false;
 
+  creating = false;
   detailLoading = false;
   updating = false;
+
   deleting = false;
   deleteId: number | null = null;
 
   errorMsg = '';
   infoMsg = '';
 
-  constructor(private http: HttpClient, private session: AuthSessionService) {}
+  form: SessionFormState = this.createEmptyFormState();
+  detailForm: SessionFormState & { id: number | null } = { id: null, ...this.createEmptyFormState() };
 
-  // Sprint 4: UI/Logik "eingeloggt"
+  private detailOriginal: DetailOriginalState | null = null;
+  private detailOriginalExecutions: ExecutionDraft[] = [];
+
+  constructor(
+    private readonly apiService: SessionsApiService,
+    private readonly sessionService: AuthSessionService
+  ) {}
+
   get isLoggedIn(): boolean {
-    return this.session.isLoggedIn();
+    return this.sessionService.isLoggedIn();
   }
 
   ngOnInit(): void {
-    this.loadPlans();
-    this.loadSessions();
-    this.loadExercises();
+    this.loadInitialData();
   }
 
-  //Suche nach Sessions
   get filteredSessionsForOverview(): TrainingSession[] {
-    const term = this.sessionSearch.trim().toLowerCase();
+    const term = this.normalizeSearchTerm(this.sessionSearch);
     if (!term) return this.sessions;
-    return this.sessions.filter((s) => (s.name ?? '').toLowerCase().includes(term));
+
+    return this.sessions.filter((session) => this.normalizeSearchTerm(session.name).includes(term));
   }
 
-  trackBySession = (_: number, session: TrainingSession) =>
+  trackBySession = (_: number, session: TrainingSession): string | number =>
     session.id ?? `${session.name}-${this.formatDays(session.days)}`;
 
+  trackByExercise = (_: number, exercise: Exercise): number => exercise.id;
+
   formatDays(days: number[] | null | undefined): string {
-    if (!days || !days.length) return '-';
-    return [...days]
-      .filter((d) => typeof d === 'number')
-      .sort((a, b) => a - b)
-      .join(', ');
-  }
-
-  //Übungsnamen aus ExerciseExecution ableiten
-  getExerciseExecution(session: TrainingSession): string[] {
-    const fromExecutions = (session.exerciseExecutions ?? [])
-      .map((e: any) => (e?.exerciseName ?? e?.exercise?.name ?? '').toString().trim())
-      .filter(Boolean);
-
-    if (fromExecutions.length) return fromExecutions;
-
-    return (session.exerciseNames ?? []).map((x) => (x ?? '').toString().trim()).filter(Boolean);
+    const normalizedDays = this.normalizeDays(days);
+    return normalizedDays.length ? normalizedDays.join(', ') : '-';
   }
 
   joinExerciseNames(session: TrainingSession): string {
-    const names = this.getExerciseExecution(session);
+    const names = this.getExerciseNamesFromSession(session);
     return names.length ? names.join(', ') : 'Keine Übungen hinterlegt';
   }
 
   getPlanName(planId: number | null, fallback?: string): string {
     if (fallback) return fallback;
+
     const plan = this.plans.find((p) => p.id === planId);
     return plan?.name ?? '-';
   }
 
-  //Sammelt alle Tage die in einem Trainingsplan schon belegt sind
-  private getUsedDaysForPlan(planId: number | null, excludeSessionId?: number | null): Set<number> {
-    const used = new Set<number>();
-    if (!planId) return used;
-
-    const exclude = excludeSessionId != null ? Number(excludeSessionId) : null;
-
-    this.sessions.forEach((s) => {
-      const sPlanId = s.planId != null ? Number(s.planId) : null;
-      const sId = s.id != null ? Number(s.id) : null;
-
-      if (sPlanId !== Number(planId)) return;
-      if (exclude != null && sId === exclude) return;
-
-      (s.days ?? []).forEach((d) => {
-        const day = Number(d);
-        if (Number.isFinite(day)) used.add(day);
-      });
-    });
-
-    return used;
+  onExerciseSearchChange(): void {
+    this.filteredExercises = this.filterExercises(this.exercises, this.exerciseSearch);
   }
 
-  isDaySelectedCreate(day: number): boolean {
-    return Array.isArray(this.form.days) && this.form.days.some((d) => Number(d) === day);
-  }
-
-  isDaySelectedDetail(day: number): boolean {
-    return Array.isArray(this.detailForm.days) && this.detailForm.days.some((d) => Number(d) === day);
-  }
-
-  isDayBlockedCreate(day: number): boolean {
-    const used = this.getUsedDaysForPlan(this.form.planId, null);
-    const alreadySelected = this.isDaySelectedCreate(day);
-    return used.has(day) && !alreadySelected;
-  }
-
-  isDayBlockedDetail(day: number): boolean {
-    const excludeId = this.detailForm.id ?? null;
-    const used = this.getUsedDaysForPlan(this.detailForm.planId, excludeId);
-    const alreadySelected = this.isDaySelectedDetail(day);
-    return used.has(day) && !alreadySelected;
-  }
-
-  toggleDayCreate(day: number): void {
-    if (day < 1 || day > 30) return;
-    if (this.isDayBlockedCreate(day)) return;
-
-    if (!Array.isArray(this.form.days)) this.form.days = [];
-
-    if (this.isDaySelectedCreate(day)) {
-      this.form.days = this.form.days.filter((d) => Number(d) !== day);
-    } else {
-      this.form.days.push(day);
-    }
-
-    this.form.days = Array.from(new Set(this.form.days.map((d) => Number(d)))).sort((a, b) => a - b);
+  onDetailExerciseSearchChange(): void {
+    this.availableDetailExercises = this.computeAvailableDetailExercises();
   }
 
   clearDaysCreate(): void {
     this.form.days = [];
   }
 
-  toggleDayDetail(day: number): void {
-    if (day < 1 || day > 30) return;
-    if (!this.isDaySelectedDetail(day) && this.isDayBlockedDetail(day)) return;
-
-    if (!Array.isArray(this.detailForm.days)) this.detailForm.days = [];
-
-    if (this.isDaySelectedDetail(day)) {
-      this.detailForm.days = this.detailForm.days.filter((d) => Number(d) !== day);
-    } else {
-      this.detailForm.days.push(day);
-    }
-
-    this.detailForm.days = Array.from(new Set(this.detailForm.days.map((d) => Number(d)))).sort((a, b) => a - b);
-  }
-
   clearDaysDetail(): void {
     this.detailForm.days = [];
   }
 
-  //Wenn im Detail der Plan geändert wird: remove blockierte Tage
+  isDaySelectedCreate(day: number): boolean {
+    return this.form.days.includes(day);
+  }
+
+  isDaySelectedDetail(day: number): boolean {
+    return this.detailForm.days.includes(day);
+  }
+
+  isDayBlockedCreate(day: number): boolean {
+    const usedDays = this.getUsedDaysForPlan(this.form.planId, null);
+    return usedDays.has(day) && !this.isDaySelectedCreate(day);
+  }
+
+  isDayBlockedDetail(day: number): boolean {
+    const usedDays = this.getUsedDaysForPlan(this.detailForm.planId, this.detailForm.id);
+    return usedDays.has(day) && !this.isDaySelectedDetail(day);
+  }
+
+  toggleDayCreate(day: number): void {
+    if (!this.isDayInRange(day) || this.isDayBlockedCreate(day)) return;
+    this.form.days = this.toggleDayInList(this.form.days, day);
+  }
+
+  toggleDayDetail(day: number): void {
+    if (!this.isDayInRange(day)) return;
+    if (!this.isDaySelectedDetail(day) && this.isDayBlockedDetail(day)) return;
+
+    this.detailForm.days = this.toggleDayInList(this.detailForm.days, day);
+  }
+
   onDetailPlanChange(): void {
-    const id = this.detailForm.id != null ? Number(this.detailForm.id) : null;
-    const planId = this.detailForm.planId != null ? Number(this.detailForm.planId) : null;
+    const planId = this.detailForm.planId;
     if (!planId) return;
 
-    const used = this.getUsedDaysForPlan(planId, id);
-    const before = Array.isArray(this.detailForm.days) ? [...this.detailForm.days] : [];
-    const filtered = before.filter((d) => !used.has(Number(d)));
-    const removed = before.filter((d) => used.has(Number(d)));
+    const usedDays = this.getUsedDaysForPlan(planId, this.detailForm.id);
+    const removedDays = this.removeBlockedDaysFromDetailForm(usedDays);
 
-    this.detailForm.days = Array.from(new Set(filtered)).sort((a, b) => a - b);
-
-    if (removed.length) {
-      this.infoMsg = `Einige Tage wurden entfernt, weil sie im gewählten Plan schon belegt sind: ${removed
-        .sort((a, b) => a - b)
-        .join(', ')}`;
+    if (removedDays.length) {
+      this.setInfo(
+        `Einige Tage wurden entfernt, weil sie im gewählten Plan schon belegt sind: ${removedDays.join(', ')}`
+      );
     }
-  }
-
-  //exercise Suche
-  onExerciseSearchChange(): void {
-    this.applyExerciseSearch();
-  }
-
-  private applyExerciseSearch(): void {
-    const q = (this.exerciseSearch ?? '').toLowerCase().trim();
-    if (!q) {
-      this.filteredExercises = [...this.exercises];
-      return;
-    }
-    this.filteredExercises = this.exercises.filter((ex) => ex.name.toLowerCase().includes(q));
-  }
-
-  //Detail: verfügbare Übungen
-  getAvailableDetailExercises(): Exercise[] {
-    const term = (this.detailExerciseSearch ?? '').toLowerCase().trim();
-    const usedIds = new Set(this.detailExecutions.map((d) => d.exerciseId));
-
-    return this.exercises
-      .filter((e) => !usedIds.has(e.id))
-      .filter((e) => !term || e.name.toLowerCase().includes(term));
-  }
-
-  private clampInt(val: any, min: number, max: number): number {
-    const n = Number(val);
-    if (!Number.isFinite(n)) return min;
-    return Math.max(min, Math.min(max, Math.trunc(n)));
-  }
-
-  private clampFloat(val: any, min: number, max: number): number {
-    const n = Number(val);
-    if (!Number.isFinite(n)) return min;
-    return Math.max(min, Math.min(max, n));
-  }
-
-  private isStrictPositiveIntInput(v: any): boolean {
-    const s = (v ?? '').toString();
-    return /^\d+$/.test(s);
-  }
-
-  private isStrictNonNegativeNumberInput(v: any): boolean {
-    const s = (v ?? '').toString();
-    return /^\d+(?:[.,]\d+)?$/.test(s);
-  }
-
-  private validateDraft(d: ExecutionDraft): string[] {
-    const errors: string[] = [];
-    const exName = this.getExerciseName(Number(d.exerciseId));
-
-    if (!this.isStrictPositiveIntInput(d.orderIndex) || Number(d.orderIndex) < 1) {
-      errors.push(`${exName}: Reihenfolge (Priorität) muss eine ganze Zahl ≥ 1 sein (ohne Sonderzeichen).`);
-    }
-    if (!this.isStrictPositiveIntInput(d.plannedSets) || Number(d.plannedSets) < 1) {
-      errors.push(`${exName}: Sätze müssen eine ganze Zahl ≥ 1 sein (ohne Sonderzeichen).`);
-    }
-    if (!this.isStrictPositiveIntInput(d.plannedReps) || Number(d.plannedReps) < 1) {
-      errors.push(`${exName}: Wiederholungen müssen eine ganze Zahl ≥ 1 sein (ohne Sonderzeichen).`);
-    }
-    if (
-      !this.isStrictNonNegativeNumberInput(d.plannedWeightKg) ||
-      Number(String(d.plannedWeightKg).replace(',', '.')) < 0
-    ) {
-      errors.push(`${exName}: Gewicht (kg) muss eine Zahl ≥ 0 sein (ohne Sonderzeichen).`);
-    }
-
-    return errors;
-  }
-
-  private normalizeDraft(d: ExecutionDraft): ExecutionDraft {
-    const weight = Number(String(d.plannedWeightKg ?? 0).replace(',', '.'));
-
-    return {
-      executionId: d.executionId ?? null,
-      exerciseId: Number(d.exerciseId),
-      orderIndex: this.clampInt(d.orderIndex, 1, 999),
-      plannedSets: this.clampInt(d.plannedSets, 1, 99),
-      plannedReps: this.clampInt(d.plannedReps, 1, 999),
-      plannedWeightKg: this.clampFloat(weight, 0, 9999),
-      notes: (d.notes ?? '').toString().trim() ? (d.notes ?? '').toString() : null,
-    };
-  }
-
-  private renumberAndSort(list: ExecutionDraft[]): ExecutionDraft[] {
-    const sorted = [...list].sort((a, b) => Number(a.orderIndex) - Number(b.orderIndex));
-    return sorted.map((d, idx) => ({ ...d, orderIndex: idx + 1 }));
-  }
-
-  private nextOrderIndex(list: ExecutionDraft[]): number {
-    const max = list.reduce((m, x) => Math.max(m, Number(x.orderIndex) || 0), 0);
-    return Math.max(1, max + 1);
   }
 
   getExerciseName(exerciseId: number): string {
     return this.exercises.find((e) => e.id === exerciseId)?.name ?? `Übung #${exerciseId}`;
   }
 
-  toggleExercise(ex: Exercise): void {
-    const idx = this.selectedExecutions.findIndex((d) => d.exerciseId === ex.id);
-    if (idx >= 0) {
-      this.selectedExecutions.splice(idx, 1);
-      return;
-    }
-
-    this.selectedExecutions.push({
-      executionId: null,
-      exerciseId: ex.id,
-      orderIndex: this.nextOrderIndex(this.selectedExecutions),
-      plannedSets: this.defaultPlannedSets,
-      plannedReps: this.defaultPlannedReps,
-      plannedWeightKg: this.defaultPlannedWeightKg,
-      notes: null,
-    });
+  toggleExercise(exercise: Exercise): void {
+    const isAlreadySelected = this.selectedExecutions.some((draft) => draft.exerciseId === exercise.id);
+    this.selectedExecutions = isAlreadySelected
+      ? this.selectedExecutions.filter((draft) => draft.exerciseId !== exercise.id)
+      : [...this.selectedExecutions, this.createDefaultDraft(exercise.id, this.nextOrderIndex(this.selectedExecutions))];
   }
 
-  isExerciseSelected(ex: Exercise): boolean {
-    return this.selectedExecutions.some((d) => d.exerciseId === ex.id);
+  isExerciseSelected(exercise: Exercise): boolean {
+    return this.selectedExecutions.some((draft) => draft.exerciseId === exercise.id);
   }
 
   removeExecutionDraftCreate(exerciseId: number): void {
-    this.selectedExecutions = this.selectedExecutions.filter((d) => d.exerciseId !== exerciseId);
+    this.selectedExecutions = this.selectedExecutions.filter((draft) => draft.exerciseId !== exerciseId);
   }
 
-  addExerciseToDetail(ex: Exercise): void {
-    if (this.detailExecutions.some((d) => d.exerciseId === ex.id)) {
-      this.detailExerciseSearch = '';
+  addExerciseToDetail(exercise: Exercise): void {
+    if (this.detailExecutions.some((draft) => draft.exerciseId === exercise.id)) {
+      this.resetDetailExerciseSearch();
       return;
     }
 
-    this.detailExecutions.push({
-      executionId: null,
-      exerciseId: ex.id,
-      orderIndex: this.nextOrderIndex(this.detailExecutions),
-      plannedSets: this.defaultPlannedSets,
-      plannedReps: this.defaultPlannedReps,
-      plannedWeightKg: this.defaultPlannedWeightKg,
-      notes: null,
-    });
+    this.detailExecutions = [
+      ...this.detailExecutions,
+      this.createDefaultDraft(exercise.id, this.nextOrderIndex(this.detailExecutions)),
+    ];
 
-    this.detailExerciseSearch = '';
+    this.resetDetailExerciseSearch();
   }
 
   removeExecutionDraftDetail(exerciseId: number): void {
-    this.detailExecutions = this.detailExecutions.filter((d) => d.exerciseId !== exerciseId);
-  }
-
-  private resequenceInPlace(list: ExecutionDraft[]): void {
-    list.forEach((d, i) => (d.orderIndex = i + 1));
-  }
-
-  private moveItem(list: ExecutionDraft[], index: number, direction: -1 | 1): void {
-    const newIndex = index + direction;
-    if (index < 0 || index >= list.length) return;
-    if (newIndex < 0 || newIndex >= list.length) return;
-
-    const tmp = list[index];
-    list[index] = list[newIndex];
-    list[newIndex] = tmp;
-
-    this.resequenceInPlace(list);
-  }
-
-  moveDetailUp(index: number): void {
-    this.moveItem(this.detailExecutions, index, -1);
-  }
-
-  moveDetailDown(index: number): void {
-    this.moveItem(this.detailExecutions, index, 1);
+    this.detailExecutions = this.detailExecutions.filter((draft) => draft.exerciseId !== exerciseId);
+    this.availableDetailExercises = this.computeAvailableDetailExercises();
   }
 
   moveCreateUp(index: number): void {
-    this.moveItem(this.selectedExecutions, index, -1);
+    this.selectedExecutions = this.moveItemAndResequence(this.selectedExecutions, index, -1);
   }
 
   moveCreateDown(index: number): void {
-    this.moveItem(this.selectedExecutions, index, 1);
+    this.selectedExecutions = this.moveItemAndResequence(this.selectedExecutions, index, 1);
   }
 
-  onDetailOrderEdited(): void {
-    const sorted = [...this.detailExecutions].sort((a, b) => Number(a.orderIndex) - Number(b.orderIndex));
-    this.detailExecutions = sorted;
-    this.resequenceInPlace(this.detailExecutions);
+  moveDetailUp(index: number): void {
+    this.detailExecutions = this.moveItemAndResequence(this.detailExecutions, index, -1);
   }
 
-  onCreateOrderEdited(): void {
-    const sorted = [...this.selectedExecutions].sort((a, b) => Number(a.orderIndex) - Number(b.orderIndex));
-    this.selectedExecutions = sorted;
-    this.resequenceInPlace(this.selectedExecutions);
+  moveDetailDown(index: number): void {
+    this.detailExecutions = this.moveItemAndResequence(this.detailExecutions, index, 1);
   }
 
-  // neue Session erstellen (nur mit Login)
   add(): void {
-    if (!this.isLoggedIn) {
-      this.errorMsg = 'Bitte anmelden, um Sessions anzulegen.';
-      this.infoMsg = '';
-      return;
-    }
+    if (!this.assertLoggedIn('Bitte anmelden, um Sessions anzulegen.')) return;
 
-    this.errorMsg = '';
-    this.infoMsg = '';
+    this.clearMessages();
 
-    const trimmedName = this.form.name?.trim();
-    const normalizedDays = (this.form.days ?? [])
-      .map((d) => Number(d))
-      .filter((d) => Number.isFinite(d) && d >= 1 && d <= 30);
+    const validationError = this.validateCreateForm();
+    if (validationError) return this.setError(validationError);
 
-    if (!trimmedName || !this.form.planId || !normalizedDays.length) {
-      this.errorMsg = 'Bitte Plan, Name und mindestens einen Tag (1-30) angeben.';
-      return;
-    }
-
-    const usedDays = this.getUsedDaysForPlan(this.form.planId, null);
-    const blockedPicked = normalizedDays.find((d) => usedDays.has(d));
-    if (blockedPicked) {
-      this.errorMsg = `Tag ${blockedPicked} ist in diesem Plan bereits durch eine andere Session belegt.`;
-      return;
-    }
-
-    const payload = {
-      planId: Number(this.form.planId),
-      name: trimmedName,
-      days: Array.from(new Set(normalizedDays)).sort((a, b) => a - b),
-    };
+    const payload = this.buildCreateSessionPayload();
+    const blockedDay = this.findBlockedDay(payload.planId, payload.days, null);
+    if (blockedDay != null) return this.setError(`Tag ${blockedDay} ist in diesem Plan bereits durch eine andere Session belegt.`);
 
     this.creating = true;
 
-    this.http.post<any>(`${this.baseUrl}/training-sessions`, payload).subscribe({
-      next: (createdSession) => {
-        const sessionId = Number(createdSession?.id);
-
-        if (!sessionId || !this.selectedExecutions.length) {
-          this.afterCreateSuccess();
-          return;
-        }
-
-        const validationErrors = this.selectedExecutions.flatMap((d) => this.validateDraft(d));
-        if (validationErrors.length) {
-          this.creating = false;
-          this.errorMsg = validationErrors.join('\n');
-          return;
-        }
-
-        const drafts = this.renumberAndSort(this.selectedExecutions).map((d) => this.normalizeDraft(d));
-
-        const requests = drafts.map((d) =>
-          this.http.post(`${this.baseUrl}/training-sessions/${sessionId}/executions`, {
-            exerciseId: d.exerciseId,
-            orderIndex: d.orderIndex,
-            plannedSets: d.plannedSets,
-            plannedReps: d.plannedReps,
-            plannedWeightKg: d.plannedWeightKg,
-            notes: d.notes,
-          })
-        );
-
-        forkJoin(requests).subscribe({
-          next: () => this.afterCreateSuccess(),
-          error: (err) => {
-            console.error('Konnte ExerciseExecutions nicht anlegen', err);
-            this.creating = false;
-            if (err?.status === 401 || err?.status === 403) {
-              this.errorMsg = 'Nicht berechtigt. Bitte erneut anmelden.';
-            } else {
-              this.errorMsg = 'Session wurde angelegt, aber Übungen konnten nicht zugeordnet werden.';
-            }
-            this.loadSessions();
-          },
-        });
-      },
-      error: (err) => {
-        this.creating = false;
-        if (err?.status === 401 || err?.status === 403) {
-          this.errorMsg = 'Nicht berechtigt. Bitte erneut anmelden.';
-        } else {
-          this.errorMsg = err?.error?.detail || 'Session konnte nicht angelegt werden.';
-        }
-        console.error(err);
-      },
+    this.apiService.createSession(payload).subscribe({
+      next: (created) => this.createExecutionsForNewSession(created.id),
+      error: (err) => this.handleAuthorizationOrGenericError(err, 'Session konnte nicht angelegt werden.', () => (this.creating = false)),
     });
-  }
-
-  private afterCreateSuccess(): void {
-    this.infoMsg = 'Session wurde hinzugefügt.';
-    this.form.name = '';
-    this.form.days = [];
-    this.selectedExecutions = [];
-    this.exerciseSearch = '';
-    this.applyExerciseSearch();
-    this.loadSessions();
-    this.loadPlans();
-    this.creating = false;
-  }
-
-  private makeDaysKey(days: number[]): string {
-    return [...(days ?? [])]
-      .map((d) => Number(d))
-      .filter((d) => Number.isFinite(d))
-      .sort((a, b) => a - b)
-      .join(',');
   }
 
   selectSession(session: TrainingSession): void {
@@ -589,58 +285,14 @@ export class Sessions implements OnInit {
 
     this.selectedSession = session;
     this.detailLoading = true;
-    this.errorMsg = '';
-    this.infoMsg = '';
+    this.clearMessages();
 
-    const planId = session.planId != null ? Number(session.planId) : null;
-    const id = Number(session.id);
+    this.initializeDetailForm(session);
 
-    const daysArr = Array.isArray(session.days)
-      ? session.days.map((d) => Number(d)).filter((d) => d >= 1 && d <= 30)
-      : [];
-
-    this.detailForm = {
-      id,
-      name: session.name,
-      days: [...daysArr].sort((a, b) => a - b),
-      planId,
-    };
-
-    this.detailOriginal = {
-      id,
-      name: (session.name ?? '').toString(),
-      planId,
-      daysKey: this.makeDaysKey(daysArr),
-    };
-
-    this.http.get<any[]>(`${this.baseUrl}/training-sessions/${id}/executions`).subscribe({
-      next: (execs) => {
-        const normalized = (execs ?? [])
-          .map((e: any): ExecutionDraft | null => {
-            const exerciseId = Number(e.exerciseId ?? e.exercise?.id);
-            if (!Number.isFinite(exerciseId)) return null;
-
-            return this.normalizeDraft({
-              executionId: Number(e.id),
-              exerciseId,
-              orderIndex: Number(e.orderIndex) || 1,
-              plannedSets: Number(e.plannedSets) || this.defaultPlannedSets,
-              plannedReps: Number(e.plannedReps) || this.defaultPlannedReps,
-              plannedWeightKg: Number(e.plannedWeightKg) || this.defaultPlannedWeightKg,
-              notes: e.notes ?? null,
-            });
-          })
-          .filter((x): x is ExecutionDraft => x !== null)
-          .sort((a, b) => a.orderIndex - b.orderIndex);
-
-        this.detailExecutions = normalized;
-        this.detailOriginalExecutions = JSON.parse(JSON.stringify(normalized));
-        this.detailExerciseSearch = '';
-        this.detailLoading = false;
-      },
-      error: (err) => {
-        console.error('Details konnten nicht geladen werden', err);
-        this.errorMsg = 'Details zur Session konnten nicht geladen werden.';
+    this.apiService.getExecutions(Number(session.id)).subscribe({
+      next: (executions) => this.applyLoadedExecutions(executions),
+      error: () => {
+        this.setError('Details zur Session konnten nicht geladen werden.');
         this.detailLoading = false;
       },
     });
@@ -650,344 +302,705 @@ export class Sessions implements OnInit {
     this.selectedSession = null;
     this.detailExecutions = [];
     this.detailOriginalExecutions = [];
-    this.detailForm = { id: null, planId: null, name: '', days: [] };
+    this.detailForm = { id: null, ...this.createEmptyFormState() };
     this.detailOriginal = null;
     this.detailExerciseSearch = '';
+    this.availableDetailExercises = [];
     this.detailLoading = false;
     this.updating = false;
   }
 
-  // ausgewählte Session aktualisieren (nur mit Login)
   updateSelectedSession(): void {
-    if (!this.isLoggedIn) {
-      this.errorMsg = 'Bitte anmelden, um Sessions zu bearbeiten.';
-      this.infoMsg = '';
-      return;
-    }
+    if (!this.assertLoggedIn('Bitte anmelden, um Sessions zu bearbeiten.')) return;
 
-    if (!this.detailForm.id) return;
+    const sessionId = this.detailForm.id;
+    if (!sessionId) return;
 
-    const id = Number(this.detailForm.id);
-    const trimmedName = (this.detailForm.name ?? '').trim();
-    const planId = this.detailForm.planId != null ? Number(this.detailForm.planId) : null;
+    this.clearMessages();
 
-    const normalizedDays = (this.detailForm.days ?? [])
-      .map((d) => Number(d))
-      .filter((d) => Number.isFinite(d) && d >= 1 && d <= 30);
+    const validationError = this.validateDetailForm();
+    if (validationError) return this.setError(validationError);
 
-    if (!trimmedName || !planId) {
-      this.errorMsg = 'Bitte Name und Plan angeben.';
-      return;
-    }
-
-    const original = this.detailOriginal;
-    const daysKeyNow = this.makeDaysKey(normalizedDays);
-    const daysChanged = !!original && original.daysKey !== daysKeyNow;
-
-    if (daysChanged) {
-      if (!normalizedDays.length) {
-        this.errorMsg = 'Bitte mindestens einen Tag (1-30) auswählen.';
-        return;
-      }
-
-      const usedDays = this.getUsedDaysForPlan(planId, id);
-      const blockedPicked = normalizedDays.find((d) => usedDays.has(d));
-      if (blockedPicked) {
-        this.errorMsg = `Tag ${blockedPicked} ist in diesem Plan bereits durch eine andere Session belegt.`;
-        return;
-      }
-    }
-
-    const payload: any = {};
-    if (!original || original.name !== trimmedName) payload.name = trimmedName;
-    if (!original || original.planId !== planId) payload.planId = planId;
-    if (daysChanged) payload.days = Array.from(new Set(normalizedDays)).sort((a, b) => a - b);
-
-    const executionsChanged =
-      JSON.stringify(this.detailExecutions) !== JSON.stringify(this.detailOriginalExecutions);
+    const payload = this.buildUpdatePayload();
+    const executionsChanged = !this.areDraftListsEqual(this.detailExecutions, this.detailOriginalExecutions);
 
     if (!Object.keys(payload).length && !executionsChanged) {
-      this.infoMsg = 'Keine Änderungen zum Speichern.';
-      return;
+      return this.setInfo('Keine Änderungen zum Speichern.');
     }
 
-    this.errorMsg = '';
-    this.infoMsg = '';
+    const executionErrors = this.detailExecutions.flatMap((draft) => this.validateDraft(draft));
+    if (executionErrors.length) return this.setError(executionErrors.join('\n'));
+
     this.updating = true;
 
-    const execValidationErrors = this.detailExecutions.flatMap((d) => this.validateDraft(d));
-    if (execValidationErrors.length) {
-      this.errorMsg = execValidationErrors.join('\n');
-      this.updating = false;
-      return;
-    }
+    this.updateSessionThenSyncExecutions(sessionId, payload).subscribe({
+      next: () => this.syncDetailExecutions(sessionId),
+      error: (err) =>
+        this.handleAuthorizationOrGenericError(err, 'Session konnte nicht aktualisiert werden.', () => (this.updating = false)),
+    });
+  }
 
-    this.detailExecutions = this.renumberAndSort(this.detailExecutions).map((d) => this.normalizeDraft(d));
+  deleteSession(session: TrainingSession, event?: MouseEvent): void {
+    event?.stopPropagation();
+    if (!session.id) return;
 
-    if (!Object.keys(payload).length && executionsChanged) {
-      this.syncDetailExecutions(id);
-      return;
-    }
+    if (!this.assertLoggedIn('Bitte anmelden, um Sessions zu löschen.')) return;
+    if (!window.confirm(`Möchtest du die Session "${session.name}" wirklich löschen?`)) return;
 
-    this.http.patch<any>(`${this.baseUrl}/training-sessions/${id}`, payload).subscribe({
-      next: () => {
-        this.syncDetailExecutions(id);
+    this.clearMessages();
+    this.deleting = true;
+    this.deleteId = Number(session.id);
+
+    this.apiService.deleteSession(Number(session.id)).subscribe({
+      next: () => this.afterDeleteSuccess(Number(session.id)),
+      error: (err) =>
+        this.handleAuthorizationOrGenericError(err, 'Session konnte nicht gelöscht werden.', () => {
+          this.deleting = false;
+          this.deleteId = null;
+        }),
+    });
+  }
+
+  private loadInitialData(): void {
+    this.setLoadingState(true);
+
+    forkJoin({
+      plans: this.apiService.getPlans(),
+      sessions: this.apiService.getSessions(),
+      exercises: this.apiService.getExercises(),
+    }).subscribe({
+      next: ({ plans, sessions, exercises }) => this.applyInitialData(plans, sessions, exercises),
+      error: () => this.setLoadingState(false),
+    });
+  }
+
+  private applyInitialData(plans: TrainingPlan[], sessions: TrainingSession[], exercises: Exercise[]): void {
+    this.plans = plans;
+    this.sessions = sessions;
+    this.exercises = exercises;
+
+    this.filteredExercises = this.filterExercises(this.exercises, this.exerciseSearch);
+    this.availableDetailExercises = this.computeAvailableDetailExercises();
+
+    this.loadExecutionsForSessions();
+    this.setLoadingState(false);
+  }
+
+  private setLoadingState(isLoading: boolean): void {
+    this.loadingPlans = isLoading;
+    this.loadingSessions = isLoading;
+    this.loadingExercises = isLoading;
+  }
+
+  private loadExecutionsForSessions(): void {
+    const sessionIds = this.sessions.map((s) => s.id).filter((id): id is number => Number.isFinite(id));
+    if (!sessionIds.length) return;
+
+    this.apiService.getExecutionsForSessions(sessionIds).subscribe({
+      next: (results) => {
+        this.sessions = this.sessions.map((session, index) => ({
+          ...session,
+          exerciseExecutions: results[index] ?? [],
+        }));
       },
-      error: (err) => {
-        console.error(err);
-        this.updating = false;
-        if (err?.status === 401 || err?.status === 403) {
-          this.errorMsg = 'Nicht berechtigt. Bitte erneut anmelden.';
-        } else {
-          this.errorMsg = err?.error?.detail || err?.error?.message || 'Session konnte nicht aktualisiert werden.';
-        }
+      error: () => {
+        this.setError('Übungen zu Sessions konnten nicht geladen werden.');
       },
     });
   }
 
-  private syncDetailExecutions(sessionId: number): void {
-    this.detailExecutions = [...this.detailExecutions].map((d, idx) => ({
-      ...d,
-      orderIndex: idx + 1,
-    }));
-
-    const toCreate = this.detailExecutions.filter((d) => !d.executionId);
-
-    const toDelete = this.detailOriginalExecutions.filter(
-      (o) => !this.detailExecutions.find((d) => d.executionId === o.executionId)
-    );
-
-    const toUpdate = this.detailExecutions.filter((d) => {
-      if (!d.executionId) return false;
-      const orig = this.detailOriginalExecutions.find((o) => o.executionId === d.executionId);
-      if (!orig) return true;
-      return JSON.stringify(d) !== JSON.stringify(orig);
-    });
-
-    const createRequests = toCreate.map((d) =>
-      this.http.post(`${this.baseUrl}/training-sessions/${sessionId}/executions`, {
-        exerciseId: d.exerciseId,
-        orderIndex: d.orderIndex,
-        plannedSets: d.plannedSets,
-        plannedReps: d.plannedReps,
-        plannedWeightKg: d.plannedWeightKg,
-        notes: d.notes,
-      })
-    );
-
-    const deleteRequests = toDelete.map((d) =>
-      this.http.delete(`${this.baseUrl}/training-sessions/${sessionId}/executions/${d.executionId}`)
-    );
-
-    const orderChangedForExisting = toUpdate.some((d) => {
-      const orig = this.detailOriginalExecutions.find((o) => o.executionId === d.executionId);
-      return !!orig && Number(orig.orderIndex) !== Number(d.orderIndex);
-    });
-
-    const runFinalUpdateRequests = () => {
-      const updateRequests = toUpdate.map((d) =>
-        this.http.patch(`${this.baseUrl}/training-sessions/${sessionId}/executions/${d.executionId}`, {
-          exerciseId: d.exerciseId,
-          orderIndex: d.orderIndex,
-          plannedSets: d.plannedSets,
-          plannedReps: d.plannedReps,
-          plannedWeightKg: d.plannedWeightKg,
-          notes: d.notes,
-        })
-      );
-
-      const all = [...createRequests, ...updateRequests, ...deleteRequests];
-
-      if (!all.length) {
-        this.afterUpdateSuccess();
-        return;
-      }
-
-      forkJoin(all).subscribe({
-        next: () => this.afterUpdateSuccess(),
-        error: (err) => {
-          console.error(err);
-          this.updating = false;
-          if (err?.status === 401 || err?.status === 403) {
-            this.errorMsg = 'Nicht berechtigt. Bitte erneut anmelden.';
-          } else {
-            this.errorMsg = 'Übungen konnten nicht gespeichert werden.';
-          }
-        },
-      });
+  private buildCreateSessionPayload(): CreateTrainingSessionRequest {
+    return {
+      planId: Number(this.form.planId),
+      name: this.form.name.trim(),
+      days: this.normalizeDays(this.form.days),
     };
+  }
 
-    if (!orderChangedForExisting) {
-      runFinalUpdateRequests();
-      return;
+  private createExecutionsForNewSession(sessionId: number): void {
+    if (!sessionId || !this.selectedExecutions.length) {
+      return this.afterCreateSuccess();
     }
 
-    const existing = this.detailExecutions.filter((d) => !!d.executionId);
+    const validationErrors = this.selectedExecutions.flatMap((draft) => this.validateDraft(draft));
+    if (validationErrors.length) {
+      this.creating = false;
+      return this.setError(validationErrors.join('\n'));
+    }
 
-    const tempShiftRequests = existing.map((d) =>
-      this.http.patch(`${this.baseUrl}/training-sessions/${sessionId}/executions/${d.executionId}`, {
-        orderIndex: Number(d.orderIndex) + 1000,
-      })
-    );
+    const normalizedDrafts = this.normalizeAndResequenceDrafts(this.selectedExecutions);
+    const requests = normalizedDrafts.map((draft) => this.apiService.createExecution(sessionId, this.toExecutionRequest(draft)));
 
-    forkJoin(tempShiftRequests).subscribe({
-      next: () => runFinalUpdateRequests(),
-      error: (err) => {
-        console.error(err);
-        this.updating = false;
-        this.errorMsg = 'Reihenfolge konnte nicht vorbereitet werden (Prio-Shift fehlgeschlagen).';
+    forkJoin(requests).subscribe({
+      next: () => this.afterCreateSuccess(),
+      error: (err) =>
+        this.handleAuthorizationOrGenericError(
+          err,
+          'Session wurde angelegt, aber Übungen konnten nicht zugeordnet werden.',
+          () => {
+            this.creating = false;
+            this.reloadSessionsAfterPartialFailure();
+          }
+        ),
+    });
+  }
+
+  private reloadSessionsAfterPartialFailure(): void {
+    this.apiService.getSessions().subscribe({
+      next: (sessions) => {
+        this.sessions = sessions;
+        this.loadExecutionsForSessions();
+      },
+      error: () => {
+        this.setError('Sessions konnten nach Fehler nicht neu geladen werden.');
       },
     });
+  }
+
+  private afterCreateSuccess(): void {
+    this.setInfo('Session wurde hinzugefügt.');
+    this.form = this.createEmptyFormState();
+    this.selectedExecutions = [];
+    this.exerciseSearch = '';
+    this.filteredExercises = this.filterExercises(this.exercises, this.exerciseSearch);
+
+    this.creating = false;
+
+    this.apiService.getSessions().subscribe({
+      next: (sessions) => {
+        this.sessions = sessions;
+        this.loadExecutionsForSessions();
+      },
+      error: () => {
+        this.setError('Sessions konnten nicht neu geladen werden.');
+      },
+    });
+
+    this.apiService.getPlans().subscribe({
+      next: (plans) => (this.plans = plans),
+      error: () => {
+        this.setError('Trainingspläne konnten nicht neu geladen werden.');
+      },
+    });
+  }
+
+  private applyLoadedExecutions(executions: PlannedExerciseResponse[]): void {
+    this.detailExecutions = this.mapExecutionResponsesToDrafts(executions);
+    this.detailOriginalExecutions = this.cloneDrafts(this.detailExecutions);
+    this.resetDetailExerciseSearch();
+    this.detailLoading = false;
+  }
+
+  private updateSessionThenSyncExecutions(
+    sessionId: number,
+    payload: UpdateTrainingSessionRequest
+  ): Observable<void> {
+    if (!Object.keys(payload).length) return of(void 0);
+    return this.apiService.updateSession(sessionId, payload);
+  }
+
+  private afterDeleteSuccess(deletedSessionId: number): void {
+    this.deleting = false;
+    this.deleteId = null;
+
+    this.setInfo('Session wurde gelöscht.');
+    this.sessions = this.sessions.filter((s) => Number(s.id) !== deletedSessionId);
+
+    if (this.selectedSession?.id && Number(this.selectedSession.id) === deletedSessionId) {
+      this.clearSelection();
+    }
+  }
+
+  private validateCreateForm(): string | null {
+    const name = this.form.name.trim();
+    const planId = this.form.planId;
+    const days = this.normalizeDays(this.form.days);
+
+    if (!planId || !name || !days.length) {
+      return 'Bitte Plan, Name und mindestens einen Tag (1-30) angeben.';
+    }
+    return null;
+  }
+
+  private validateDetailForm(): string | null {
+    const name = this.detailForm.name.trim();
+    const planId = this.detailForm.planId;
+
+    if (!planId || !name) return 'Bitte Name und Plan angeben.';
+
+    const days = this.normalizeDays(this.detailForm.days);
+    const original = this.detailOriginal;
+
+    const daysChanged = Boolean(original && original.daysKey !== this.makeDaysKey(days));
+    if (daysChanged && !days.length) return 'Bitte mindestens einen Tag (1-30) auswählen.';
+
+    if (daysChanged) {
+      const blockedDay = this.findBlockedDay(planId, days, this.detailForm.id);
+      if (blockedDay != null) return `Tag ${blockedDay} ist in diesem Plan bereits durch eine andere Session belegt.`;
+    }
+
+    return null;
+  }
+
+  private buildUpdatePayload(): UpdateTrainingSessionRequest {
+    const original = this.detailOriginal;
+    const payload: UpdateTrainingSessionRequest = {};
+
+    const name = this.detailForm.name.trim();
+    const planId = this.detailForm.planId;
+    const days = this.normalizeDays(this.detailForm.days);
+
+    if (!original || original.name !== name) payload.name = name;
+    if (!original || original.planId !== planId) payload.planId = planId ?? undefined;
+
+    const daysKeyNow = this.makeDaysKey(days);
+    if (!original || original.daysKey !== daysKeyNow) payload.days = days;
+
+    return payload;
+  }
+
+  private syncDetailExecutions(sessionId: number): void {
+    const normalizedCurrent = this.normalizeAndResequenceDrafts(this.detailExecutions);
+    const syncPlan = this.buildExecutionSyncPlan(normalizedCurrent, this.detailOriginalExecutions);
+
+    const requests$ = syncPlan.hasOrderChangeForExisting
+      ? this.runShiftThenFinalRequests(sessionId, normalizedCurrent, syncPlan)
+      : this.runFinalExecutionRequests(sessionId, normalizedCurrent, syncPlan);
+
+    requests$.subscribe({
+      next: () => this.afterUpdateSuccess(),
+      error: (err) => {
+        this.updating = false;
+        this.setError(this.formatShiftOrSaveError(err, 'Übungen konnten nicht gespeichert werden.'));
+      },
+    });
+  }
+
+  private buildExecutionSyncPlan(current: ExecutionDraft[], original: ExecutionDraft[]): ExecutionSyncPlan {
+    const toCreate = current.filter((d) => !d.executionId);
+    const toDelete = original.filter((o) => !current.find((d) => d.executionId === o.executionId));
+    const toUpdate = current.filter((d) => this.hasDraftChanged(d, original));
+    const hasOrderChangeForExisting = toUpdate.some((d) => this.hasOrderChanged(d, original));
+
+    return { toCreate, toDelete, toUpdate, hasOrderChangeForExisting };
+  }
+
+  private runShiftThenFinalRequests(
+    sessionId: number,
+    normalizedCurrent: ExecutionDraft[],
+    plan: ExecutionSyncPlan
+  ): Observable<unknown> {
+    const existing = normalizedCurrent.filter((d) => Boolean(d.executionId));
+    const shiftRequests = existing.map((draft) =>
+      this.apiService.updateExecution(sessionId, Number(draft.executionId), this.toShiftedExecutionRequest(draft))
+    );
+
+    if (!shiftRequests.length) {
+      this.detailExecutions = normalizedCurrent;
+      return this.runFinalExecutionRequests(sessionId, normalizedCurrent, plan);
+    }
+
+    return forkJoin(shiftRequests).pipe(
+      tap(() => {
+        this.detailExecutions = normalizedCurrent;
+      }),
+      switchMap(() => this.runFinalExecutionRequests(sessionId, normalizedCurrent, plan))
+    );
+  }
+
+  private toShiftedExecutionRequest(draft: ExecutionDraft): ExecutionRequest {
+    return { ...this.toExecutionRequest(draft), orderIndex: draft.orderIndex + ORDER_INDEX_SHIFT };
+  }
+
+  private runFinalExecutionRequests(
+    sessionId: number,
+    normalizedCurrent: ExecutionDraft[],
+    plan: ExecutionSyncPlan
+  ): Observable<unknown> {
+    this.detailExecutions = normalizedCurrent;
+
+    const createRequests = plan.toCreate.map((draft) =>
+      this.apiService.createExecution(sessionId, this.toExecutionRequest(draft))
+    );
+
+    const updateRequests = plan.toUpdate
+      .filter((draft) => Number.isFinite(Number(draft.executionId)))
+      .map((draft) =>
+        this.apiService.updateExecution(sessionId, Number(draft.executionId), this.toExecutionRequest(draft))
+      );
+
+    const deleteRequests = plan.toDelete
+      .filter((draft) => Number.isFinite(Number(draft.executionId)))
+      .map((draft) => this.apiService.deleteExecution(sessionId, Number(draft.executionId)));
+
+    const allRequests = [...createRequests, ...updateRequests, ...deleteRequests];
+    if (!allRequests.length) return of(true);
+
+    return forkJoin(allRequests).pipe(map(() => true));
+  }
+
+  private formatShiftOrSaveError(err: unknown, fallbackMessage: string): string {
+    const anyErr = err as { status?: number; error?: any } | null;
+
+    if (anyErr?.status === 401 || anyErr?.status === 403) return 'Nicht berechtigt. Bitte erneut anmelden.';
+
+    const status = anyErr?.status;
+    const detail =
+      anyErr?.error?.detail ||
+      anyErr?.error?.message ||
+      (typeof anyErr?.error === 'string' ? anyErr.error : '');
+
+    const prefix = status ? `Status: ${status}` : 'Status: unbekannt';
+    const message = detail ? `${prefix} – Detail: ${detail}` : prefix;
+
+    return `${fallbackMessage} ${message}`;
   }
 
   private afterUpdateSuccess(): void {
     this.updating = false;
-    this.infoMsg = 'Session wurde vollständig aktualisiert.';
+    this.setInfo('Session wurde vollständig aktualisiert.');
     this.clearSelection();
-    this.loadSessions();
+
+    this.apiService.getSessions().subscribe({
+      next: (sessions) => {
+        this.sessions = sessions;
+        this.loadExecutionsForSessions();
+      },
+      error: () => {
+        this.setError('Sessions konnten nach Update nicht neu geladen werden.');
+      },
+    });
   }
 
-  // Session löschen (nur mit Login)
-  deleteSession(session: TrainingSession, event?: MouseEvent): void {
-    if (event) event.stopPropagation();
-    if (!session.id) return;
+  private initializeDetailForm(session: TrainingSession): void {
+    const id = Number(session.id);
+    const planId = session.planId != null ? Number(session.planId) : null;
 
-    if (!this.isLoggedIn) {
-      this.errorMsg = 'Bitte anmelden, um Sessions zu löschen.';
-      this.infoMsg = '';
+    this.detailForm = {
+      id,
+      name: session.name,
+      days: this.normalizeDays(session.days),
+      planId,
+    };
+
+    this.detailOriginal = {
+      id,
+      name: String(session.name ?? ''),
+      planId,
+      daysKey: this.makeDaysKey(this.detailForm.days),
+    };
+  }
+
+  private mapExecutionResponsesToDrafts(executions: PlannedExerciseResponse[] | null | undefined): ExecutionDraft[] {
+    const drafts = (executions ?? [])
+      .map((response) => this.mapExecutionResponseToDraft(response))
+      .filter((draft): draft is ExecutionDraft => draft != null)
+      .sort((a, b) => a.orderIndex - b.orderIndex);
+
+    return this.normalizeAndResequenceDrafts(drafts);
+  }
+
+  private mapExecutionResponseToDraft(response: PlannedExerciseResponse): ExecutionDraft | null {
+    const exerciseId = Number(response.exerciseId ?? response.exercise?.id);
+    if (!Number.isFinite(exerciseId)) return null;
+
+    return this.normalizeDraft({
+      executionId: Number(response.id),
+      exerciseId,
+      orderIndex: Number(response.orderIndex) || 1,
+      plannedSets: Number(response.plannedSets) || DEFAULT_EXECUTION_VALUES.SETS,
+      plannedReps: Number(response.plannedReps) || DEFAULT_EXECUTION_VALUES.REPS,
+      plannedWeightKg: Number(response.plannedWeightKg) || DEFAULT_EXECUTION_VALUES.WEIGHT_KG,
+      notes: response.notes ?? null,
+    });
+  }
+
+  private toExecutionRequest(draft: ExecutionDraft): ExecutionRequest {
+    return {
+      exerciseId: draft.exerciseId,
+      orderIndex: draft.orderIndex,
+      plannedSets: draft.plannedSets,
+      plannedReps: draft.plannedReps,
+      plannedWeightKg: draft.plannedWeightKg,
+      notes: draft.notes,
+    };
+  }
+
+  private computeAvailableDetailExercises(): Exercise[] {
+    const term = this.normalizeSearchTerm(this.detailExerciseSearch);
+    const usedExerciseIds = new Set(this.detailExecutions.map((draft) => draft.exerciseId));
+
+    return this.exercises
+      .filter((exercise) => !usedExerciseIds.has(exercise.id))
+      .filter((exercise) => !term || this.normalizeSearchTerm(exercise.name).includes(term));
+  }
+
+  private filterExercises(exercises: Exercise[], search: string): Exercise[] {
+    const term = this.normalizeSearchTerm(search);
+    if (!term) return [...exercises];
+
+    return exercises.filter((exercise) => this.normalizeSearchTerm(exercise.name).includes(term));
+  }
+
+  private getExerciseNamesFromSession(session: TrainingSession): string[] {
+    const fromExecutions = (session.exerciseExecutions ?? [])
+      .map((execution: any) => (execution?.exerciseName ?? execution?.exercise?.name ?? '').toString().trim())
+      .filter(Boolean);
+
+    if (fromExecutions.length) return fromExecutions;
+
+    return (session.exerciseNames ?? []).map((x) => (x ?? '').toString().trim()).filter(Boolean);
+  }
+
+  private getUsedDaysForPlan(planId: number | null, excludeSessionId?: number | null): Set<number> {
+    const usedDays = new Set<number>();
+    if (!planId) return usedDays;
+
+    const excludedId = excludeSessionId != null ? Number(excludeSessionId) : null;
+
+    this.sessions.forEach((session) => {
+      const sessionPlanId = session.planId != null ? Number(session.planId) : null;
+      const sessionId = session.id != null ? Number(session.id) : null;
+
+      if (sessionPlanId !== Number(planId)) return;
+      if (excludedId != null && sessionId === excludedId) return;
+
+      (session.days ?? []).forEach((dayValue) => {
+        const day = Number(dayValue);
+        if (Number.isFinite(day)) usedDays.add(day);
+      });
+    });
+
+    return usedDays;
+  }
+
+  private findBlockedDay(planId: number, days: number[], excludeSessionId: number | null): number | null {
+    const usedDays = this.getUsedDaysForPlan(planId, excludeSessionId);
+    const blocked = days.find((day) => usedDays.has(day));
+    return blocked ?? null;
+  }
+
+  private removeBlockedDaysFromDetailForm(usedDays: Set<number>): number[] {
+    const before = [...this.detailForm.days];
+    const after = before.filter((day) => !usedDays.has(day));
+
+    this.detailForm.days = this.normalizeDays(after);
+
+    return before.filter((day) => usedDays.has(day)).sort((a, b) => a - b);
+  }
+
+  private resetDetailExerciseSearch(): void {
+    this.detailExerciseSearch = '';
+    this.availableDetailExercises = this.computeAvailableDetailExercises();
+  }
+
+  private isDayInRange(day: number): boolean {
+    return day >= DAY_RANGE.MIN && day <= DAY_RANGE.MAX;
+  }
+
+  private toggleDayInList(days: number[], day: number): number[] {
+    const set = new Set(this.normalizeDays(days));
+    if (set.has(day)) set.delete(day);
+    else set.add(day);
+
+    return [...set].sort((a, b) => a - b);
+  }
+
+  private normalizeDays(days: number[] | null | undefined): number[] {
+    return [...(days ?? [])]
+      .map((d) => Number(d))
+      .filter((d) => Number.isFinite(d) && d >= DAY_RANGE.MIN && d <= DAY_RANGE.MAX)
+      .sort((a, b) => a - b);
+  }
+
+  private normalizeSearchTerm(value: string | null | undefined): string {
+    return (value ?? '').trim().toLowerCase();
+  }
+
+  private createEmptyFormState(): SessionFormState {
+    return { planId: null, name: '', days: [] };
+  }
+
+  private createDefaultDraft(exerciseId: number, orderIndex: number): ExecutionDraft {
+    return {
+      executionId: null,
+      exerciseId,
+      orderIndex,
+      plannedSets: DEFAULT_EXECUTION_VALUES.SETS,
+      plannedReps: DEFAULT_EXECUTION_VALUES.REPS,
+      plannedWeightKg: DEFAULT_EXECUTION_VALUES.WEIGHT_KG,
+      notes: null,
+    };
+  }
+
+  private nextOrderIndex(list: ExecutionDraft[]): number {
+    const maxOrderIndex = list.reduce((max, draft) => Math.max(max, Number(draft.orderIndex) || 0), 0);
+    return Math.max(1, maxOrderIndex + 1);
+  }
+
+  private moveItemAndResequence(list: ExecutionDraft[], index: number, direction: -1 | 1): ExecutionDraft[] {
+    const newIndex = index + direction;
+    if (index < 0 || index >= list.length) return list;
+    if (newIndex < 0 || newIndex >= list.length) return list;
+
+    const copy = [...list];
+    [copy[index], copy[newIndex]] = [copy[newIndex], copy[index]];
+
+    return this.resequencePreservingCurrentOrder(copy);
+  }
+
+  private resequencePreservingCurrentOrder(list: ExecutionDraft[]): ExecutionDraft[] {
+    const normalized = list.map((draft) => this.normalizeDraft(draft));
+    return normalized.map((draft, idx) => ({ ...draft, orderIndex: idx + 1 }));
+  }
+
+  private validateDraft(draft: ExecutionDraft): string[] {
+    const errors: string[] = [];
+    const exerciseName = this.getExerciseName(Number(draft.exerciseId));
+
+    if (!this.isStrictPositiveIntInput(draft.orderIndex) || Number(draft.orderIndex) < VALIDATION_LIMITS.ORDER_INDEX_MIN) {
+      errors.push(`${exerciseName}: Reihenfolge (Priorität) muss eine ganze Zahl ≥ 1 sein (ohne Sonderzeichen).`);
+    }
+
+    if (!this.isStrictPositiveIntInput(draft.plannedSets) || Number(draft.plannedSets) < VALIDATION_LIMITS.SETS_MIN) {
+      errors.push(`${exerciseName}: Sätze müssen eine ganze Zahl ≥ 1 sein (ohne Sonderzeichen).`);
+    }
+
+    if (!this.isStrictPositiveIntInput(draft.plannedReps) || Number(draft.plannedReps) < VALIDATION_LIMITS.REPS_MIN) {
+      errors.push(`${exerciseName}: Wiederholungen müssen eine ganze Zahl ≥ 1 sein (ohne Sonderzeichen).`);
+    }
+
+    const weight = Number(String(draft.plannedWeightKg).replace(',', '.'));
+    if (!this.isStrictNonNegativeNumberInput(draft.plannedWeightKg) || weight < VALIDATION_LIMITS.WEIGHT_MIN) {
+      errors.push(`${exerciseName}: Gewicht (kg) muss eine Zahl ≥ 0 sein (ohne Sonderzeichen).`);
+    }
+
+    return errors;
+  }
+
+  private normalizeDraft(draft: ExecutionDraft): ExecutionDraft {
+    const weight = Number(String(draft.plannedWeightKg ?? 0).replace(',', '.'));
+    const notes = (draft.notes ?? '').toString().trim();
+
+    return {
+      executionId: draft.executionId ?? null,
+      exerciseId: Number(draft.exerciseId),
+      orderIndex: this.clampInt(draft.orderIndex, VALIDATION_LIMITS.ORDER_INDEX_MIN, VALIDATION_LIMITS.ORDER_INDEX_MAX),
+      plannedSets: this.clampInt(draft.plannedSets, VALIDATION_LIMITS.SETS_MIN, VALIDATION_LIMITS.SETS_MAX),
+      plannedReps: this.clampInt(draft.plannedReps, VALIDATION_LIMITS.REPS_MIN, VALIDATION_LIMITS.REPS_MAX),
+      plannedWeightKg: this.clampFloat(weight, VALIDATION_LIMITS.WEIGHT_MIN, VALIDATION_LIMITS.WEIGHT_MAX),
+      notes: notes ? notes : null,
+    };
+  }
+
+  private normalizeAndResequenceDrafts(list: ExecutionDraft[]): ExecutionDraft[] {
+    const normalized = list.map((d) => this.normalizeDraft(d)).sort((a, b) => a.orderIndex - b.orderIndex);
+    return normalized.map((draft, idx) => ({ ...draft, orderIndex: idx + 1 }));
+  }
+
+  private clampInt(value: unknown, min: number, max: number): number {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return min;
+    return Math.max(min, Math.min(max, Math.trunc(n)));
+  }
+
+  private clampFloat(value: unknown, min: number, max: number): number {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return min;
+    return Math.max(min, Math.min(max, n));
+  }
+
+  private isStrictPositiveIntInput(value: unknown): boolean {
+    const s = (value ?? '').toString();
+    return /^\d+$/.test(s);
+  }
+
+  private isStrictNonNegativeNumberInput(value: unknown): boolean {
+    const s = (value ?? '').toString();
+    return /^\d+(?:[.,]\d+)?$/.test(s);
+  }
+
+  private makeDaysKey(days: number[]): string {
+    return this.normalizeDays(days).join(',');
+  }
+
+  private cloneDrafts(list: ExecutionDraft[]): ExecutionDraft[] {
+    return JSON.parse(JSON.stringify(list)) as ExecutionDraft[];
+  }
+
+  private areDraftListsEqual(a: ExecutionDraft[], b: ExecutionDraft[]): boolean {
+    if (a.length !== b.length) return false;
+
+    const aSorted = [...a].sort((x, y) => (x.executionId ?? 0) - (y.executionId ?? 0));
+    const bSorted = [...b].sort((x, y) => (x.executionId ?? 0) - (y.executionId ?? 0));
+
+    for (let i = 0; i < aSorted.length; i += 1) {
+      if (!this.areDraftsEqual(aSorted[i], bSorted[i])) return false;
+    }
+
+    return true;
+  }
+
+  private areDraftsEqual(a: ExecutionDraft, b: ExecutionDraft): boolean {
+    return (
+      (a.executionId ?? null) === (b.executionId ?? null) &&
+      a.exerciseId === b.exerciseId &&
+      a.orderIndex === b.orderIndex &&
+      a.plannedSets === b.plannedSets &&
+      a.plannedReps === b.plannedReps &&
+      a.plannedWeightKg === b.plannedWeightKg &&
+      (a.notes ?? null) === (b.notes ?? null)
+    );
+  }
+
+  private hasDraftChanged(current: ExecutionDraft, originalList: ExecutionDraft[]): boolean {
+    if (!current.executionId) return false;
+
+    const original = originalList.find((o) => o.executionId === current.executionId);
+    if (!original) return true;
+
+    return !this.areDraftsEqual(current, original);
+  }
+
+  private hasOrderChanged(current: ExecutionDraft, originalList: ExecutionDraft[]): boolean {
+    if (!current.executionId) return false;
+
+    const original = originalList.find((o) => o.executionId === current.executionId);
+    if (!original) return true;
+
+    return Number(original.orderIndex) !== Number(current.orderIndex);
+  }
+
+  private clearMessages(): void {
+    this.errorMsg = '';
+    this.infoMsg = '';
+  }
+
+  private setError(message: string): void {
+    this.errorMsg = message;
+    this.infoMsg = '';
+  }
+
+  private setInfo(message: string): void {
+    this.infoMsg = message;
+    this.errorMsg = '';
+  }
+
+  private assertLoggedIn(messageIfNotLoggedIn: string): boolean {
+    if (this.isLoggedIn) return true;
+    this.setError(messageIfNotLoggedIn);
+    return false;
+  }
+
+  private handleAuthorizationOrGenericError(err: any, fallbackMessage: string, onFinally: () => void): void {
+    onFinally();
+
+    if (err?.status === 401 || err?.status === 403) {
+      this.setError('Nicht berechtigt. Bitte erneut anmelden.');
       return;
     }
 
-    const confirmed = window.confirm(`Möchtest du die Session "${session.name}" wirklich löschen?`);
-    if (!confirmed) return;
-
-    this.errorMsg = '';
-    this.infoMsg = '';
-    this.deleting = true;
-    this.deleteId = Number(session.id);
-
-    this.http.delete(`${this.baseUrl}/training-sessions/${Number(session.id)}`).subscribe({
-      next: () => {
-        this.deleting = false;
-        this.deleteId = null;
-        this.infoMsg = 'Session wurde gelöscht.';
-        this.sessions = this.sessions.filter((s) => Number(s.id) !== Number(session.id));
-
-        if (this.selectedSession?.id && Number(this.selectedSession.id) === Number(session.id)) {
-          this.clearSelection();
-        }
-      },
-      error: (err) => {
-        console.error(err);
-        this.deleting = false;
-        this.deleteId = null;
-        if (err?.status === 401 || err?.status === 403) {
-          this.errorMsg = 'Nicht berechtigt. Bitte erneut anmelden.';
-        } else {
-          this.errorMsg = err?.error?.detail || 'Session konnte nicht gelöscht werden.';
-        }
-      },
-    });
-  }
-
-  private loadPlans(): void {
-    this.loadingPlans = true;
-    this.http.get<any>(`${this.baseUrl}/training-plans?size=200`).subscribe({
-      next: (res) => {
-        const list = this.flattenCollection(res, 'trainingPlans');
-        this.plans = (list ?? []).map((p: any) => ({
-          id: Number(p.id),
-          name: p.name,
-          description: p.description,
-        }));
-        this.loadingPlans = false;
-      },
-      error: (err) => {
-        console.error(err);
-        this.loadingPlans = false;
-      },
-    });
-  }
-
-  private loadSessions(): void {
-    this.loadingSessions = true;
-
-    this.http.get<any>(`${this.baseUrl}/training-sessions?size=200`).subscribe({
-      next: (res) => {
-        const list = this.flattenCollection(res, 'trainingSessions');
-
-        this.sessions = (list ?? []).map((s: any) => ({
-          id: Number(s.id),
-          name: s.name,
-          planId: s.planId != null ? Number(s.planId) : s.plan?.id != null ? Number(s.plan.id) : null,
-          planName: s.planName ?? s.plan?.name,
-          days: Array.isArray(s.days)
-            ? s.days.map((d: any) => Number(d)).filter((d: number) => d >= 1 && d <= 30)
-            : [],
-          exerciseExecutions: [],
-        }));
-
-        const ids = this.sessions
-          .map((s) => s.id)
-          .filter((id): id is number => Number.isFinite(id));
-
-        if (!ids.length) {
-          this.loadingSessions = false;
-          return;
-        }
-
-        const requests = ids.map((id) =>
-          this.http.get<any[]>(`${this.baseUrl}/training-sessions/${id}/executions`)
-        );
-
-        forkJoin(requests).subscribe({
-          next: (results) => {
-            this.sessions = this.sessions.map((s, i) => ({
-              ...s,
-              exerciseExecutions: results[i] ?? [],
-            }));
-            this.loadingSessions = false;
-          },
-          error: () => {
-            this.loadingSessions = false;
-          },
-        });
-      },
-      error: () => {
-        this.loadingSessions = false;
-      },
-    });
-  }
-
-  private loadExercises(): void {
-    this.loadingExercises = true;
-    this.http.get<any>(`${this.baseUrl}/exercises?size=500`).subscribe({
-      next: (res) => {
-        const list = this.flattenCollection(res, 'exercises');
-        this.exercises = (list ?? []).map((e: any) => ({
-          id: Number(e.id),
-          name: e.name,
-          category: e.category,
-          muscleGroups: e.muscleGroups,
-        }));
-        this.filteredExercises = [...this.exercises];
-        this.applyExerciseSearch();
-        this.loadingExercises = false;
-      },
-      error: (err) => {
-        console.error(err);
-        this.loadingExercises = false;
-      },
-    });
-  }
-
-  private flattenCollection(res: any, embeddedKey: string): any[] {
-    if (Array.isArray(res)) return res;
-    if (Array.isArray(res?._embedded?.[embeddedKey])) return res._embedded[embeddedKey];
-    if (Array.isArray(res?.content)) return res.content;
-    if (Array.isArray(res?.items)) return res.items;
-    if (Array.isArray(res?.data)) return res.data;
-    if (res && typeof res === 'object') return [res];
-    return [];
+    const backendMessage = err?.error?.detail || err?.error?.message;
+    this.setError(backendMessage ? String(backendMessage) : fallbackMessage);
   }
 }

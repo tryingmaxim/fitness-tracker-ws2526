@@ -12,13 +12,13 @@ import { AuthService } from '../services/auth.service';
 })
 export class LayoutPrivate implements OnInit, OnDestroy {
   slides = [
-    'assets/GymBild1.png',
-    'assets/GymBild2.png',
-    'assets/GymBild3.jpg',
-    'assets/GymBild5.png',
-    'assets/GymBild6.png',
-    'assets/GymBild7.png',
-    'assets/Bild8.png',
+    'assets/slideshow/GymBild1.png',
+    'assets/slideshow/GymBild2.png',
+    'assets/slideshow/GymBild3.jpg',
+    'assets/slideshow/GymBild5.png',
+    'assets/slideshow/GymBild6.png',
+    'assets/slideshow/GymBild7.png',
+    'assets/slideshow/Bild8.png',
   ];
 
   current = 0;

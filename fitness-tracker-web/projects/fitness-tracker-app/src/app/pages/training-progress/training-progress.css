@@ -1,4 +1,4 @@
-/* Big wrapper card like your other pages */
+/* Layout */
 .tp-shell {
   width: 100%;
   display: flex;
@@ -14,11 +14,11 @@
 
   border-radius: 1.4rem;
   padding: 1.6rem 1.8rem 1.6rem;
-  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.5);
 
   background: rgba(5, 5, 5, 0.72);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.03);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.5);
 
   display: flex;
   flex-direction: column;
@@ -116,7 +116,9 @@
   background: rgba(248, 250, 252, 0.9);
 }
 
-.chip.subtle { opacity: 0.85; }
+.chip.subtle {
+  opacity: 0.85;
+}
 
 .chip.danger {
   border-color: rgba(239, 68, 68, 0.6);
@@ -131,7 +133,11 @@
   margin-bottom: 0.9rem;
 }
 
-.field { display: flex; flex-direction: column; gap: 0.35rem; }
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
 
 .field label {
   font-size: 0.8rem;
@@ -206,7 +212,10 @@
   opacity: 0.92;
 }
 
-.sep { margin: 0 0.45rem; opacity: 0.65; }
+.sep {
+  margin: 0 0.45rem;
+  opacity: 0.65;
+}
 
 .tp-mini-stats {
   margin-top: 0.55rem;
@@ -237,8 +246,16 @@
   background: rgba(34, 197, 94, 0.1);
 }
 
-.tp-metric-label { font-size: 0.75rem; opacity: 0.9; }
-.tp-metric-value { font-size: 1.2rem; font-weight: 800; margin-top: 0.1rem; }
+.tp-metric-label {
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+
+.tp-metric-value {
+  font-size: 1.2rem;
+  font-weight: 800;
+  margin-top: 0.1rem;
+}
 
 .tp-card-actions {
   display: flex;
@@ -273,7 +290,11 @@
   margin-bottom: 0.55rem;
 }
 
-.ex-table { display: flex; flex-direction: column; gap: 0.45rem; }
+.ex-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
 
 .ex-row {
   display: grid;
@@ -295,9 +316,15 @@
   opacity: 0.9;
 }
 
-.ex-name { font-weight: 800; }
+.ex-name {
+  font-weight: 800;
+}
 
-.runs { display: flex; flex-direction: column; gap: 0.65rem; }
+.runs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
 
 .run-card {
   border-radius: 0.9rem;
@@ -327,14 +354,28 @@
   background: rgba(2, 6, 23, 0.25);
 }
 
-.run-status.completed { border-color: rgba(34, 197, 94, 0.6); }
-.run-status.cancelled { border-color: rgba(239, 68, 68, 0.6); }
+.run-status.completed {
+  border-color: rgba(34, 197, 94, 0.6);
+}
 
-.run-meta { margin-top: 0.35rem; font-size: 0.85rem; }
+.run-status.cancelled {
+  border-color: rgba(239, 68, 68, 0.6);
+}
 
-.run-exercises { margin-top: 0.65rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.run-meta {
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+}
 
-.rex-head, .rex-row {
+.run-exercises {
+  margin-top: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.rex-head,
+.rex-row {
   display: grid;
   grid-template-columns: 1.6fr 1fr 1fr 70px;
   gap: 0.7rem;
@@ -343,8 +384,15 @@
   border: 1px solid rgba(148, 163, 184, 0.2);
 }
 
-.rex-head { font-weight: 850; opacity: 0.9; background: rgba(2, 6, 23, 0.18); }
-.rex-row { background: rgba(2, 6, 23, 0.12); }
+.rex-head {
+  font-weight: 850;
+  opacity: 0.9;
+  background: rgba(2, 6, 23, 0.18);
+}
+
+.rex-row {
+  background: rgba(2, 6, 23, 0.12);
+}
 
 :host-context(.light-mode) .rex-head,
 :host-context(.light-mode) .rex-row {
@@ -352,11 +400,19 @@
   border-color: rgba(148, 163, 184, 0.35);
 }
 
-.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-.muted { opacity: 0.85; }
-.small { font-size: 0.82rem; }
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
 
-/* messages */
+.muted {
+  opacity: 0.85;
+}
+
+.small {
+  font-size: 0.82rem;
+}
+
+/* Messages */
 .msg {
   border-radius: 0.8rem;
   padding: 0.65rem 0.75rem;
@@ -379,10 +435,18 @@
   opacity: 0.92;
 }
 
-.empty-title { font-weight: 800; font-size: 1.05rem; }
-.empty-sub { margin-top: 0.25rem; font-size: 0.9rem; opacity: 0.9; }
+.empty-title {
+  font-weight: 800;
+  font-size: 1.05rem;
+}
 
-/* Buttons (fallback, fits your style) */
+.empty-sub {
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+/* Buttons (fallback) */
 .mini-btn {
   border: 1px solid rgba(148, 163, 184, 0.35);
   background: rgba(2, 6, 23, 0.25);
@@ -412,18 +476,41 @@
 
 /* Responsive */
 @media (max-width: 980px) {
-  .tp-filters { grid-template-columns: 1fr; }
-  .tp-hero { flex-direction: column; align-items: flex-start; }
+  .tp-filters {
+    grid-template-columns: 1fr;
+  }
 
-  .ex-row { grid-template-columns: 60px 1fr; }
-  .ex-row > :nth-child(3) { grid-column: 1 / -1; }
-  .ex-row > :nth-child(4) { grid-column: 1 / -1; }
+  .tp-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 
-  .rex-head, .rex-row { grid-template-columns: 1fr; }
+  .ex-row {
+    grid-template-columns: 60px 1fr;
+  }
+
+  .ex-row > :nth-child(3) {
+    grid-column: 1 / -1;
+  }
+
+  .ex-row > :nth-child(4) {
+    grid-column: 1 / -1;
+  }
+
+  .rex-head,
+  .rex-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Slight padding adjustments */
 @media (max-width: 560px) {
-  .tp-shell { padding: 3.5rem 0.75rem 2.75rem; }
-  .tp-wrapper-card { padding: 1.2rem 1.05rem; border-radius: 0.95rem; }
+  .tp-shell {
+    padding: 3.5rem 0.75rem 2.75rem;
+  }
+
+  .tp-wrapper-card {
+    padding: 1.2rem 1.05rem;
+    border-radius: 0.95rem;
+  }
 }

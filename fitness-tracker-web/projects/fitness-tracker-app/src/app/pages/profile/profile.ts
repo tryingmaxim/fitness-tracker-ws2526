@@ -1,17 +1,17 @@
-import { Component, OnInit } from '@angular/core';
 import { NgIf } from '@angular/common';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
-import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../../environment';
+import { AuthService } from '../../services/auth.service';
 
 type GenderValue = '' | 'm' | 'w' | 'd';
 
 interface ProfileDto {
   firstName: string;
   lastName: string;
-  email: string; // bleibt im Model, aber NICHT editierbar
+  email: string;
   age: number | null;
   gender: GenderValue | null;
 }
@@ -24,13 +24,18 @@ interface ProfileDto {
   styleUrl: './profile.css',
 })
 export class Profile implements OnInit {
-  private readonly baseUrl = (environment.apiBaseUrl || '').replace(/\/$/, '');
+  readonly EMPTY_GENDER_VALUE: GenderValue = '';
 
-  loading = false;
-  saving = false;
+  private static readonly MAX_AGE = 120;
+  private static readonly MIN_AGE = 0;
 
-  error: string | null = null;
-  info: string | null = null;
+  private readonly baseUrl = this.normalizeBaseUrl(environment.apiBaseUrl);
+
+  isLoading = false;
+  isSaving = false;
+
+  errorMessage: string | null = null;
+  infoMessage: string | null = null;
 
   user: ProfileDto = {
     firstName: '',
@@ -43,162 +48,77 @@ export class Profile implements OnInit {
   editedUser: ProfileDto = { ...this.user };
   isEditing = false;
 
-  constructor(private router: Router, private auth: AuthService, private http: HttpClient) {}
+  constructor(
+    private readonly router: Router,
+    private readonly authService: AuthService,
+    private readonly httpClient: HttpClient
+  ) {}
 
   ngOnInit(): void {
-    if (!this.auth.isLoggedIn()) {
-      this.router.navigate(['/login']);
+    if (!this.authService.isLoggedIn()) {
+      this.navigateToLogin();
       return;
     }
 
-    // Fallback aus Session, bis Backend antwortet
-    const email = this.auth.getEmail() || this.auth.getUsername() || '';
-    this.user.email = email;
+    this.user.email = this.getEmailFromSessionFallback();
     this.editedUser = { ...this.user };
 
     this.loadProfileFromBackend();
   }
 
   get initials(): string {
-    const first = this.user.firstName?.[0] ?? '';
-    const last = this.user.lastName?.[0] ?? '';
-    const initials = (first + last).toUpperCase();
-    return initials || 'U';
+    const firstInitial = this.user.firstName?.[0] ?? '';
+    const lastInitial = this.user.lastName?.[0] ?? '';
+    const combined = (firstInitial + lastInitial).toUpperCase();
+
+    return combined || 'U';
   }
 
   startEdit(): void {
     this.isEditing = true;
-
-    // Email wird bewusst NICHT in editedUser geändert
     this.editedUser = { ...this.user };
 
-    this.error = null;
-    this.info = null;
+    this.errorMessage = null;
+    this.infoMessage = null;
   }
 
   cancelEdit(): void {
     this.isEditing = false;
     this.editedUser = { ...this.user };
-    this.error = null;
-    this.info = null;
+
+    this.errorMessage = null;
+    this.infoMessage = null;
   }
 
   saveEdit(): void {
-    this.error = null;
-    this.info = null;
+    this.errorMessage = null;
+    this.infoMessage = null;
 
-    const firstName = (this.editedUser.firstName ?? '').trim();
-    const lastName = (this.editedUser.lastName ?? '').trim();
+    const payload = this.buildValidatedPayload();
+    if (!payload) return;
 
-    // Email ist NICHT editierbar -> immer aus user übernehmen
-    const email = (this.user.email ?? '').trim().toLowerCase();
+    this.isSaving = true;
 
-    if (!email) {
-      this.error = 'E-Mail ist nicht verfügbar. Bitte erneut anmelden.';
-      return;
-    }
-
-    let age: number | null = this.editedUser.age != null ? Number(this.editedUser.age) : null;
-    if (age != null && (!Number.isFinite(age) || age < 0 || age > 120)) {
-      this.error = 'Bitte gib ein gültiges Alter an.';
-      return;
-    }
-
-    const gender = (this.editedUser.gender ?? null) as GenderValue | null;
-
-    const payload: ProfileDto = {
-      firstName,
-      lastName,
-      email, // unveränderlich
-      age,
-      gender,
-    };
-
-    this.saving = true;
-
-    // korrekt: /users/me
-    this.http.put(`${this.baseUrl}/users/me`, payload).subscribe({
+    this.httpClient.put(`${this.baseUrl}/users/me`, payload).subscribe({
       next: () => {
-        this.saving = false;
+        this.isSaving = false;
 
-        // user email bleibt exakt gleich
         this.user = { ...this.user, ...payload, email: this.user.email };
         this.editedUser = { ...this.user };
-
         this.isEditing = false;
-        this.info = 'Profil wurde gespeichert.';
+
+        this.infoMessage = 'Profil wurde gespeichert.';
       },
-      error: (err) => {
-        console.error(err);
-        this.saving = false;
-
-        if (err?.status === 401 || err?.status === 403) {
-          this.error = 'Bitte anmelden, um dein Profil zu bearbeiten.';
-          this.router.navigate(['/login']);
-          return;
-        }
-
-        if (err?.status === 404 || err?.status === 405) {
-          this.error = 'Backend unterstützt /users/me (PUT) noch nicht.';
-          return;
-        }
-
-        this.error =
-          err?.error?.detail ||
-          err?.error?.message ||
-          'Speichern fehlgeschlagen. Bitte versuche es erneut.';
+      error: (error: HttpErrorResponse) => {
+        this.isSaving = false;
+        this.handleSaveError(error);
       },
     });
   }
 
   logout(): void {
-    this.auth.logout();
-    this.router.navigate(['/login']);
-  }
-
-  private loadProfileFromBackend(): void {
-    this.loading = true;
-    this.error = null;
-
-    //  korrekt: /users/me
-    this.http.get<any>(`${this.baseUrl}/users/me`).subscribe({
-      next: (res) => {
-        const dto: ProfileDto = {
-          firstName: (res?.firstName ?? '').toString(),
-          lastName: (res?.lastName ?? '').toString(),
-
-          //  Email bleibt (Session fallback), Backend nur wenn sinnvoll
-          email: (res?.email ?? this.user.email ?? '').toString(),
-
-          age: res?.age != null && Number.isFinite(Number(res.age)) ? Number(res.age) : null,
-          gender: (res?.gender ?? null) as GenderValue | null,
-        };
-
-        this.user = { ...this.user, ...dto };
-        this.editedUser = { ...this.user };
-        this.loading = false;
-      },
-      error: (err) => {
-        console.error(err);
-        this.loading = false;
-
-        if (err?.status === 401 || err?.status === 403) {
-          this.error = 'Bitte anmelden, um dein Profil zu sehen.';
-          this.router.navigate(['/login']);
-          return;
-        }
-
-        if (err?.status === 404 || err?.status === 405) {
-          this.info = 'Profil wird aktuell aus der Session angezeigt (Backend /users/me nicht verfügbar).';
-          return;
-        }
-
-        this.error =
-          err?.error?.detail ||
-          err?.error?.message ||
-          'Profil konnte nicht geladen werden.';
-      },
-    });
+    this.authService.logout();
+    this.navigateToLogin();
   }
 
   genderLabel(value: GenderValue | null): string {
@@ -206,5 +126,126 @@ export class Profile implements OnInit {
     if (value === 'w') return 'Weiblich';
     if (value === 'd') return 'Divers';
     return 'Nicht angegeben';
+  }
+
+  ageLabel(age: number | null): string {
+    if (age == null) return 'Nicht angegeben';
+    return `${age} Jahre`;
+  }
+
+  private loadProfileFromBackend(): void {
+    this.isLoading = true;
+    this.errorMessage = null;
+
+    this.httpClient.get<unknown>(`${this.baseUrl}/users/me`).subscribe({
+      next: (response) => {
+        const dto = this.mapBackendResponseToProfileDto(response);
+        this.user = { ...this.user, ...dto };
+        this.editedUser = { ...this.user };
+        this.isLoading = false;
+      },
+      error: (error: HttpErrorResponse) => {
+        this.isLoading = false;
+        this.handleLoadError(error);
+      },
+    });
+  }
+
+  private buildValidatedPayload(): ProfileDto | null {
+    const firstName = (this.editedUser.firstName ?? '').trim();
+    const lastName = (this.editedUser.lastName ?? '').trim();
+    const email = (this.user.email ?? '').trim().toLowerCase();
+
+    if (!email) {
+      this.errorMessage = 'E-Mail ist nicht verfügbar. Bitte erneut anmelden.';
+      return null;
+    }
+
+    const age = this.validateAge(this.editedUser.age);
+    if (age === undefined) return null;
+
+    const gender = (this.editedUser.gender ?? null) as GenderValue | null;
+
+    return {
+      firstName,
+      lastName,
+      email,
+      age,
+      gender,
+    };
+  }
+
+  private validateAge(rawAge: number | null): number | null | undefined {
+    if (rawAge == null) return null;
+
+    const age = Number(rawAge);
+    if (!Number.isFinite(age) || age < Profile.MIN_AGE || age > Profile.MAX_AGE) {
+      this.errorMessage = 'Bitte gib ein gültiges Alter an.';
+      return undefined;
+    }
+
+    return age;
+  }
+
+  private handleSaveError(error: HttpErrorResponse): void {
+    if (this.isAuthError(error)) {
+      this.errorMessage = 'Bitte anmelden, um dein Profil zu bearbeiten.';
+      this.navigateToLogin();
+      return;
+    }
+
+    if (error?.status === 404 || error?.status === 405) {
+      this.errorMessage = 'Backend unterstützt /users/me (PUT) noch nicht.';
+      return;
+    }
+
+    this.errorMessage =
+      (error as any)?.error?.detail ||
+      (error as any)?.error?.message ||
+      'Speichern fehlgeschlagen. Bitte versuche es erneut.';
+  }
+
+  private handleLoadError(error: HttpErrorResponse): void {
+    if (this.isAuthError(error)) {
+      this.errorMessage = 'Bitte anmelden, um dein Profil zu sehen.';
+      this.navigateToLogin();
+      return;
+    }
+
+    if (error?.status === 404 || error?.status === 405) {
+      this.infoMessage = 'Profil wird aktuell aus der Session angezeigt (Backend /users/me nicht verfügbar).';
+      return;
+    }
+
+    this.errorMessage =
+      (error as any)?.error?.detail || (error as any)?.error?.message || 'Profil konnte nicht geladen werden.';
+  }
+
+  private isAuthError(error: HttpErrorResponse): boolean {
+    return error?.status === 401 || error?.status === 403;
+  }
+
+  private mapBackendResponseToProfileDto(response: unknown): ProfileDto {
+    const res = response as any;
+
+    return {
+      firstName: (res?.firstName ?? '').toString(),
+      lastName: (res?.lastName ?? '').toString(),
+      email: (res?.email ?? this.user.email ?? '').toString(),
+      age: res?.age != null && Number.isFinite(Number(res.age)) ? Number(res.age) : null,
+      gender: (res?.gender ?? null) as GenderValue | null,
+    };
+  }
+
+  private getEmailFromSessionFallback(): string {
+    return this.authService.getEmail() || this.authService.getUsername() || '';
+  }
+
+  private navigateToLogin(): void {
+    this.router.navigate(['/login']);
+  }
+
+  private normalizeBaseUrl(rawBaseUrl: string | undefined): string {
+    return (rawBaseUrl || '').replace(/\/$/, '');
   }
 }

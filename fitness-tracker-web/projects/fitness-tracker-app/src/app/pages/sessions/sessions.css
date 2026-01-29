@@ -1,21 +1,17 @@
-/* Sessions-Seite Wrapper*/
-
 .sessions-page {
-  position: relative; /* liegt über Slideshow/Background */
-  z-index: 2; /* über dem Hintergrund */
+  position: relative;
+  z-index: 2;
   max-width: 1100px;
   margin: 4rem auto 3rem;
   padding: 2.2rem 2.4rem;
   border-radius: 1.2rem;
-
-  background: rgba(5, 5, 5, 0.85); /* dunkles Glas-Panel */
-  backdrop-filter: blur(12px); /* starker Glas-Effekt */
+  background: rgba(5, 5, 5, 0.85);
+  backdrop-filter: blur(12px);
   box-shadow: 0 25px 50px rgba(0, 0, 0, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.08);
-
   display: flex;
   flex-direction: column;
-  gap: 2rem;  /* Abstand zwischen den Sektionen */
+  gap: 2rem;
 }
 
 :host-context(.light-mode) .sessions-page {
@@ -25,7 +21,6 @@
   color: #0f172a;
 }
 
-/* Titel + Untertitel */
 .sessions-page h1 {
   font-size: 2.1rem;
   font-weight: 700;
@@ -38,7 +33,6 @@
   margin-bottom: 0.3rem;
 }
 
-/* Alerts */
 .alert {
   padding: 0.55rem 0.8rem;
   border-radius: 0.6rem;
@@ -47,31 +41,29 @@
 
 .alert.error {
   background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.55); /* roter Hintergrund */
+  border: 1px solid rgba(239, 68, 68, 0.55);
 }
 
 .alert.info {
   background: rgba(34, 197, 94, 0.12);
-  border: 1px solid rgba(34, 197, 94, 0.55); /* grüner Hintergrund */
+  border: 1px solid rgba(34, 197, 94, 0.55);
 }
-
-/* Oberes Grid */
 
 .top-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
   gap: 1.6rem;
-  align-items: stretch; /* Karten gleiche Höhe */
+  align-items: stretch;
 }
 
 .top-grid > .session-card,
 .top-grid > .exercise-card {
-  height: 100%; /* Karte füllt die jeweilige Grid-Zeile */
+  height: 100%;
 }
 
 @media (max-width: 900px) {
   .top-grid {
-    grid-template-columns: minmax(0, 1fr); /* untereinander auf kleineren Screens */
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .top-grid > .session-card,
@@ -79,8 +71,6 @@
     height: auto;
   }
 }
-
-/*Karten allgemein */
 
 .session-card,
 .exercise-card,
@@ -92,10 +82,9 @@
   border: 1px solid rgba(148, 163, 184, 0.32);
   box-shadow: 0 18px 38px rgba(15, 23, 42, 0.65);
   backdrop-filter: blur(10px);
-
   display: flex;
   flex-direction: column;
-  gap: 0.9rem; /* Abstand zwischen Titel/Content */
+  gap: 0.9rem;
 }
 
 :host-context(.light-mode) .session-card,
@@ -118,12 +107,10 @@
   opacity: 0.75;
 }
 
-/* Form */
-
 .form {
   display: flex;
   flex-direction: column;
-  gap: 0.7rem; /* Abstand zwischen Formfeldern */
+  gap: 0.7rem;
 }
 
 .form label {
@@ -131,7 +118,6 @@
   font-weight: 500;
 }
 
-/* Lightmode Inputs */
 :host-context(.light-mode) .sessions-page input,
 :host-context(.light-mode) .sessions-page select,
 :host-context(.light-mode) .sessions-page textarea {
@@ -139,8 +125,6 @@
   color: #0f172a;
   border: 1px solid rgba(15, 23, 42, 0.12);
 }
-
-/* --- Tage Buttons (1-30) --- */
 
 .days-toolbar {
   display: flex;
@@ -234,8 +218,6 @@
   opacity: 0.5;
 }
 
-/* Übungsauswahl oben rechts */
-
 .exercise-card-header {
   display: flex;
   align-items: flex-start;
@@ -255,17 +237,39 @@
   font-weight: 600;
 }
 
+.search-input {
+  width: 100%;
+  margin-top: 0.7rem;
+  border-radius: 0.6rem;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  padding: 0.5rem 0.8rem;
+  background: rgba(15, 23, 42, 0.96);
+  color: inherit;
+  outline: none;
+}
+
+.search-input:focus {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+}
+
+:host-context(.light-mode) .search-input {
+  background: #ffffff;
+  border-color: rgba(148, 163, 184, 0.6);
+}
+
 .exercise-list {
   border-radius: 0.7rem;
   border: 1px solid rgba(148, 163, 184, 0.35);
   max-height: 230px;
-  overflow-y: auto; /* scrollbare Liste */
+  overflow-y: auto;
   margin-top: 0.4rem;
 }
 
 .exercise-list::-webkit-scrollbar {
   width: 6px;
 }
+
 .exercise-list::-webkit-scrollbar-thumb {
   background: rgba(148, 163, 184, 0.65);
   border-radius: 999px;
@@ -280,11 +284,11 @@
   align-items: center;
   justify-content: space-between;
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.12s ease; /* Hover-Effekt */
+  transition: background 0.15s ease, transform 0.12s ease;
 }
 
 .exercise-item + .exercise-item {
-  border-top: 1px solid rgba(30, 41, 59, 0.85); /* Trennlinie */
+  border-top: 1px solid rgba(30, 41, 59, 0.85);
 }
 
 .exercise-item:hover {
@@ -329,44 +333,20 @@
 .exercise-check.selected {
   background: #22c55e !important;
   border-color: #22c55e !important;
-  color: white !important;
-  opacity: 1 !important;
-}
-
-/* Lightmode Overrides für Übungsliste */
-:host-context(.light-mode) .exercise-item,
-:host-context(.light-mode) .exercise-name,
-:host-context(.light-mode) .exercise-meta {
   color: #ffffff !important;
-}
-
-:host-context(.light-mode) .exercise-item:hover {
-  background: rgba(34, 197, 94, 0.12) !important;
-}
-
-:host-context(.light-mode) .exercise-check {
-  background: rgba(248, 250, 252, 0.96);
-}
-
-:host-context(.light-mode) .exercise-check.selected {
-  background: #22c55e !important;
-  border-color: #22c55e !important;
-  color: white !important;
   opacity: 1 !important;
 }
-
-/* Sessions-Übersicht + Details */
 
 .sessions-bottom-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); /* links Liste, rechts Details */
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
   gap: 1.6rem;
   align-items: stretch;
 }
 
 @media (max-width: 900px) {
   .sessions-bottom-grid {
-    grid-template-columns: minmax(0, 1fr); /* untereinander */
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -377,43 +357,16 @@
   gap: 0.75rem;
 }
 
-/* Suchfeld */
-.sessions-search-input {
-  width: 100%;
-  margin-top: 0.7rem;
-  border-radius: 0.6rem;
-  border: 1px solid rgba(148, 163, 184, 0.4);
-  padding: 0.5rem 0.8rem;
-  background: rgba(15, 23, 42, 0.96);
-  color: inherit;
-  outline: none;
-}
-
-.sessions-search-input:focus {
-  border-color: #22c55e;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25); /* Fokus-Outline */
-}
-
-:host-context(.light-mode) .sessions-search-input {
-  background: #ffffff;
-  border-color: rgba(148, 163, 184, 0.6);
-}
-
-/* FIX (nur Übersicht): wichtig für flex + overflow */
 .sessions-overview-card {
-  min-height: 0; /* erlaubt dem inneren Scrollcontainer korrekt zu schrumpfen/wachsen */
+  min-height: 0;
 }
 
-/* Scrollbare Liste */
 .sessions-list {
   border-radius: 0.7rem;
   border: 1px solid rgba(148, 163, 184, 0.35);
-
-  /*  FIX: statt fixer max-height -> wächst mit der äußeren Box */
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-
   margin-top: 0.7rem;
   padding: 0.6rem 0.55rem;
   display: flex;
@@ -425,12 +378,12 @@
 .sessions-list::-webkit-scrollbar {
   width: 6px;
 }
+
 .sessions-list::-webkit-scrollbar-thumb {
   background: rgba(148, 163, 184, 0.65);
   border-radius: 999px;
 }
 
-/* Session-Karte */
 .sessions-list .session-item {
   width: 100%;
   border-radius: 0.9rem;
@@ -442,10 +395,7 @@
   justify-content: space-between;
   gap: 0.75rem;
   cursor: pointer;
-  transition:
-    border-color 0.2s ease,
-    background 0.2s ease,
-    transform 0.15s ease;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
   text-align: left;
   color: inherit;
 }
@@ -480,7 +430,6 @@
   gap: 0.18rem;
 }
 
-/* rechte Buttons */
 .session-actions {
   display: flex;
   flex-direction: column;
@@ -492,7 +441,6 @@
   padding: 0.25rem 0.7rem;
 }
 
-/* Danger-Button */
 button.btn-danger {
   background: #dc2626;
   border-color: #b91c1c;
@@ -508,7 +456,6 @@ button.btn-danger:hover {
   color: #ffffff;
 }
 
-/* Detail-Bereich */
 .sessions-detail-header {
   display: flex;
   flex-direction: column;
@@ -536,10 +483,6 @@ button.btn-danger:hover {
   gap: 0.7rem;
   margin-top: 0.5rem;
 }
-
-/* ---------------------------
-   UX: Exercise Execution Config
---------------------------- */
 
 .exec-config-card {
   margin-top: 0.6rem;
@@ -601,22 +544,17 @@ button.btn-danger:hover {
   font-size: 0.92rem;
 }
 
-/* FIX: X mittig */
 .exec-remove {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-
   width: 28px;
   height: 28px;
   padding: 0;
-
   border-radius: 999px;
   border: 1px solid rgba(148, 163, 184, 0.45);
   background: rgba(148, 163, 184, 0.12);
-
   cursor: pointer;
-
   font-size: 1.05rem;
   font-weight: 700;
   line-height: 1;
@@ -679,7 +617,6 @@ button.btn-danger:hover {
   margin-top: 0.05rem;
 }
 
-/* kleine Textklassen */
 .muted {
   font-size: 0.86rem;
   opacity: 0.8;
@@ -689,7 +626,6 @@ button.btn-danger:hover {
   font-size: 0.78rem;
 }
 
-/* Responsive */
 @media (max-width: 1024px) {
   .sessions-page {
     max-width: 100%;
@@ -706,24 +642,16 @@ button.btn-danger:hover {
   }
 }
 
-
-/* ================================
-   FIX: Select Dropdown Optionen (Darkmode)
-   ================================ */
-
-/* geöffnete Optionen */
 .sessions-page select option {
-  color: #0f172a;        /* schwarzer Text */
-  background: #ffffff;  /* weißer Hintergrund */
+  color: #0f172a;
+  background: #ffffff;
 }
 
-/* ausgewählte Option */
 .sessions-page select option:checked {
   background: #e5e7eb;
   color: #0f172a;
 }
 
-/* Hover */
 .sessions-page select option:hover {
   background: #e5e7eb;
   color: #0f172a;
@@ -738,4 +666,16 @@ button.btn-danger:hover {
 .prio-btn {
   padding: 4px 8px;
   line-height: 1;
+}
+
+.sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
