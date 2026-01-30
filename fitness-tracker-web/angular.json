@@ -22,7 +22,7 @@
               "zone.js"
             ],
             "tsConfig": "projects/fitness-tracker-app/tsconfig.app.json",
-            "inlineStyleLanguage": "scss",
+            "inlineStyleLanguage": "css",
             "assets": [
               {
                 "glob": "**/*",
