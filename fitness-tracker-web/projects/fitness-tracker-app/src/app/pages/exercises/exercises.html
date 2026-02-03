@@ -1,7 +1,6 @@
 <div class="page">
   <h1>Übungen</h1>
 
-  <!-- Untertitel -->
   <p class="sub">
     <ng-container *ngIf="isLoggedIn; else publicHint">
       Verwalte deine angelegten Übungen und bearbeite die Details.
@@ -11,13 +10,11 @@
     </ng-template>
   </p>
 
-  <!-- Meldungen -->
   <div class="alerts" *ngIf="error || info">
     <div class="alert error" *ngIf="error">{{ error }}</div>
     <div class="alert info" *ngIf="info">{{ info }}</div>
   </div>
 
-  <!-- Bereich zum neue Übungen anlegen: NUR eingeloggt -->
   <section class="panel create-panel" *ngIf="isLoggedIn">
     <h2>Neue Übung anlegen</h2>
 
@@ -28,12 +25,7 @@
     <form class="form" #createForm="ngForm" (ngSubmit)="addExercise(createForm)">
       <input [(ngModel)]="form.name" name="name" placeholder="Name (z.B. Bankdrücken)" required />
 
-      <input
-        [(ngModel)]="form.category"
-        name="category"
-        placeholder="Kategorie (z.B. Freihantel)"
-        required
-      />
+      <input [(ngModel)]="form.category" name="category" placeholder="Kategorie (z.B. Freihantel)" required />
 
       <input
         [(ngModel)]="form.muscleGroups"
@@ -42,11 +34,7 @@
         required
       />
 
-      <textarea
-        [(ngModel)]="form.description"
-        name="description"
-        placeholder="Beschreibung (optional)"
-      ></textarea>
+      <textarea [(ngModel)]="form.description" name="description" placeholder="Beschreibung (optional)"></textarea>
 
       <button type="submit" [disabled]="submitting">
         {{ submitting ? 'Wird angelegt...' : 'Hinzufügen' }}
@@ -54,9 +42,7 @@
     </form>
   </section>
 
-  <!-- Hauptlayout: links Liste, rechts Details -->
   <div class="layout">
-    <!-- Linke Seite: Übersicht der Übungen -->
     <section class="panel overview">
       <div class="overview-head">
         <h2>Übersicht</h2>
@@ -72,9 +58,7 @@
       />
 
       <p class="muted" *ngIf="loading">Übungen werden geladen...</p>
-      <p class="muted" *ngIf="!loading && !filteredExerciseOverview.length">
-        Keine Übung gefunden.
-      </p>
+      <p class="muted" *ngIf="!loading && !filteredExerciseOverview.length">Keine Übung gefunden.</p>
 
       <ul class="list">
         <li
@@ -98,31 +82,19 @@
                 <p class="meta muted">Keine Muskelgruppen hinterlegt</p>
               </ng-template>
 
-              <p class="desc" *ngIf="ex.description; else noDesc">
-                {{ ex.description }}
-              </p>
+              <p class="desc" *ngIf="ex.description; else noDesc">{{ ex.description }}</p>
               <ng-template #noDesc>
                 <p class="desc muted">Keine Beschreibung hinterlegt</p>
               </ng-template>
             </div>
           </div>
 
-          <!-- Aktionen: Details immer, Löschen nur eingeloggt -->
           <div class="exercise-actions">
-            <button
-              type="button"
-              class="ghost"
-              (click)="selectExercise(ex); $event.stopPropagation()"
-            >
+            <button type="button" class="ghost" (click)="selectExercise(ex); $event.stopPropagation()">
               Details
             </button>
 
-            <button
-              *ngIf="isLoggedIn"
-              type="button"
-              class="danger"
-              (click)="deleteExercise(ex, $event)"
-            >
+            <button *ngIf="isLoggedIn" type="button" class="danger" (click)="deleteExercise(ex, $event)">
               Löschen
             </button>
           </div>
@@ -130,16 +102,12 @@
       </ul>
     </section>
 
-    <!-- Rechte Seite: Details der ausgewählten Übung -->
     <section class="panel details" *ngIf="selectedExercise; else selectHint">
       <div class="details-head">
-        <button type="button" class="back" (click)="resetSelection()">
-          ← Zurück zur Übersicht
-        </button>
+        <button type="button" class="back" (click)="resetSelection()">← Zurück zur Übersicht</button>
         <h2>Details: {{ selectedExercise.name }}</h2>
       </div>
 
-      <!-- Wenn NICHT eingeloggt: nur Ansicht -->
       <ng-container *ngIf="!isLoggedIn; else editBlock">
         <div class="read-only">
           <p class="meta"><strong>Name:</strong> {{ editForm.name }}</p>
@@ -147,13 +115,10 @@
           <p class="meta"><strong>Muskelgruppen:</strong> {{ editForm.muscleGroups }}</p>
           <p class="meta"><strong>Beschreibung:</strong> {{ editForm.description || '–' }}</p>
 
-          <p class="muted" style="margin-top: 12px;">
-            Zum Bearbeiten bitte anmelden.
-          </p>
+          <p class="muted" style="margin-top: 12px;">Zum Bearbeiten bitte anmelden.</p>
         </div>
       </ng-container>
 
-      <!-- Wenn eingeloggt: editierbar -->
       <ng-template #editBlock>
         <form class="edit-form" (ngSubmit)="saveSelected()">
           <label for="editName">Name</label>
@@ -163,12 +128,7 @@
           <input id="editCategory" name="editCategory" [(ngModel)]="editForm.category" required />
 
           <label for="editMuscles">Muskelgruppen</label>
-          <input
-            id="editMuscles"
-            name="editMuscles"
-            [(ngModel)]="editForm.muscleGroups"
-            required
-          />
+          <input id="editMuscles" name="editMuscles" [(ngModel)]="editForm.muscleGroups" required />
 
           <label for="editDesc">Beschreibung</label>
           <textarea id="editDesc" name="editDesc" [(ngModel)]="editForm.description"></textarea>
@@ -183,9 +143,7 @@
     <ng-template #selectHint>
       <section class="panel details placeholder">
         <p>Wähle eine Übung aus der Übersicht, um Details zu sehen.</p>
-        <p class="muted" *ngIf="!isLoggedIn">
-          Bearbeiten/Löschen/Anlegen ist nur nach Anmeldung möglich.
-        </p>
+        <p class="muted" *ngIf="!isLoggedIn">Bearbeiten/Löschen/Anlegen ist nur nach Anmeldung möglich.</p>
       </section>
     </ng-template>
   </div>

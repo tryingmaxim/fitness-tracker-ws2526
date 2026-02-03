@@ -1,23 +1,22 @@
 :host {
-  display: flex; /* zentriert den Page-Container horizontal */
+  display: flex;
   justify-content: center;
-  padding: 4.5rem 1.5rem 3.5rem; /* Abstand oben/seitlich/unten */
+  padding: 4.5rem 1.5rem 3.5rem;
   width: 100%;
 }
 
-/* Haupt-Box */
 .page {
-  background: rgba(5, 5, 5, 0.85);  /* dunkles Glas über Slideshow/Hintergrund */
+  background: rgba(5, 5, 5, 0.85);
   color: var(--text);
-  border-radius: 1.2rem; /* abgerundete Ecken */
+  border-radius: 1.2rem;
   padding: 1.8rem 2rem 2rem;
   width: min(1050px, 100%);
-  min-height: calc(100vh - 8rem); /* fast volle Bildschirmhöhe */
+  min-height: calc(100vh - 8rem);
   box-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(10px); /* Glas-Effekt */
+  backdrop-filter: blur(10px);
   position: relative;
-  z-index: 5; /* liegt über Hintergrund/Overlay */
+  z-index: 5;
 }
 
 :host-context(.light-mode) .page {
@@ -26,7 +25,6 @@
   color: #0f172a;
 }
 
-/* Header */
 h1 {
   margin: 0 0 0.2rem;
 }
@@ -36,7 +34,6 @@ h1 {
   opacity: 0.85;
 }
 
-/* Alerts */
 .alerts {
   display: flex;
   flex-direction: column;
@@ -50,7 +47,6 @@ h1 {
   font-size: 0.9rem;
 }
 
-/* Fehler-Alert */
 .alert.error {
   background: rgba(248, 113, 113, 0.14);
   border: 1px solid #f87171;
@@ -63,7 +59,6 @@ h1 {
   color: #e0f2fe;
 }
 
-/* Lightmode-Overrides für Alerts */
 :host-context(.light-mode) .alert.error {
   background: #fee2e2;
   color: #b91c1c;
@@ -76,7 +71,6 @@ h1 {
   border-color: #38bdf8;
 }
 
-/* Panels */
 .panel {
   background: rgba(11, 15, 24, 0.96);
   border-radius: 1rem;
@@ -92,10 +86,9 @@ h1 {
 }
 
 .create-panel {
-  margin-bottom: 1.5rem; /* Abstand zu Layout darunter */
+  margin-bottom: 1.5rem;
 }
 
-/* Create-Panel Typo */
 .create-panel h2 {
   margin: 0 0 0.35rem;
   line-height: 1.25;
@@ -107,16 +100,13 @@ h1 {
   opacity: 0.85;
 }
 
-/*  Create-FORM (Plan-Name + Beschreibung)  */
-
 .form {
   display: flex;
-  flex-wrap: wrap; /* bei wenig Platz umbrechen */
+  flex-wrap: wrap;
   gap: 0.6rem;
   align-items: stretch;
 }
 
-/* gemeinsame Optik für Input + Textarea */
 .form input,
 .form textarea {
   flex: 1 1 220px;
@@ -130,28 +120,24 @@ h1 {
   box-sizing: border-box;
 }
 
-/* Textarea */
 .form textarea {
   min-height: 42px;
   max-height: 120px;
   resize: vertical;
 }
 
-/* Lightmode für die Felder */
 :host-context(.light-mode) .form input,
 :host-context(.light-mode) .form textarea {
   background: #ffffff;
   border-color: rgba(148, 163, 184, 0.6);
 }
 
-/* Fokuszustand */
 .form input:focus,
 .form textarea:focus {
   border-color: #22c55e;
   box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
 }
 
-/* Create-Button */
 .form button {
   border-radius: 0.6rem;
   border: none;
@@ -160,8 +146,8 @@ h1 {
   background: #22c55e;
   color: #041007;
   cursor: pointer;
-  white-space: nowrap; /* nicht umbrechen */
-  align-self: stretch; /* Höhe an Inputs angepasst */
+  white-space: nowrap;
+  align-self: stretch;
 }
 
 .form button:disabled {
@@ -169,14 +155,12 @@ h1 {
   cursor: not-allowed;
 }
 
-/* Layout */
 .layout {
   display: grid;
   gap: 1.5rem;
-  grid-template-columns: minmax(260px, 1fr) minmax(320px, 1fr); /* Übersicht | Details */
+  grid-template-columns: minmax(260px, 1fr) minmax(320px, 1fr);
 }
 
-/* Übersicht-Liste */
 .overview-head {
   display: flex;
   align-items: center;
@@ -193,7 +177,6 @@ h1 {
   font-weight: 600;
 }
 
-/* Suchfeld */
 .search {
   width: 100%;
   border-radius: 0.7rem;
@@ -218,7 +201,6 @@ h1 {
   box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
 }
 
-/* Scroll-Container (neu) */
 .list-scroll {
   max-height: 520px;
   overflow-y: auto;
@@ -238,7 +220,6 @@ h1 {
   background: rgba(15, 23, 42, 0.12);
 }
 
-/* Liste */
 .list {
   list-style: none;
   margin: 0;
@@ -280,7 +261,7 @@ h1 {
   display: flex;
   justify-content: space-between;
   gap: 0.75rem;
-  flex-wrap: wrap; /* bricht auf kleine Geräte um */
+  flex-wrap: wrap;
 }
 
 .plan-info h3 {
@@ -317,7 +298,6 @@ h1 {
   color: #fff;
 }
 
-/* Details / Edit-Form */
 .details-head {
   display: flex;
   flex-direction: column;
@@ -333,7 +313,7 @@ h1 {
   padding: 0;
   font-size: 0.95rem;
   text-align: left;
-  text-decoration: underline; /* Link-Optik */
+  text-decoration: underline;
 }
 
 .edit-form {
@@ -377,12 +357,11 @@ h1 {
 }
 
 .validation {
-  color: #f87171; /* roter Hinweistext */
+  color: #f87171;
   margin: -0.35rem 0 0;
   font-size: 0.85rem;
 }
 
-/* Sessions-Liste im Detail */
 .sessions ul {
   list-style: none;
   margin: 0;
@@ -406,7 +385,6 @@ h1 {
   margin-top: 0.35rem;
 }
 
-/* Typo */
 .muted {
   color: rgba(148, 163, 184, 0.85);
   font-size: 0.87rem;
@@ -416,14 +394,11 @@ h1 {
   color: rgba(15, 23, 42, 0.65);
 }
 
-/*  leere Treffer */
 .empty {
   margin-top: 0.4rem;
   font-size: 0.9rem;
   opacity: 0.8;
 }
-
-/*  RESPONSIVE  */
 
 @media (max-width: 1024px) {
   :host {
@@ -447,11 +422,11 @@ h1 {
 
 @media (max-width: 900px) {
   .layout {
-    grid-template-columns: 1fr; /* Übersicht & Details untereinander */
+    grid-template-columns: 1fr;
   }
 
   .overview-head {
-    flex-direction: row; /* bleibt nebeneinander, falls vorher mal anders */
+    flex-direction: row;
   }
 
   .list-scroll {
@@ -461,7 +436,7 @@ h1 {
 
 @media (max-width: 700px) {
   .form {
-    flex-direction: column; /* Form-Felder stapeln sich */
+    flex-direction: column;
   }
 }
 

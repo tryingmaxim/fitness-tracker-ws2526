@@ -1,13 +1,12 @@
 ﻿import { Component, OnInit } from '@angular/core';
-import { CommonModule, NgIf, NgForOf } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { map, switchMap, catchError } from 'rxjs/operators';
-import { forkJoin, of } from 'rxjs';
+import { catchError, map, switchMap } from 'rxjs/operators';
+import { forkJoin, Observable, of } from 'rxjs';
 import { environment } from '../../../../environment';
 import { AuthSessionService } from '../../services/auth-session.service';
 
-// Datenmodelle für Übungen, Pläne und Sessions
 interface ExerciseDto {
   id: number;
   name: string;
@@ -21,35 +20,26 @@ interface ExerciseExecutionDto {
   exercise: ExerciseDto;
 }
 
-interface PlanDto {
-  id: number;
-  name: string;
-  description: string;
-  sessions?: SessionDto[];
-  sessionsCount?: number;
-}
-
 interface SessionDto {
   id: number;
   title?: string;
   name?: string;
-
-  // alt Datum bleibt optional im Model, wird aber im UI nicht mehr angezeigt
   plannedDate?: string | Date;
   scheduledDate?: string | Date;
-
-  // 1-30 Tage System
   days?: number[];
-
-  // Zählwerte
   exercisesCount?: number;
   exercises?: ExerciseDto[];
   exerciseExecutions?: ExerciseExecutionDto[];
-
-  // wie oft durchgeführt
   performedCount?: number;
-
   status?: string;
+}
+
+interface PlanDto {
+  id: number;
+  name: string;
+  description?: string;
+  sessions?: SessionDto[];
+  sessionsCount?: number;
 }
 
 type UiPlan = PlanDto & {
@@ -58,60 +48,82 @@ type UiPlan = PlanDto & {
   sessions?: SessionDto[];
 };
 
+type PlanFormModel = {
+  name: string;
+  desc: string;
+};
+
+type PlanPayload = {
+  name: string;
+  description: string;
+};
+
 @Component({
   selector: 'app-plans',
   standalone: true,
-  imports: [CommonModule, NgIf, NgForOf, FormsModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './plans.html',
   styleUrls: ['./plans.css'],
 })
 export class Plans implements OnInit {
   plans: UiPlan[] = [];
+  selectedPlan: UiPlan | null = null;
 
-  form = { name: '', desc: '' };
-  editForm = { name: '', desc: '' };
+  form: PlanFormModel = { name: '', desc: '' };
+  editForm: PlanFormModel = { name: '', desc: '' };
+  editErrors: { name?: string } = {};
+
+  query = '';
+
+  loading = false;
   submitting = false;
   saving = false;
 
-  loading = false;
   error: string | null = null;
   info: string | null = null;
-  editErrors: { name?: string } = {};
 
-  selectedPlan: UiPlan | null = null;
+  private readonly baseUrl = environment.apiBaseUrl;
 
-  baseUrl = environment.apiBaseUrl;
+  private static readonly LOAD_PLANS_ERROR_MESSAGE = 'Fehler beim Laden der Trainingspläne';
+  private static readonly CREATE_PLAN_ERROR_MESSAGE = 'Fehler beim Erstellen des Trainingsplans';
+  private static readonly UPDATE_PLAN_ERROR_MESSAGE = 'Aktualisieren des Trainingsplans ist fehlgeschlagen.';
+  private static readonly CREATE_PLAN_SUCCESS_MESSAGE = 'Trainingsplan wurde erstellt.';
+  private static readonly UPDATE_PLAN_SUCCESS_MESSAGE = 'Trainingsplan wurde erfolgreich aktualisiert.';
+  private static readonly LOGIN_REQUIRED_CREATE_MESSAGE = 'Bitte anmelden, um Trainingspläne anzulegen.';
+  private static readonly LOGIN_REQUIRED_UPDATE_MESSAGE = 'Bitte anmelden, um Trainingspläne zu bearbeiten.';
+  private static readonly LOGIN_REQUIRED_DELETE_MESSAGE = 'Bitte anmelden, um Trainingspläne zu löschen.';
+  private static readonly UNAUTHORIZED_MESSAGE = 'Nicht berechtigt. Bitte erneut anmelden.';
+  private static readonly NAME_REQUIRED_MESSAGE = 'Bitte einen Namen für den Trainingsplan angeben.';
+  private static readonly NAME_EMPTY_VALIDATION_MESSAGE = 'Der Name darf nicht leer sein.';
 
-  // ✅ Live-Suche
-  query = '';
-
-  constructor(private http: HttpClient, private session: AuthSessionService) {}
+  constructor(
+    private http: HttpClient,
+    private session: AuthSessionService
+  ) {}
 
   ngOnInit(): void {
     this.loadPlans();
   }
 
-  // Sprint 4: UI/Logik "eingeloggt"
   get isLoggedIn(): boolean {
     return this.session.isLoggedIn();
   }
 
-  // ✅ Live gefilterte Pläne (ohne Enter)
   get filteredPlans(): UiPlan[] {
-    const q = (this.query || '').trim().toLowerCase();
-    if (!q) return this.plans;
+    const searchTerm = (this.query || '').trim().toLowerCase();
+    if (!searchTerm) return this.plans;
 
-    return this.plans.filter((p) => {
-      const name = (p.name || '').toLowerCase();
-      const desc = (p.description || '').toLowerCase();
-      const sessionsCount = String(p.sessionsCount ?? '');
-      return name.includes(q) || desc.includes(q) || sessionsCount.includes(q);
+    return this.plans.filter((plan) => {
+      const name = (plan.name || '').toLowerCase();
+      const description = (plan.description || '').toLowerCase();
+      const sessionsCount = String(plan.sessionsCount ?? '');
+      return name.includes(searchTerm) || description.includes(searchTerm) || sessionsCount.includes(searchTerm);
     });
   }
 
-  // Tage anzeigen (1-30)
   formatDays(days?: number[] | null): string {
     if (!days || !days.length) return '–';
+
     return [...days]
       .map((d) => Number(d))
       .filter((d) => Number.isFinite(d) && d >= 1 && d <= 30)
@@ -119,338 +131,344 @@ export class Plans implements OnInit {
       .join(', ');
   }
 
-  // Pläne werden vom Backend geladen (öffentlich lesbar)
-  private loadPlans(): void {
-    this.loading = true;
-    this.error = null;
-
-    // GET /training-plans Request an Backend
-    this.http
-      .get<any>(`${this.baseUrl}/training-plans`)
-      .pipe(map((res) => this.normalizePlansArray(res)))
-      .subscribe({
-        next: (list) => {
-          const previousSelectionId = this.selectedPlan?.id;
-
-          this.plans = list.map((p: any): UiPlan => {
-            const normalized: UiPlan = {
-              id: p.id,
-              name: p.name,
-              description: p.description ?? '',
-              sessionsCount:
-                typeof p.sessionsCount === 'number'
-                  ? p.sessionsCount
-                  : Array.isArray(p.sessions)
-                  ? p.sessions.length
-                  : undefined,
-            };
-            return normalized;
-          });
-
-          // vorher ausgewählter Plan erhalten
-          if (previousSelectionId) {
-            const refreshedPlan = this.plans.find((plan) => plan.id === previousSelectionId);
-            if (refreshedPlan) {
-              refreshedPlan.sessions = this.selectedPlan?.sessions ?? [];
-              refreshedPlan.sessionsLoaded = this.selectedPlan?.sessionsLoaded;
-              refreshedPlan.loadingSessions = this.selectedPlan?.loadingSessions;
-              refreshedPlan.sessionsCount = this.selectedPlan?.sessionsCount;
-
-              this.selectedPlan = refreshedPlan;
-              this.editForm = {
-                name: refreshedPlan.name,
-                desc: refreshedPlan.description ?? '',
-              };
-            } else {
-              this.resetSelection();
-            }
-          }
-
-          this.loading = false;
-        },
-        error: (err) => {
-          this.error = 'Fehler beim Laden der Trainingspläne';
-          this.loading = false;
-          console.error(err);
-        },
-      });
-  }
-
-  // neuen Plan anlegen (nur mit Login)
-  add(f?: NgForm): void {
+  add(form?: NgForm): void {
     if (!this.isLoggedIn) {
-      this.error = 'Bitte anmelden, um Trainingspläne anzulegen.';
+      this.setError(Plans.LOGIN_REQUIRED_CREATE_MESSAGE);
       return;
     }
 
-    if (!this.form.name.trim()) {
-      this.error = 'Bitte einen Namen für den Trainingsplan angeben.';
+    const payload = this.buildPayloadFromForm(this.form);
+    if (!payload) {
+      this.setError(Plans.NAME_REQUIRED_MESSAGE);
       return;
     }
 
     this.submitting = true;
-    this.error = null;
-    this.info = null;
+    this.clearMessages();
 
-    const dto = {
-      name: this.form.name.trim(),
-      description: this.form.desc?.trim() ?? '',
-    };
-
-    // POST /training-plans (geschützt)
-    this.http.post(`${this.baseUrl}/training-plans`, dto).subscribe({
+    this.http.post(`${this.baseUrl}/training-plans`, payload).subscribe({
       next: () => {
-        this.info = 'Trainingsplan wurde erstellt.';
-        this.form = { name: '', desc: '' };
+        this.info = Plans.CREATE_PLAN_SUCCESS_MESSAGE;
         this.submitting = false;
+        this.resetCreateForm(form);
         this.loadPlans();
-        f?.resetForm();
       },
       error: (err) => {
-        console.error(err);
-        if (err.status === 401 || err.status === 403) {
-          this.error = 'Nicht berechtigt. Bitte erneut anmelden.';
-        } else {
-          this.error = 'Fehler beim Erstellen des Trainingsplans';
-        }
+        this.setError(this.resolveWriteErrorMessage(err, Plans.CREATE_PLAN_ERROR_MESSAGE));
         this.submitting = false;
       },
     });
   }
 
-  // Plan auswählen (öffentlich ok)
   selectPlan(plan: UiPlan): void {
-    const alreadySelected = this.selectedPlan?.id === plan.id;
-    if (!alreadySelected) {
+    const isSameSelection = this.selectedPlan?.id === plan.id;
+
+    if (!isSameSelection) {
       this.selectedPlan = plan;
-      this.editForm = {
-        name: plan.name ?? '',
-        desc: plan.description ?? '',
-      };
+      this.editForm = { name: plan.name ?? '', desc: plan.description ?? '' };
       this.editErrors = {};
-      this.info = null;
-      this.error = null;
+      this.clearMessages();
     }
+
     if (!plan.sessionsLoaded && !plan.loadingSessions) {
       this.loadSessions(plan);
     }
   }
 
-  // Auswahl zurücksetzen
   resetSelection(): void {
     this.selectedPlan = null;
     this.editForm = { name: '', desc: '' };
     this.editErrors = {};
   }
 
-  // Ausgewählten Plan speichern (nur mit Login)
   saveSelected(): void {
     if (!this.isLoggedIn) {
-      this.error = 'Bitte anmelden, um Trainingspläne zu bearbeiten.';
+      this.setError(Plans.LOGIN_REQUIRED_UPDATE_MESSAGE);
       return;
     }
-    if (!this.selectedPlan) return;
 
-    const trimmedName = this.editForm.name?.trim();
-    if (!trimmedName) {
-      this.editErrors = { name: 'Der Name darf nicht leer sein.' };
+    const selected = this.selectedPlan;
+    if (!selected) return;
+
+    const payload = this.buildPayloadFromForm(this.editForm);
+    if (!payload) {
+      this.editErrors = { name: Plans.NAME_EMPTY_VALIDATION_MESSAGE };
       return;
     }
 
     this.saving = true;
-    this.error = null;
-    this.info = null;
+    this.clearMessages();
 
-    const dto = {
-      name: trimmedName,
-      description: this.editForm.desc?.trim() ?? '',
-    };
-
-    // PUT /training-plans/{id} (geschützt)
-    this.http.put<PlanDto>(`${this.baseUrl}/training-plans/${this.selectedPlan.id}`, dto).subscribe({
+    this.http.put<PlanDto>(`${this.baseUrl}/training-plans/${selected.id}`, payload).subscribe({
       next: (updated) => {
-        const payload = updated ?? dto;
+        const updatedName = updated?.name ?? payload.name;
+        const updatedDescription = updated?.description ?? payload.description;
 
-        this.selectedPlan!.name = payload.name ?? dto.name;
-        this.selectedPlan!.description = payload.description ?? dto.description;
+        this.applyUpdatedPlanToState(selected.id, updatedName, updatedDescription);
 
-        const listPlan = this.plans.find((plan) => plan.id === this.selectedPlan!.id);
-        if (listPlan) {
-          listPlan.name = this.selectedPlan!.name;
-          listPlan.description = this.selectedPlan!.description;
-        }
-
-        this.info = 'Trainingsplan wurde erfolgreich aktualisiert.';
+        this.info = Plans.UPDATE_PLAN_SUCCESS_MESSAGE;
         this.saving = false;
       },
       error: (err) => {
-        console.error(err);
-        if (err.status === 401 || err.status === 403) {
-          this.error = 'Nicht berechtigt. Bitte erneut anmelden.';
-        } else {
-          this.error = 'Aktualisieren des Trainingsplans ist fehlgeschlagen.';
-        }
+        this.setError(this.resolveWriteErrorMessage(err, Plans.UPDATE_PLAN_ERROR_MESSAGE));
         this.saving = false;
       },
     });
   }
 
-  // Sessions zu dem Plan laden (öffentlich lesbar)
+  delete(plan: UiPlan, event?: MouseEvent): void {
+    event?.stopPropagation();
+
+    if (!this.isLoggedIn) {
+      this.setError(Plans.LOGIN_REQUIRED_DELETE_MESSAGE);
+      return;
+    }
+
+    if (!window.confirm(`Möchte Sie ${plan.name} wirklich löschen?`)) return;
+
+    this.http.delete(`${this.baseUrl}/training-plans/${plan.id}`).subscribe({
+      next: () => {
+        if (this.selectedPlan?.id === plan.id) this.resetSelection();
+        this.loadPlans();
+      },
+      error: (err) => {
+        const status = Number(err?.status ?? 0);
+        if (status === 401 || status === 403) {
+          this.setError(Plans.UNAUTHORIZED_MESSAGE);
+          return;
+        }
+        this.setError(`Fehler beim Löschen von ${plan.name}.`);
+      },
+    });
+  }
+
+  trackByPlan = (_: number, plan: UiPlan) => plan.id;
+  trackBySession = (_: number, session: SessionDto) => session.id;
+
+  sessionStatusLabel(session: SessionDto): string {
+    const rawDate = session.plannedDate ?? session.scheduledDate;
+    if (rawDate) {
+      const date = new Date(rawDate);
+      if (!Number.isNaN(date.getTime())) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return date >= today ? 'Geplant' : 'Abgeschlossen';
+      }
+    }
+
+    const status = session.status;
+    if (!status) return 'Unbekannt';
+
+    const normalized = status.toLowerCase();
+    if (this.containsAny(normalized, ['completed', 'complete', 'done', 'abgeschlossen'])) return 'Abgeschlossen';
+    if (this.containsAny(normalized, ['planned', 'planed', 'geplant', 'scheduled'])) return 'Geplant';
+
+    return status;
+  }
+
+  private loadPlans(): void {
+    this.loading = true;
+    this.error = null;
+
+    this.http
+      .get<unknown>(`${this.baseUrl}/training-plans`)
+      .pipe(map((res) => this.normalizePlansArray(res)))
+      .subscribe({
+        next: (list) => {
+          const previousSelectionId = this.selectedPlan?.id ?? null;
+          const previousSelectedPlan = this.selectedPlan;
+
+          this.plans = list.map((plan) => this.mapPlanToUiPlan(plan));
+
+          this.restoreSelection(previousSelectionId, previousSelectedPlan);
+          this.loading = false;
+        },
+        error: () => {
+          this.setError(Plans.LOAD_PLANS_ERROR_MESSAGE);
+          this.loading = false;
+        },
+      });
+  }
+
+  private mapPlanToUiPlan(plan: any): UiPlan {
+    const id = Number(plan?.id);
+    const name = plan?.name ?? '';
+    const description = plan?.description ?? '';
+
+    const sessionsCount =
+      typeof plan?.sessionsCount === 'number'
+        ? plan.sessionsCount
+        : Array.isArray(plan?.sessions)
+          ? plan.sessions.length
+          : undefined;
+
+    return {
+      id,
+      name,
+      description,
+      sessionsCount,
+    };
+  }
+
+  private restoreSelection(previousSelectionId: number | null, previousSelectedPlan: UiPlan | null): void {
+    if (!previousSelectionId) return;
+
+    const refreshedPlan = this.plans.find((plan) => plan.id === previousSelectionId);
+    if (!refreshedPlan) {
+      this.resetSelection();
+      return;
+    }
+
+    refreshedPlan.sessions = previousSelectedPlan?.sessions ?? [];
+    refreshedPlan.sessionsLoaded = previousSelectedPlan?.sessionsLoaded;
+    refreshedPlan.loadingSessions = previousSelectedPlan?.loadingSessions;
+    refreshedPlan.sessionsCount = previousSelectedPlan?.sessionsCount;
+
+    this.selectedPlan = refreshedPlan;
+    this.editForm = { name: refreshedPlan.name, desc: refreshedPlan.description ?? '' };
+  }
+
+  private applyUpdatedPlanToState(planId: number, name: string, description: string): void {
+    if (this.selectedPlan?.id === planId) {
+      this.selectedPlan.name = name;
+      this.selectedPlan.description = description;
+    }
+
+    const listPlan = this.plans.find((p) => p.id === planId);
+    if (listPlan) {
+      listPlan.name = name;
+      listPlan.description = description;
+    }
+
+    this.editErrors = {};
+  }
+
   private loadSessions(plan: UiPlan): void {
     plan.sessionsLoaded = false;
     plan.loadingSessions = true;
 
     const params = new HttpParams().set('planId', String(plan.id));
 
-    // GET /training-sessions?planId=... (öffentlich)
     this.http
-      .get<any>(`${this.baseUrl}/training-sessions`, { params })
+      .get<unknown>(`${this.baseUrl}/training-sessions`, { params })
       .pipe(
         map((res) => this.normalizeSessionsArray(res)),
-        switchMap((sessions: SessionDto[]) => {
-          if (!sessions || sessions.length === 0) {
-            return of([] as SessionDto[]);
-          }
-
-          const withExecutions$ = sessions.map((session) =>
-            this.http
-              .get<ExerciseExecutionDto[]>(
-                `${this.baseUrl}/training-sessions/${session.id}/executions`
-              )
-              .pipe(
-                map((executions) => {
-                  const sorted = [...executions].sort((a, b) => a.orderIndex - b.orderIndex);
-
-                  return {
-                    ...session,
-                    exerciseExecutions: sorted,
-                    exercisesCount:
-                      typeof session.exercisesCount === 'number'
-                        ? session.exercisesCount
-                        : sorted.length,
-                    performedCount:
-                      typeof session.performedCount === 'number' ? session.performedCount : 0,
-                    days: Array.isArray(session.days) ? session.days : [],
-                  } as SessionDto;
-                }),
-                catchError((err) => {
-                  console.error(`Fehler beim Laden der Exercises für Session ${session.id}`, err);
-                  return of({
-                    ...session,
-                    exerciseExecutions: [],
-                    exercisesCount:
-                      typeof session.exercisesCount === 'number' ? session.exercisesCount : 0,
-                    performedCount:
-                      typeof session.performedCount === 'number' ? session.performedCount : 0,
-                    days: Array.isArray(session.days) ? session.days : [],
-                  } as SessionDto);
-                })
-              )
-          );
-
-          return forkJoin(withExecutions$);
-        })
+        switchMap((sessions) => this.loadExecutionsForSessions(sessions))
       )
       .subscribe({
-        next: (sessionsWithExecutions: SessionDto[]) => {
+        next: (sessionsWithExecutions) => {
           plan.sessions = sessionsWithExecutions;
           plan.sessionsCount = sessionsWithExecutions.length ?? 0;
           plan.sessionsLoaded = true;
           plan.loadingSessions = false;
         },
-        error: (err) => {
-          this.error = `Fehler beim Laden der Sessions für "${plan.name}".`;
+        error: () => {
+          this.setError(`Fehler beim Laden der Sessions für "${plan.name}".`);
           plan.loadingSessions = false;
           plan.sessionsLoaded = false;
-          console.error(err);
         },
       });
   }
 
-  // Plan löschen (nur mit Login)
-  delete(plan: UiPlan, e?: MouseEvent): void {
-    e?.stopPropagation();
-
-    if (!this.isLoggedIn) {
-      this.error = 'Bitte anmelden, um Trainingspläne zu löschen.';
-      return;
+  private loadExecutionsForSessions(sessions: SessionDto[]): Observable<SessionDto[]> {
+    if (!sessions || sessions.length === 0) {
+      return of([] as SessionDto[]);
     }
 
-    if (!window.confirm(`Möchte Sie ${plan.name} wirklich löschen?`)) return;
+    const requests = sessions.map((session) =>
+      this.http
+        .get<ExerciseExecutionDto[]>(`${this.baseUrl}/training-sessions/${session.id}/executions`)
+        .pipe(
+          map((executions) => this.mergeSessionWithExecutions(session, executions)),
+          catchError(() => of(this.mergeSessionWithExecutions(session, [])))
+        )
+    );
 
-    // DELETE /training-plans/{id} (geschützt)
-    this.http.delete(`${this.baseUrl}/training-plans/${plan.id}`).subscribe({
-      next: () => {
-        // falls gerade ausgewählt -> resetten
-        if (this.selectedPlan?.id === plan.id) this.resetSelection();
-        this.loadPlans();
-      },
-      error: (err) => {
-        console.error(err);
-        if (err.status === 401 || err.status === 403) {
-          this.error = 'Nicht berechtigt. Bitte erneut anmelden.';
-        } else {
-          this.error = `Fehler beim Löschen von ${plan.name}.`;
-        }
-      },
-    });
+    return forkJoin(requests);
   }
 
-  trackByPlan = (_: number, p: UiPlan) => p.id;
-  trackBySession = (_: number, s: SessionDto) => s.id;
+  private mergeSessionWithExecutions(session: SessionDto, executions: ExerciseExecutionDto[]): SessionDto {
+    const sorted = [...(executions ?? [])].sort((a, b) => a.orderIndex - b.orderIndex);
 
-
-  sessionStatusLabel(session: SessionDto): string {
-    const rawDate = session.plannedDate ?? session.scheduledDate;
-    if (rawDate) {
-      const date = new Date(rawDate);
-      if (!isNaN(date.getTime())) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        if (date >= today) {
-          return 'Geplant';
-        }
-        return 'Abgeschlossen';
-      }
-    }
-
-    const status = session.status;
-    if (!status) return 'Unbekannt';
-    const normalized = status.toLowerCase();
-    const doneKeywords = ['completed', 'complete', 'done', 'abgeschlossen'];
-    if (doneKeywords.some((keyword) => normalized.includes(keyword))) {
-      return 'Abgeschlossen';
-    }
-    const plannedKeywords = ['planned', 'planed', 'geplant', 'scheduled'];
-    if (plannedKeywords.some((keyword) => normalized.includes(keyword))) {
-      return 'Geplant';
-    }
-    return status;
+    return {
+      ...session,
+      exerciseExecutions: sorted,
+      exercisesCount: typeof session.exercisesCount === 'number' ? session.exercisesCount : sorted.length,
+      performedCount: typeof session.performedCount === 'number' ? session.performedCount : 0,
+      days: Array.isArray(session.days) ? session.days : [],
+    };
   }
 
-  // Vereinheitlicht verschiedene Backend Antworten zu einem Array
-  private normalizePlansArray(res: any): any[] {
+  private buildPayloadFromForm(form: PlanFormModel): PlanPayload | null {
+    const name = (form.name ?? '').trim();
+    if (!name) return null;
+
+    return {
+      name,
+      description: (form.desc ?? '').trim(),
+    };
+  }
+
+  private resetCreateForm(form?: NgForm): void {
+    this.form = { name: '', desc: '' };
+    form?.resetForm();
+  }
+
+  private resolveWriteErrorMessage(err: any, fallback: string): string {
+    const status = Number(err?.status ?? 0);
+    if (status === 401 || status === 403) return Plans.UNAUTHORIZED_MESSAGE;
+    return fallback;
+  }
+
+  private containsAny(text: string, keywords: string[]): boolean {
+    return keywords.some((keyword) => text.includes(keyword));
+  }
+
+  private normalizePlansArray(res: unknown): any[] {
     if (Array.isArray(res)) return res;
-    if (res?._embedded?.trainingPlans && Array.isArray(res._embedded.trainingPlans)) {
-      return res._embedded.trainingPlans;
+
+    if (res && typeof res === 'object') {
+      const obj: any = res;
+
+      const embedded = obj?._embedded?.trainingPlans;
+      if (Array.isArray(embedded)) return embedded;
+
+      if (Array.isArray(obj?.content)) return obj.content;
+      if (Array.isArray(obj?.items)) return obj.items;
+      if (Array.isArray(obj?.data)) return obj.data;
+
+      return [obj];
     }
-    if (Array.isArray(res?.content)) return res.content;
-    if (Array.isArray(res?.items)) return res.items;
-    if (Array.isArray(res?.data)) return res.data;
-    if (res && typeof res === 'object') return [res];
+
     return [];
   }
 
-  // Vereinheitlicht verschiedene Backend Antworten zu einem Array
-  private normalizeSessionsArray(res: any): SessionDto[] {
-    if (Array.isArray(res)) return res;
-    if (res?._embedded?.trainingSessions && Array.isArray(res._embedded.trainingSessions)) {
-      return res._embedded.trainingSessions;
+  private normalizeSessionsArray(res: unknown): SessionDto[] {
+    if (Array.isArray(res)) return res as SessionDto[];
+
+    if (res && typeof res === 'object') {
+      const obj: any = res;
+
+      const embedded = obj?._embedded?.trainingSessions;
+      if (Array.isArray(embedded)) return embedded as SessionDto[];
+
+      if (Array.isArray(obj?.content)) return obj.content as SessionDto[];
+      if (Array.isArray(obj?.items)) return obj.items as SessionDto[];
+      if (Array.isArray(obj?.data)) return obj.data as SessionDto[];
+
+      return [obj as SessionDto];
     }
-    if (Array.isArray(res?.content)) return res.content;
-    if (Array.isArray(res?.items)) return res.items;
-    if (Array.isArray(res?.data)) return res.data;
-    if (res && typeof res === 'object') return [res];
+
     return [];
+  }
+
+  private clearMessages(): void {
+    this.error = null;
+    this.info = null;
+  }
+
+  private setError(message: string): void {
+    this.error = message;
+    this.info = null;
   }
 }

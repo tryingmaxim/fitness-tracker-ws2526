@@ -1,64 +1,59 @@
 :host {
-  display: block; /* Host-Element der Home-Page als Block */
+  display: block;
 }
 
-/* === Heading (Startseite) === */
 .heading {
-  position: absolute; /* zentriert über der Slideshow / dem Hintergrund */
+  position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 2; /* über dem Hintergrund */
+  z-index: 2;
   text-align: center;
   color: #fff;
   width: 100%;
 }
 
-/* Titel */
 .heading h1 {
   font-size: 4rem;
   font-weight: 700;
   letter-spacing: 2px;
   text-transform: uppercase;
-  text-shadow: 0 0 25px rgba(0, 0, 0, 0.6); /* Glow/Lesbarkeit */
-  opacity: 0; /* startet unsichtbar */
-  animation: fadeInMove 2s ease-out forwards; /* Einblend-Animation */
+  text-shadow: 0 0 25px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  animation: fadeInMove 2s ease-out forwards;
 }
 
-/* === Start-Button === */
 .start-btn {
-  position: absolute; /* unterhalb des Headings */
+  position: absolute;
   top: calc(50% + 100px);
   left: 50%;
-  transform: translateX(-50%); /* horizontal zentriert */
+  transform: translateX(-50%);
   padding: 0.9rem 2.5rem;
   font-size: 1.1rem;
   font-weight: 600;
   color: #fff;
   background: transparent;
   border: 2px solid #fff;
-  border-radius: 50px; /* Pillenform */
+  border-radius: 50px;
   cursor: pointer;
-  opacity: 0; /* startet unsichtbar */
-  animation: fadeInUp 2s ease-out 1s forwards; /* verzögert einblenden */
-  transition: all 1s ease; /* weicher Hover/State-Wechsel */
+  opacity: 0;
+  animation: fadeInUp 2s ease-out 1s forwards;
+  transition: all 1s ease;
   z-index: 2;
 }
 
 .start-btn:hover {
   background: #fff;
   color: #111;
-  transform: translateX(-50%) scale(1.05); /* bleibt zentriert, zoomt leicht */
+  transform: translateX(-50%) scale(1.05);
 }
 
-/* Fade-Out beim Klick */
 .start-btn.fade-out {
   opacity: 0;
   transform: translateX(-50%) translateY(-10px);
   transition: opacity 1s ease, transform 1s ease;
 }
 
-/* Neue Buttons (Anmelden / Registrieren) */
 .login-buttons {
   position: absolute;
   top: calc(50% + 100px);
@@ -66,17 +61,16 @@
   transform: translateX(-50%) translateY(40px);
   display: flex;
   gap: 1rem;
-  opacity: 0; /* unsichtbar, bis .show gesetzt wird */
-  pointer-events: none; /* nicht klickbar, solange versteckt */
-  transition: opacity 1.8s ease, transform 1.8s ease; /* sanft reinfahren */
- 
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1.8s ease, transform 1.8s ease;
   z-index: 2;
 }
 
 .login-buttons.show {
   opacity: 1;
-  transform: translateX(-50%) translateY(0); /* nach oben in Position */
-  pointer-events: all; /* jetzt klickbar */
+  transform: translateX(-50%) translateY(0);
+  pointer-events: all;
 }
 
 .action-btn {
@@ -84,12 +78,11 @@
   font-size: 1.1rem;
   font-weight: 600;
   color: #fff;
-  background: rgba(255, 255, 255, 0.15); /* halbtransparenter Hintergrund */
+  background: rgba(255, 255, 255, 0.15);
   border: 2px solid #fff;
   border-radius: 40px;
   cursor: pointer;
-  transition: all 0.4s ease; /* Hover-Animation */
-
+  transition: all 0.4s ease;
 }
 
 .action-btn:hover {
@@ -98,7 +91,6 @@
   transform: scale(1.05);
 }
 
-/* Animationen */
 @keyframes fadeInMove {
   0% {
     opacity: 0;
@@ -106,7 +98,7 @@
   }
   100% {
     opacity: 1;
-    transform: translateY(0); /* fährt an die Zielposition (ACHTUNG: überschreibt vorheriges transform) */
+    transform: translateY(0);
   }
 }
 
@@ -117,22 +109,24 @@
   }
   100% {
     opacity: 1;
-    transform: translateX(-50%) translateY(0); /* in Endposition */
+    transform: translateX(-50%) translateY(0);
   }
 }
 
-/* Responsive für Home */
 @media (max-width: 600px) {
   .heading h1 {
     font-size: 2.5rem;
   }
+
   .start-btn,
   .action-btn {
     font-size: 1rem;
     padding: 0.8rem 2rem;
   }
+
   .login-buttons {
-    flex-direction: column; /* Buttons untereinander statt nebeneinander */
+    flex-direction: column;
     gap: 0.8rem;
   }
 }
+

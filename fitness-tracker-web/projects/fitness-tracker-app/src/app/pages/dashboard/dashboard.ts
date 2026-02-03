@@ -5,12 +5,11 @@ import { RouterModule } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../environment';
 
-//definiert Datentypen für die API Antworten
 interface SessionResponse {
   id: number;
   name: string;
   planId: number | null;
-  days: number[]; 
+  days: number[];
   planName?: string;
 }
 
@@ -59,10 +58,15 @@ interface PlanCalendar {
   days: CalendarDayCell[];
 }
 
-//Backend response von /training-executions/stats/streak
 interface StreakResponse {
   streakDays: number;
 }
+
+type DashboardStat = {
+  label: string;
+  value: number | string;
+  sub?: string;
+};
 
 @Component({
   selector: 'app-dashboard',
@@ -75,38 +79,33 @@ export class Dashboard implements OnInit {
   greeting = this.buildGreeting();
   today = this.buildTodayString();
 
-  //Variablen der Daten die im UI angezeigt werden
-  stats = [
+  stats: DashboardStat[] = [
     { label: 'Sessions diese Woche', value: 0, sub: 'inkl. heutigem Tag' },
     { label: 'Übungen gesamt', value: 0, sub: 'gesamt im System' },
     { label: 'Streak', value: '0 Tage', sub: 'ohne Pause (Platzhalter)' },
   ];
 
-  quickSessions: {
-    title: string;
-    date: string;
-    plan: string;
-    focus: string;
-  }[] = [];
-
-  lastExercises: {
-    name: string;
-    category: string;
-  }[] = [];
-
+  quickSessions: { title: string; date: string; plan: string; focus: string }[] = [];
+  lastExercises: { name: string; category: string }[] = [];
   plansDashboard: PlanDashboardItem[] = [];
 
-  //Kalender (Tabs)
   planTabs: PlanTabItem[] = [];
   planCalendars: PlanCalendar[] = [];
   selectedPlanId: number | null = null;
+
+  private static readonly CALENDAR_DAYS = 30;
+  private static readonly QUICK_SESSIONS_LIMIT = 5;
+  private static readonly LAST_EXERCISES_LIMIT = 4;
+  private static readonly UNKNOWN_DAY_SORT_VALUE = 999;
+  private static readonly DEFAULT_PLAN_COLOR_CLASS = 'plan-color-0';
+  private static readonly DEFAULT_PLAN_NAME = 'Plan ohne Namen';
+  private static readonly DEFAULT_DAY_LABEL = 'Tag -';
 
   private readonly baseUrl = environment.apiBaseUrl;
 
   private sessionsRaw: SessionResponse[] = [];
   private plansRaw: TrainingPlanResponse[] = [];
 
-  //Palette für Planfarben (stabil über planId%len)
   private readonly colorClasses = [
     'plan-color-0',
     'plan-color-1',
@@ -120,89 +119,70 @@ export class Dashboard implements OnInit {
 
   constructor(private http: HttpClient) {}
 
-  //wird ausgeführt wenn Seite geladen wird
   ngOnInit(): void {
     this.loadData();
-    this.loadStreak(); 
+    this.loadStreak();
   }
 
-  //Heute-Logik für den Kalender
   get todayDayOfMonth30(): number {
-    const day = new Date().getDate(); 
-    return Math.min(day, 30); //maximal 30 Tage --> wenn es der 31. ist wird auf 30 gedeckelt
+    const dayOfMonth = new Date().getDate();
+    return Math.min(dayOfMonth, Dashboard.CALENDAR_DAYS);
   }
 
   isTodayCalendarDay(day: number): boolean {
     return day === this.todayDayOfMonth30;
   }
 
-  //Variablen für den Kalender holen
-
   get selectedPlanDays(): CalendarDayCell[] {
-    const cal = this.planCalendars.find((c) => c.planId === this.selectedPlanId);
-    return cal?.days ?? [];
+    return this.findSelectedCalendar()?.days ?? [];
   }
 
   get selectedPlanColorClass(): string {
-    const cal = this.planCalendars.find((c) => c.planId === this.selectedPlanId);
-    return cal?.colorClass ?? 'plan-color-0';
+    return this.findSelectedCalendar()?.colorClass ?? Dashboard.DEFAULT_PLAN_COLOR_CLASS;
   }
 
   selectPlan(planId: number): void {
     this.selectedPlanId = planId;
   }
 
-  private getColorClassForPlanId(planId: number): string {
-    const idx = Math.abs(Number(planId)) % this.colorClasses.length;
-    return this.colorClasses[idx];
+  private findSelectedCalendar(): PlanCalendar | undefined {
+    return this.planCalendars.find((calendar) => calendar.planId === this.selectedPlanId);
   }
 
-  //holt Daten vom Backend und verarbeitet sie, damit das Dashboard gefüllt werden kann
   private loadData(): void {
-    this.http.get<any>(`${this.baseUrl}/training-sessions`).subscribe({
+    this.loadSessions();
+    this.loadExercises();
+    this.loadPlans();
+  }
+
+  private loadSessions(): void {
+    this.http.get<unknown>(`${this.baseUrl}/training-sessions`).subscribe({
       next: (sessionsRes) => {
-        const sessions = this.extractCollection(sessionsRes, 'trainingSessions') as any[];
-
-        this.sessionsRaw = (sessions ?? []).map((s: any) => ({
-          id: Number(s.id),
-          name: s.name,
-          planId:
-            s.planId != null
-              ? Number(s.planId)
-              : s.plan?.id != null
-                ? Number(s.plan.id)
-                : null,
-          days: Array.isArray(s.days)
-            ? s.days.map((d: any) => Number(d)).filter((d: number) => d >= 1 && d <= 30)
-            : [],
-          planName: s.planName ?? s.plan?.name,
-        }));
-
+        const sessions = this.extractCollection(sessionsRes, 'trainingSessions');
+        this.sessionsRaw = this.mapSessions(sessions);
         this.processSessions(this.sessionsRaw);
         this.buildPlansDashboard();
         this.buildPlanCalendars();
       },
       error: (err) => console.error('Fehler beim Laden der Sessions', err),
     });
+  }
 
-    this.http.get<any>(`${this.baseUrl}/exercises`).subscribe({
+  private loadExercises(): void {
+    this.http.get<unknown>(`${this.baseUrl}/exercises`).subscribe({
       next: (exRes) => {
         const exercises = this.extractCollection(exRes, 'exercises') as ExerciseResponse[];
         this.processExercises(exercises);
       },
       error: (err) => console.error('Fehler beim Laden der Übungen', err),
     });
+  }
 
-    this.http.get<any>(`${this.baseUrl}/training-plans`).subscribe({
+  private loadPlans(): void {
+    this.http.get<unknown>(`${this.baseUrl}/training-plans`).subscribe({
       next: (planRes) => {
-        const plans = this.extractCollection(planRes, 'trainingPlans') as TrainingPlanResponse[];
-
-        this.plansRaw = (plans ?? []).map((p: any) => ({
-          id: Number(p.id),
-          name: p.name,
-          description: p.description,
-        }));
-
+        const plans = this.extractCollection(planRes, 'trainingPlans');
+        this.plansRaw = this.mapPlans(plans);
         this.buildPlansDashboard();
         this.buildPlanCalendars();
       },
@@ -210,80 +190,111 @@ export class Dashboard implements OnInit {
     });
   }
 
+  private mapSessions(rawSessions: unknown[]): SessionResponse[] {
+    return (rawSessions ?? []).map((raw) => {
+      const session = raw as any;
+      return {
+        id: Number(session.id),
+        name: session.name,
+        planId: this.extractPlanId(session),
+        days: this.normalizeDays(session.days),
+        planName: session.planName ?? session.plan?.name,
+      };
+    });
+  }
+
+  private extractPlanId(session: any): number | null {
+    const directId = session.planId != null ? Number(session.planId) : null;
+    if (directId != null) return directId;
+
+    const nestedId = session.plan?.id != null ? Number(session.plan.id) : null;
+    return nestedId != null ? nestedId : null;
+  }
+
+  private normalizeDays(days: unknown): number[] {
+    if (!Array.isArray(days)) return [];
+    return days.map((day) => Number(day)).filter((day) => this.isValidCalendarDay(day));
+  }
+
+  private isValidCalendarDay(day: number): boolean {
+    return day >= 1 && day <= Dashboard.CALENDAR_DAYS;
+  }
+
+  private mapPlans(rawPlans: unknown[]): TrainingPlanResponse[] {
+    return (rawPlans ?? []).map((raw) => {
+      const plan = raw as any;
+      return {
+        id: Number(plan.id),
+        name: plan.name,
+        description: plan.description,
+      };
+    });
+  }
+
   private processSessions(sessions: SessionResponse[]): void {
-    //Wenn keine Sessions vorhanden sind wird die Liste und Anzeige im Dashboard auf 0 gesetzt
     if (!sessions.length) {
       this.quickSessions = [];
-      this.stats[0].value = 0;
+      this.setStatValue(0, 0);
       return;
     }
 
-    const sorted = [...sessions].sort((a, b) => {
-      const aMin = this.minDay(a.days);
-      const bMin = this.minDay(b.days);
-      if (aMin !== bMin) return aMin - bMin;
-      return (a.name ?? '').localeCompare(b.name ?? '');
-    });
-
-    this.quickSessions = sorted.slice(0, 5).map((s) => ({
-      title: s.name,
-      date: this.formatDaysAsTagLabel(s.days),
-      plan: s.planName ?? 'Plan ohne Namen',
+    const sorted = [...sessions].sort((a, b) => this.compareSessions(a, b));
+    this.quickSessions = sorted.slice(0, Dashboard.QUICK_SESSIONS_LIMIT).map((session) => ({
+      title: session.name,
+      date: this.formatDaysAsTagLabel(session.days),
+      plan: session.planName ?? Dashboard.DEFAULT_PLAN_NAME,
       focus: 'Session-Vorlage',
     }));
 
-    //Statistik für Sessions diese Woche 
-    this.stats[0].value = sorted.length;
+    this.setStatValue(0, sorted.length);
+  }
+
+  private compareSessions(a: SessionResponse, b: SessionResponse): number {
+    const aMin = this.minDay(a.days);
+    const bMin = this.minDay(b.days);
+
+    if (aMin !== bMin) return aMin - bMin;
+    return (a.name ?? '').localeCompare(b.name ?? '');
   }
 
   private minDay(days: number[]): number {
-    const clean = (days ?? []).map((d) => Number(d)).filter((d) => d >= 1 && d <= 30);
-    if (!clean.length) return 999;
-    return Math.min(...clean);
+    const normalized = this.normalizeDays(days);
+    if (!normalized.length) return Dashboard.UNKNOWN_DAY_SORT_VALUE;
+    return Math.min(...normalized);
   }
 
   private formatDaysAsTagLabel(days: number[]): string {
-    const clean = (days ?? [])
-      .map((d) => Number(d))
-      .filter((d) => d >= 1 && d <= 30)
-      .sort((a, b) => a - b);
+    const normalized = this.normalizeDays(days).sort((a, b) => a - b);
 
-    if (!clean.length) return 'Tag -';
-    if (clean.length === 1) return `Tag ${clean[0]}`;
-    return `Tage ${clean.join(', ')}`;
+    if (!normalized.length) return Dashboard.DEFAULT_DAY_LABEL;
+    if (normalized.length === 1) return `Tag ${normalized[0]}`;
+    return `Tage ${normalized.join(', ')}`;
   }
 
   private processExercises(exercises: ExerciseResponse[]): void {
-    //Statistik der gesamten Übungen
-    this.stats[1].value = exercises.length;
+    const safeExercises = exercises ?? [];
+    this.setStatValue(1, safeExercises.length);
 
-    //die letzten 4 Übungen werden angezeigt
-    this.lastExercises = (exercises ?? []).slice(0, 4).map((e) => ({
-      name: e.name,
-      category: e.muscleGroups || e.category || 'Kategorie unbekannt',
+    this.lastExercises = safeExercises.slice(0, Dashboard.LAST_EXERCISES_LIMIT).map((exercise) => ({
+      name: exercise.name,
+      category: exercise.muscleGroups || exercise.category || 'Kategorie unbekannt',
     }));
   }
 
   private buildPlansDashboard(): void {
-    //Wenn keine Sessions vorhanden sind wird die Liste und Anzeige im Dashboard auf 0 gesetzt
     if (!this.plansRaw.length) {
       this.plansDashboard = [];
       return;
     }
 
-    //Anzahl der Sessions für jeden Trainingsplan
-    this.plansDashboard = this.plansRaw.map((p) => {
-      const sessionsForPlan = this.sessionsRaw.filter((s) => s.planId === p.id);
-      return {
-        id: p.id,
-        name: p.name,
-        description: p.description,
-        sessionCount: sessionsForPlan.length,
-      };
-    });
+    this.plansDashboard = this.plansRaw.map((plan) => ({
+      id: plan.id,
+      name: plan.name,
+      description: plan.description,
+      sessionCount: this.sessionsRaw.filter((session) => session.planId === plan.id).length,
+    }));
   }
 
-  //Plan-Tabs + 1-30 Kalender pro Plan bauen
   private buildPlanCalendars(): void {
     if (!this.plansRaw.length) {
       this.planTabs = [];
@@ -292,63 +303,79 @@ export class Dashboard implements OnInit {
       return;
     }
 
-    this.planTabs = this.plansRaw.map((p) => ({
-      id: p.id,
-      name: p.name,
-      colorClass: this.getColorClassForPlanId(p.id),
+    this.planTabs = this.plansRaw.map((plan) => ({
+      id: plan.id,
+      name: plan.name,
+      colorClass: this.getColorClassForPlanId(plan.id),
     }));
 
-    this.planCalendars = this.plansRaw.map((p) => {
-      const colorClass = this.getColorClassForPlanId(p.id);
-
-      //Tage 1-30 initialisieren
-      const days: CalendarDayCell[] = Array.from({ length: 30 }, (_, i) => ({
-        day: i + 1,
-        sessions: [],
-      }));
-
-      //Sessions in die passenden Tage einsortieren
-      const sessionsForPlan = this.sessionsRaw
-        .filter((s) => s.planId === p.id)
-        .map((s) => ({
-          id: s.id,
-          name: s.name,
-          planId: s.planId,
-          planName: s.planName ?? p.name,
-          days: (s.days ?? []).map((d) => Number(d)).filter((d) => d >= 1 && d <= 30),
-        }));
-
-      sessionsForPlan.forEach((s) => {
-        s.days.forEach((d) => {
-          const cell = days[d - 1];
-          if (!cell) return;
-          cell.sessions.push({
-            id: s.id,
-            name: s.name,
-            planId: s.planId,
-            planName: s.planName,
-          });
-        });
-      });
-
-      days.forEach((cell) => {
-        cell.sessions = cell.sessions.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
-      });
-
-      return {
-        planId: p.id,
-        planName: p.name,
-        colorClass,
-        days,
-      };
-    });
+    this.planCalendars = this.plansRaw.map((plan) => this.buildCalendarForPlan(plan));
 
     if (this.selectedPlanId == null) {
       this.selectedPlanId = this.planTabs[0]?.id ?? null;
     }
   }
 
-  //Streak von Trainingsausführungen laden
+  private buildCalendarForPlan(plan: TrainingPlanResponse): PlanCalendar {
+    const colorClass = this.getColorClassForPlanId(plan.id);
+    const days = this.createEmptyCalendarDays();
+
+    const sessionsForPlan = this.sessionsRaw
+      .filter((session) => session.planId === plan.id)
+      .map((session) => ({
+        id: session.id,
+        name: session.name,
+        planId: session.planId,
+        planName: session.planName ?? plan.name,
+        days: this.normalizeDays(session.days),
+      }));
+
+    for (const session of sessionsForPlan) {
+      this.assignSessionToDays(days, session, plan.name);
+    }
+
+    for (const dayCell of days) {
+      dayCell.sessions = [...dayCell.sessions].sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
+    }
+
+    return {
+      planId: plan.id,
+      planName: plan.name,
+      colorClass,
+      days,
+    };
+  }
+
+  private createEmptyCalendarDays(): CalendarDayCell[] {
+    return Array.from({ length: Dashboard.CALENDAR_DAYS }, (_, index) => ({
+      day: index + 1,
+      sessions: [],
+    }));
+  }
+
+  private assignSessionToDays(
+    days: CalendarDayCell[],
+    session: { id: number; name: string; planId: number | null; planName?: string; days: number[] },
+    fallbackPlanName: string
+  ): void {
+    for (const day of session.days) {
+      const cell = days[day - 1];
+      if (!cell) continue;
+
+      cell.sessions.push({
+        id: session.id,
+        name: session.name,
+        planId: session.planId,
+        planName: session.planName ?? fallbackPlanName,
+      });
+    }
+  }
+
+  private getColorClassForPlanId(planId: number): string {
+    const index = Math.abs(Number(planId)) % this.colorClasses.length;
+    return this.colorClasses[index];
+  }
+
   private loadStreak(): void {
     this.http.get<StreakResponse>(`${this.baseUrl}/training-executions/stats/streak`).subscribe({
       next: (res) => {
@@ -363,30 +390,36 @@ export class Dashboard implements OnInit {
     });
   }
 
-  //Helper für unterschiedliche Backend Antwort Formaten
-  private extractCollection(res: any, key: string): any[] {
+  private extractCollection(res: unknown, key: string): unknown[] {
     if (!res) return [];
     if (Array.isArray(res)) return res;
 
-    if (res && Array.isArray(res[key])) return res[key];
-    if (res && Array.isArray(res?._embedded?.[key])) return res._embedded[key];
+    const obj = res as any;
 
-    if (res && Array.isArray(res?.content)) return res.content;
+    if (Array.isArray(obj[key])) return obj[key];
+    if (Array.isArray(obj?._embedded?.[key])) return obj._embedded[key];
+    if (Array.isArray(obj?.content)) return obj.content;
 
     return [];
   }
 
+  private setStatValue(statIndex: number, value: number): void {
+    const stat = this.stats[statIndex];
+    if (!stat) return;
+    stat.value = value;
+  }
+
   private buildGreeting(): string {
-    const h = new Date().getHours();
-    if (h < 12) return 'Guten Morgen';
-    if (h < 18) return 'Guten Tag';
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Guten Morgen';
+    if (hour < 18) return 'Guten Tag';
     return 'Guten Abend';
   }
 
   private buildTodayString(): string {
-    const d = new Date();
-    const weekday = d.toLocaleDateString('de-DE', { weekday: 'short' });
-    const date = d.toLocaleDateString('de-DE');
-    return `${weekday}., ${date}`;
+    const date = new Date();
+    const weekday = date.toLocaleDateString('de-DE', { weekday: 'short' });
+    const formattedDate = date.toLocaleDateString('de-DE');
+    return `${weekday}., ${formattedDate}`;
   }
 }

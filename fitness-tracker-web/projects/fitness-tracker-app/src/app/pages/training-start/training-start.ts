@@ -3,7 +3,8 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Subscription, forkJoin, of, switchMap, catchError } from 'rxjs';
+import { Subscription, forkJoin, of } from 'rxjs';
+import { catchError, switchMap } from 'rxjs/operators';
 import { environment } from '../../../../environment';
 
 type UiState = 'loading' | 'ready' | 'error';
@@ -32,15 +33,6 @@ interface TrainingSessionResponse {
   exerciseExecutions: PlannedExerciseFromSession[];
 }
 
-interface TrainingExecutionResponse {
-  id: number;
-  sessionId: number;
-  status: 'IN_PROGRESS' | 'COMPLETED';
-  startedAt: string;
-  completedAt: string | null;
-  executedExercises: ExecutedExerciseResponse[];
-}
-
 interface ExecutedExerciseResponse {
   id: number;
   exerciseId: number;
@@ -54,11 +46,20 @@ interface ExecutedExerciseResponse {
   notes: string | null;
 }
 
+interface TrainingExecutionResponse {
+  id: number;
+  sessionId: number;
+  status: 'IN_PROGRESS' | 'COMPLETED';
+  startedAt: string;
+  completedAt: string | null;
+  executedExercises: ExecutedExerciseResponse[];
+}
+
 interface ActualEntry {
   exerciseId: number;
-  actualSets: number;      
-  actualReps: number;      
-  actualWeightKg: number;  
+  actualSets: number;
+  actualReps: number;
+  actualWeightKg: number;
   done: boolean;
   notes: string;
 }
@@ -78,6 +79,13 @@ interface FieldErrors {
   weight?: string;
 }
 
+type ToastType = 'success' | 'error' | 'info';
+
+interface ToastState {
+  type: ToastType;
+  text: string;
+}
+
 @Component({
   selector: 'app-training-start',
   standalone: true,
@@ -86,6 +94,43 @@ interface FieldErrors {
   styleUrl: './training-start.css',
 })
 export class TrainingStart implements OnInit, OnDestroy {
+  private static readonly MAX_DAYS = 30;
+  private static readonly MIN_SETS_REPS = 1;
+  private static readonly MIN_WEIGHT = 0;
+  private static readonly TOAST_TIMEOUT_MS = 2800;
+
+  private static readonly MSG_INVALID_SESSION_ID = 'Ungültige Session-ID in der URL.';
+  private static readonly MSG_SESSION_LOAD_FAILED = 'Session konnte nicht geladen werden.';
+  private static readonly MSG_NO_EXERCISES = 'Diese Session hat noch keine Übungen. Bitte zuerst Übungen hinzufügen.';
+  private static readonly MSG_ALREADY_IN_PROGRESS = 'Training läuft bereits.';
+  private static readonly MSG_ALREADY_COMPLETED = 'Dieses Training ist bereits abgeschlossen.';
+  private static readonly MSG_FIX_INPUTS = 'Bitte korrigiere die Eingaben (nur gültige Zahlen).';
+  private static readonly MSG_STARTED = 'Training gestartet.';
+  private static readonly MSG_START_FAILED = 'Training konnte nicht gestartet werden.';
+  private static readonly MSG_START_REQUIRED = 'Bitte starte zuerst das Training.';
+  private static readonly MSG_SAVE_INVALID = 'Speichern nicht möglich: Bitte korrigiere die rot markierten Felder.';
+  private static readonly MSG_SAVED = 'Fortschritt gespeichert';
+  private static readonly MSG_SAVE_FAILED = 'Speichern fehlgeschlagen.';
+  private static readonly MSG_FINISH_NOT_IN_PROGRESS = 'Training ist nicht im Status IN_PROGRESS.';
+  private static readonly MSG_FINISH_INVALID = 'Abschließen nicht möglich: Bitte korrigiere die rot markierten Felder.';
+  private static readonly MSG_FINISHED = 'Training abgeschlossen';
+  private static readonly MSG_FINISH_FAILED = 'Abschließen fehlgeschlagen.';
+  private static readonly MSG_DRAFT_DISCARDED = 'Entwurf verworfen.';
+  private static readonly MSG_CANCELED = 'Training abgebrochen und gelöscht.';
+  private static readonly MSG_CANCEL_FAILED = 'Abbrechen fehlgeschlagen.';
+
+  private static readonly ALLOWED_CONTROL_KEYS = [
+    'Backspace',
+    'Delete',
+    'Tab',
+    'Escape',
+    'Enter',
+    'ArrowLeft',
+    'ArrowRight',
+    'Home',
+    'End',
+  ];
+
   private readonly baseUrl = environment.apiBaseUrl;
 
   state: UiState = 'loading';
@@ -100,44 +145,38 @@ export class TrainingStart implements OnInit, OnDestroy {
   completedAt: Date | null = null;
 
   actual: Record<number, ActualEntry> = {};
-
   actualInput: Record<number, ActualInputEntry> = {};
-
   errors: Record<number, FieldErrors> = {};
 
-  toast: { type: 'success' | 'error' | 'info'; text: string } | null = null;
+  toast: ToastState | null = null;
+
   starting = false;
   saving = false;
   finishing = false;
 
-  private sub = new Subscription();
+  private subscription = new Subscription();
+  private isStorageHealthy = true;
 
   constructor(private route: ActivatedRoute, private http: HttpClient) {}
 
-  //liest Session ID aus URL und lädt die Session
   ngOnInit(): void {
-    this.sub.add(
+    this.subscription.add(
       this.route.paramMap
         .pipe(
           switchMap((params) => {
-            const idStr = params.get('sessionId');
-            const id = idStr ? Number(idStr) : NaN;
-
-            if (!idStr || Number.isNaN(id)) {
-              this.state = 'error';
-              this.errorMessage = 'Ungültige Session-ID in der URL.';
+            const sessionId = this.parseSessionId(params.get('sessionId'));
+            if (sessionId == null) {
+              this.setErrorState(TrainingStart.MSG_INVALID_SESSION_ID);
               return of(null);
             }
 
-            this.sessionId = id;
+            this.sessionId = sessionId;
             this.state = 'loading';
             this.errorMessage = '';
 
-            //lädt Session Daten 
-            return this.http.get<TrainingSessionResponse>(`${this.baseUrl}/training-sessions/${id}`).pipe(
+            return this.http.get<TrainingSessionResponse>(`${this.baseUrl}/training-sessions/${sessionId}`).pipe(
               catchError((err: HttpErrorResponse) => {
-                this.state = 'error';
-                this.errorMessage = this.humanError(err, 'Session konnte nicht geladen werden.');
+                this.setErrorState(this.humanError(err, TrainingStart.MSG_SESSION_LOAD_FAILED));
                 return of(null);
               })
             );
@@ -150,265 +189,210 @@ export class TrainingStart implements OnInit, OnDestroy {
           this.initActualFromPlan();
           this.restoreLocalDraft();
 
-          if (this.executionId && this.sessionId) {
+          if (this.executionId) {
             this.loadExecution(this.executionId);
-          } else {
-            this.state = 'ready';
+            return;
           }
+
+          this.state = 'ready';
         })
     );
   }
 
   ngOnDestroy(): void {
-    this.sub.unsubscribe();
+    this.subscription.unsubscribe();
   }
 
-  //prüft ob Training gestartet werden darf 
   startTraining(): void {
     if (!this.session || this.sessionId == null) return;
 
     if (!this.session.exerciseExecutions?.length) {
-      this.showToast('error', 'Diese Session hat noch keine Übungen. Bitte zuerst Übungen hinzufügen.');
+      this.showToast('error', TrainingStart.MSG_NO_EXERCISES);
       return;
     }
 
     if (this.executionStatus === 'IN_PROGRESS') {
-      this.showToast('info', 'Training läuft bereits.');
+      this.showToast('info', TrainingStart.MSG_ALREADY_IN_PROGRESS);
       return;
     }
 
     if (this.executionStatus === 'COMPLETED') {
-      this.showToast('error', 'Dieses Training ist bereits abgeschlossen.');
+      this.showToast('error', TrainingStart.MSG_ALREADY_COMPLETED);
       return;
     }
 
     this.validateAllFields();
     if (this.hasValidationErrors()) {
-      this.showToast('error', 'Bitte korrigiere die Eingaben (nur gültige Zahlen).');
+      this.showToast('error', TrainingStart.MSG_FIX_INPUTS);
       return;
     }
 
     this.starting = true;
 
-    //TrainingExecution im Backend anlegen und Training aktivieren
     this.http
       .post<TrainingExecutionResponse>(`${this.baseUrl}/training-executions`, { sessionId: this.sessionId })
       .subscribe({
-        next: (te) => {
-          this.applyExecution(te);
+        next: (trainingExecution) => {
+          this.applyExecution(trainingExecution);
           this.persistLocalDraft();
           this.state = 'ready';
-
-          this.showToast('success', 'Training gestartet. Let’s go 💪');
+          this.showToast('success', TrainingStart.MSG_STARTED);
           this.starting = false;
         },
         error: (err: HttpErrorResponse) => {
-          this.showToast('error', this.humanError(err, 'Training konnte nicht gestartet werden.'));
+          this.showToast('error', this.humanError(err, TrainingStart.MSG_START_FAILED));
           this.starting = false;
         },
       });
   }
 
-  //speichert Fortschritt aller Übungen eines laufenden trainings
   saveProgress(): void {
     if (!this.session || this.sessionId == null) return;
 
     if (!this.executionId || this.executionStatus !== 'IN_PROGRESS') {
-      this.showToast('error', 'Bitte starte zuerst das Training.');
+      this.showToast('error', TrainingStart.MSG_START_REQUIRED);
       return;
     }
 
     this.validateAllFields();
     if (this.hasValidationErrors()) {
-      this.showToast('error', 'Speichern nicht möglich: Bitte korrigiere die rot markierten Felder.');
+      this.showToast('error', TrainingStart.MSG_SAVE_INVALID);
       return;
     }
 
     this.saving = true;
 
-    const requests = this.session.exerciseExecutions.map((p) => {
-      const a = this.actual[p.exerciseId];
-
-      const body = {
-        exerciseId: p.exerciseId,
-        actualSets: this.clampIntMin(a?.actualSets, 1),
-        actualReps: this.clampIntMin(a?.actualReps, 1),
-        actualWeightKg: this.clampFloatMin(a?.actualWeightKg, 0),
-        done: Boolean(a?.done ?? false),
-        notes: (a?.notes ?? '').trim() || null,
-      };
-
-      //Fortschritt im Backend speichern
-      return this.http.put<TrainingExecutionResponse>(
-        `${this.baseUrl}/training-executions/${this.executionId}/exercises`,
-        body
-      );
-    });
+    const requests = this.session.exerciseExecutions.map((planned) =>
+      this.saveExerciseProgress(planned.exerciseId)
+    );
 
     forkJoin(requests).subscribe({
       next: () => {
         this.loadExecutionAndThen(() => {
           this.persistLocalDraft();
-          this.showToast('success', 'Fortschritt gespeichert ✅');
+          this.showToast('success', TrainingStart.MSG_SAVED);
           this.saving = false;
         });
       },
       error: (err: HttpErrorResponse) => {
         this.persistLocalDraft();
-        this.showToast('error', this.humanError(err, 'Speichern fehlgeschlagen.'));
+        this.showToast('error', this.humanError(err, TrainingStart.MSG_SAVE_FAILED));
         this.saving = false;
       },
     });
   }
 
-  //schließt laufendes Training ab 
   finishTraining(): void {
     if (!this.executionId) {
-      this.showToast('error', 'Bitte starte zuerst das Training.');
+      this.showToast('error', TrainingStart.MSG_START_REQUIRED);
       return;
     }
 
     if (this.executionStatus !== 'IN_PROGRESS') {
-      this.showToast('error', 'Training ist nicht im Status IN_PROGRESS.');
+      this.showToast('error', TrainingStart.MSG_FINISH_NOT_IN_PROGRESS);
       return;
     }
 
     this.validateAllFields();
     if (this.hasValidationErrors()) {
-      this.showToast('error', 'Abschließen nicht möglich: Bitte korrigiere die rot markierten Felder.');
+      this.showToast('error', TrainingStart.MSG_FINISH_INVALID);
       return;
     }
 
     this.finishing = true;
 
-    //finalen Stand im Backend speichern
     const saveRequests =
-      this.session?.exerciseExecutions?.map((p) => {
-        const a = this.actual[p.exerciseId];
-        return this.http.put<TrainingExecutionResponse>(
-          `${this.baseUrl}/training-executions/${this.executionId}/exercises`,
-          {
-            exerciseId: p.exerciseId,
-            actualSets: this.clampIntMin(a?.actualSets, 1),
-            actualReps: this.clampIntMin(a?.actualReps, 1),
-            actualWeightKg: this.clampFloatMin(a?.actualWeightKg, 0),
-            done: Boolean(a?.done ?? false),
-            notes: (a?.notes ?? '').trim() || null,
-          }
-        );
-      }) ?? [];
+      this.session?.exerciseExecutions?.map((planned) => this.saveExerciseProgress(planned.exerciseId)) ?? [];
 
     const saveAll$ = saveRequests.length ? forkJoin(saveRequests) : of([]);
 
-    //Nachdem speichern das Trainng abschließen
     saveAll$
       .pipe(
         switchMap(() =>
           this.http.post<TrainingExecutionResponse>(`${this.baseUrl}/training-executions/${this.executionId}/complete`, {})
-        ),
-        catchError((err: HttpErrorResponse) => {
-          throw err;
-        })
+        )
       )
       .subscribe({
         next: () => {
           this.loadExecutionAndThen(() => {
             this.clearLocalDraft();
-            this.showToast('success', 'Training abgeschlossen 🏁');
+            this.showToast('success', TrainingStart.MSG_FINISHED);
             this.finishing = false;
           });
         },
         error: (err: HttpErrorResponse) => {
           this.persistLocalDraft();
-          this.showToast('error', this.humanError(err, 'Abschließen fehlgeschlagen.'));
+          this.showToast('error', this.humanError(err, TrainingStart.MSG_FINISH_FAILED));
           this.finishing = false;
         },
       });
   }
 
-  //laufendes Training abbrechen
   cancelTraining(): void {
     if (!this.executionId) {
       this.clearLocalDraft();
       this.resetRuntime();
-      this.showToast('info', 'Entwurf verworfen.');
+      this.showToast('info', TrainingStart.MSG_DRAFT_DISCARDED);
       return;
     }
 
-    //Training im backend löschen
     this.http.delete(`${this.baseUrl}/training-executions/${this.executionId}`).subscribe({
       next: () => {
         this.clearLocalDraft();
         this.resetRuntime();
-        this.showToast('info', 'Training abgebrochen und gelöscht.');
+        this.showToast('info', TrainingStart.MSG_CANCELED);
       },
       error: (err: HttpErrorResponse) => {
-        this.showToast('error', this.humanError(err, 'Abbrechen fehlgeschlagen.'));
+        this.showToast('error', this.humanError(err, TrainingStart.MSG_CANCEL_FAILED));
       },
     });
   }
 
-  //speichert Benutzereingaben lokal als Entwurf
   onRawInputChange(exerciseId: number, field: FieldKey, value: string): void {
-    if (!this.actualInput[exerciseId]) this.actualInput[exerciseId] = { sets: '1', reps: '1', weight: '0' };
+    this.ensureInputState(exerciseId);
+
     this.actualInput[exerciseId][field] = (value ?? '').toString();
-
     this.validateAndApply(exerciseId, field);
-
     this.persistLocalDraft();
   }
 
-  //blockiert unerlaubte tastatureingaben
-  onNumberKeyDown(ev: KeyboardEvent, type: FieldType): void {
-    const allowedControl = [
-      'Backspace',
-      'Delete',
-      'Tab',
-      'Escape',
-      'Enter',
-      'ArrowLeft',
-      'ArrowRight',
-      'Home',
-      'End',
-    ];
+  onNumberKeyDown(event: KeyboardEvent, type: FieldType): void {
+    if (TrainingStart.ALLOWED_CONTROL_KEYS.includes(event.key)) return;
+    if (event.ctrlKey || event.metaKey) return;
 
-    if (allowedControl.includes(ev.key)) return;
-    if (ev.ctrlKey || ev.metaKey) return; 
-
-    if (ev.key === '-' || ev.key === '+' || ev.key.toLowerCase() === 'e') {
-      ev.preventDefault();
+    if (event.key === '-' || event.key === '+' || event.key.toLowerCase() === 'e') {
+      event.preventDefault();
       return;
     }
 
     if (type === 'int') {
-      if (!/^\d$/.test(ev.key)) ev.preventDefault();
+      if (!/^\d$/.test(event.key)) event.preventDefault();
       return;
     }
 
-    if (/^\d$/.test(ev.key)) return;
+    if (/^\d$/.test(event.key)) return;
 
-    if (ev.key === '.' || ev.key === ',') {
-      const input = ev.target as HTMLInputElement | null;
-      const current = (input?.value ?? '');
-      if (current.includes('.') || current.includes(',')) {
-        ev.preventDefault();
+    if (event.key === '.' || event.key === ',') {
+      const input = event.target as HTMLInputElement | null;
+      const currentValue = input?.value ?? '';
+      if (currentValue.includes('.') || currentValue.includes(',')) {
+        event.preventDefault();
       }
       return;
     }
 
-    ev.preventDefault();
+    event.preventDefault();
   }
 
-  //validiert eingefügte Texte
-  onNumberPaste(ev: ClipboardEvent, type: FieldType): void {
-    const txt = (ev.clipboardData?.getData('text') ?? '').trim();
-    const ok = type === 'int' ? /^\d+$/.test(txt) : /^\d+([.,]\d+)?$/.test(txt);
-    if (!ok) {
-      ev.preventDefault();
+  onNumberPaste(event: ClipboardEvent, type: FieldType): void {
+    const text = (event.clipboardData?.getData('text') ?? '').trim();
+    const isValid = type === 'int' ? /^\d+$/.test(text) : /^\d+([.,]\d+)?$/.test(text);
+
+    if (!isValid) {
+      event.preventDefault();
     }
   }
 
- 
   get isInProgress(): boolean {
     return this.executionStatus === 'IN_PROGRESS';
   }
@@ -418,7 +402,7 @@ export class TrainingStart implements OnInit, OnDestroy {
   }
 
   get doneCount(): number {
-    return Object.values(this.actual).filter((x) => x.done).length;
+    return Object.values(this.actual).filter((entry) => entry.done).length;
   }
 
   get totalCount(): number {
@@ -431,130 +415,156 @@ export class TrainingStart implements OnInit, OnDestroy {
     return Math.round((this.doneCount / total) * 100);
   }
 
-  //lädt aktuellen Trainingsstand
-  private loadExecutionAndThen(fn: () => void): void {
+  onToggleDone(exerciseId: number, checked: boolean): void {
+    const entry = this.actual[exerciseId];
+    if (!entry) return;
+
+    entry.done = checked;
+    this.persistLocalDraft();
+  }
+
+  onNotesChange(exerciseId: number): void {
+    const entry = this.actual[exerciseId];
+    if (!entry) return;
+
+    entry.notes = (entry.notes ?? '').toString();
+    this.persistLocalDraft();
+  }
+
+  private saveExerciseProgress(exerciseId: number) {
+    const entry = this.actual[exerciseId];
+
+    const body = {
+      exerciseId,
+      actualSets: this.clampIntMin(entry?.actualSets, TrainingStart.MIN_SETS_REPS),
+      actualReps: this.clampIntMin(entry?.actualReps, TrainingStart.MIN_SETS_REPS),
+      actualWeightKg: this.clampFloatMin(entry?.actualWeightKg, TrainingStart.MIN_WEIGHT),
+      done: Boolean(entry?.done ?? false),
+      notes: (entry?.notes ?? '').trim() || null,
+    };
+
+    return this.http.put<TrainingExecutionResponse>(
+      `${this.baseUrl}/training-executions/${this.executionId}/exercises`,
+      body
+    );
+  }
+
+  private loadExecutionAndThen(action: () => void): void {
     if (!this.executionId) {
-      fn();
+      action();
       return;
     }
+
     this.http.get<TrainingExecutionResponse>(`${this.baseUrl}/training-executions/${this.executionId}`).subscribe({
-      next: (te) => {
-        this.applyExecution(te);
-        fn();
+      next: (trainingExecution) => {
+        this.applyExecution(trainingExecution);
+        action();
       },
       error: () => {
-        fn();
+        action();
       },
     });
   }
 
-  //lädt eine Trainingseinheit und setzt lokalen Zustand
   private loadExecution(executionId: number): void {
     this.http.get<TrainingExecutionResponse>(`${this.baseUrl}/training-executions/${executionId}`).subscribe({
-      next: (te) => {
-        this.applyExecution(te);
+      next: (trainingExecution) => {
+        this.applyExecution(trainingExecution);
         this.state = 'ready';
       },
       error: () => {
-        this.executionId = null;
-        this.executionStatus = null;
-        this.startedAt = null;
-        this.completedAt = null;
+        this.resetExecutionMeta();
         this.persistLocalDraft();
         this.state = 'ready';
       },
     });
   }
 
-  //Überträgt aktuellen Trainingsstand in UI Zustand und stellt sicher, dass alle Übungsdaten UI tauglich vorliegen
-  private applyExecution(te: TrainingExecutionResponse): void {
-    this.executionId = te.id ?? null;
-    this.executionStatus = (te.status as any) ?? null;
-    this.startedAt = te.startedAt ? new Date(te.startedAt) : null;
-    this.completedAt = te.completedAt ? new Date(te.completedAt) : null;
+  private applyExecution(trainingExecution: TrainingExecutionResponse): void {
+    this.executionId = trainingExecution.id ?? null;
+    this.executionStatus = trainingExecution.status ?? null;
+    this.startedAt = trainingExecution.startedAt ? new Date(trainingExecution.startedAt) : null;
+    this.completedAt = trainingExecution.completedAt ? new Date(trainingExecution.completedAt) : null;
 
-    if (Array.isArray(te.executedExercises)) {
-      for (const e of te.executedExercises) {
-        const exId = Number(e.exerciseId);
-        if (!Number.isFinite(exId)) continue;
+    if (!Array.isArray(trainingExecution.executedExercises)) return;
 
-        if (!this.actual[exId]) {
-          this.actual[exId] = {
-            exerciseId: exId,
-            actualSets: 1,
-            actualReps: 1,
-            actualWeightKg: 0,
-            done: false,
-            notes: '',
-          };
-        }
+    for (const executed of trainingExecution.executedExercises) {
+      const exerciseId = Number(executed.exerciseId);
+      if (!Number.isFinite(exerciseId)) continue;
 
-        this.actual[exId].actualSets = this.clampIntMin(Number(e.actualSets ?? 1), 1);
-        this.actual[exId].actualReps = this.clampIntMin(Number(e.actualReps ?? 1), 1);
-        this.actual[exId].actualWeightKg = this.clampFloatMin(Number(e.actualWeightKg ?? 0), 0);
-        this.actual[exId].done = Boolean(e.done);
-        this.actual[exId].notes = (e.notes ?? '') || '';
+      this.ensureEntryState(exerciseId);
 
-        if (!this.actualInput[exId]) this.actualInput[exId] = { sets: '1', reps: '1', weight: '0' };
-        this.actualInput[exId].sets = String(this.actual[exId].actualSets);
-        this.actualInput[exId].reps = String(this.actual[exId].actualReps);
-        this.actualInput[exId].weight = this.formatWeight(this.actual[exId].actualWeightKg);
+      const entry = this.actual[exerciseId];
+      entry.actualSets = this.clampIntMin(Number(executed.actualSets ?? TrainingStart.MIN_SETS_REPS), TrainingStart.MIN_SETS_REPS);
+      entry.actualReps = this.clampIntMin(Number(executed.actualReps ?? TrainingStart.MIN_SETS_REPS), TrainingStart.MIN_SETS_REPS);
+      entry.actualWeightKg = this.clampFloatMin(Number(executed.actualWeightKg ?? TrainingStart.MIN_WEIGHT), TrainingStart.MIN_WEIGHT);
+      entry.done = Boolean(executed.done);
+      entry.notes = (executed.notes ?? '') || '';
 
-        this.errors[exId] = {};
-      }
+      this.actualInput[exerciseId].sets = String(entry.actualSets);
+      this.actualInput[exerciseId].reps = String(entry.actualReps);
+      this.actualInput[exerciseId].weight = this.formatWeight(entry.actualWeightKg);
+
+      this.errors[exerciseId] = {};
     }
   }
 
-  //initalisiert aktuelle Wrte von Übungen und Input Feldern bevor Training gestartet/fortgesetzt wird
   private initActualFromPlan(): void {
     if (!this.session) return;
 
-    const next: Record<number, ActualEntry> = {};
+    const nextActual: Record<number, ActualEntry> = {};
     const nextInput: Record<number, ActualInputEntry> = {};
     const nextErrors: Record<number, FieldErrors> = {};
 
-    for (const p of this.session.exerciseExecutions) {
-      next[p.exerciseId] = {
-        exerciseId: p.exerciseId,
-        actualSets: 1,
-        actualReps: 1,
-        actualWeightKg: 0,
+    for (const planned of this.session.exerciseExecutions) {
+      const exerciseId = planned.exerciseId;
+
+      nextActual[exerciseId] = {
+        exerciseId,
+        actualSets: TrainingStart.MIN_SETS_REPS,
+        actualReps: TrainingStart.MIN_SETS_REPS,
+        actualWeightKg: TrainingStart.MIN_WEIGHT,
         done: false,
         notes: '',
       };
 
-      nextInput[p.exerciseId] = {
-        sets: '1',
-        reps: '1',
-        weight: '0',
+      nextInput[exerciseId] = {
+        sets: String(TrainingStart.MIN_SETS_REPS),
+        reps: String(TrainingStart.MIN_SETS_REPS),
+        weight: String(TrainingStart.MIN_WEIGHT),
       };
 
-      nextErrors[p.exerciseId] = {};
+      nextErrors[exerciseId] = {};
     }
 
-    this.actual = next;
+    this.actual = nextActual;
     this.actualInput = nextInput;
     this.errors = nextErrors;
   }
 
-  private normalizeSession(s: TrainingSessionResponse): TrainingSessionResponse {
+  private normalizeSession(session: TrainingSessionResponse): TrainingSessionResponse {
     return {
-      ...s,
-      days: Array.isArray(s.days) ? s.days : [],
-      exerciseExecutions: Array.isArray(s.exerciseExecutions)
-        ? [...s.exerciseExecutions].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
+      ...session,
+      days: Array.isArray(session.days) ? session.days : [],
+      exerciseExecutions: Array.isArray(session.exerciseExecutions)
+        ? [...session.exerciseExecutions].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
         : [],
     };
   }
 
-  //erzeugt eindeutigen Schlüssel für Trainingsentwurf einer Session
+  private parseSessionId(raw: string | null): number | null {
+    const id = raw ? Number(raw) : NaN;
+    if (!raw || Number.isNaN(id)) return null;
+    return id;
+  }
+
   private localKey(sessionId: number): string {
     return `trainingExecutionDraft:session:${sessionId}`;
   }
 
-  //speichert aktuellen Trainingsfortschritt als Entwurf
   private persistLocalDraft(): void {
     if (!this.sessionId) return;
+
     const payload = {
       sessionId: this.sessionId,
       executionId: this.executionId,
@@ -565,16 +575,14 @@ export class TrainingStart implements OnInit, OnDestroy {
       actualInput: this.actualInput,
       errors: this.errors,
     };
-    try {
-      localStorage.setItem(this.localKey(this.sessionId), JSON.stringify(payload));
-    } catch {
-    }
+
+    this.safeStorageWrite(() => localStorage.setItem(this.localKey(this.sessionId as number), JSON.stringify(payload)));
   }
 
-  //stellt zwischengespeicherten Entwurft wieder her
   private restoreLocalDraft(): void {
     if (!this.sessionId) return;
-    const raw = localStorage.getItem(this.localKey(this.sessionId));
+
+    const raw = this.safeStorageRead(() => localStorage.getItem(this.localKey(this.sessionId as number)));
     if (!raw) return;
 
     try {
@@ -587,201 +595,254 @@ export class TrainingStart implements OnInit, OnDestroy {
       this.startedAt = parsed.startedAt ? new Date(parsed.startedAt) : null;
       this.completedAt = parsed.completedAt ? new Date(parsed.completedAt) : null;
 
-      if (parsed.actual && typeof parsed.actual === 'object') {
-        for (const key of Object.keys(parsed.actual)) {
-          const exId = Number(key);
-          if (!this.actual[exId]) continue;
-          const src = parsed.actual[key];
-
-          this.actual[exId] = {
-            exerciseId: exId,
-            actualSets: this.clampIntMin(Number(src.actualSets ?? 1), 1),
-            actualReps: this.clampIntMin(Number(src.actualReps ?? 1), 1),
-            actualWeightKg: this.clampFloatMin(Number(src.actualWeightKg ?? 0), 0),
-            done: Boolean(src.done),
-            notes: typeof src.notes === 'string' ? src.notes : '',
-          };
-        }
-      }
-
-      if (parsed.actualInput && typeof parsed.actualInput === 'object') {
-        for (const key of Object.keys(parsed.actualInput)) {
-          const exId = Number(key);
-          if (!this.actualInput[exId]) continue;
-          const src = parsed.actualInput[key];
-
-          this.actualInput[exId] = {
-            sets: typeof src.sets === 'string' ? src.sets : String(this.actual[exId].actualSets),
-            reps: typeof src.reps === 'string' ? src.reps : String(this.actual[exId].actualReps),
-            weight: typeof src.weight === 'string' ? src.weight : this.formatWeight(this.actual[exId].actualWeightKg),
-          };
-        }
-      } else {
-        for (const exIdStr of Object.keys(this.actual)) {
-          const exId = Number(exIdStr);
-          if (!this.actualInput[exId]) {
-            this.actualInput[exId] = {
-              sets: String(this.actual[exId].actualSets),
-              reps: String(this.actual[exId].actualReps),
-              weight: this.formatWeight(this.actual[exId].actualWeightKg),
-            };
-          }
-        }
-      }
-      if (parsed.errors && typeof parsed.errors === 'object') {
-        this.errors = parsed.errors;
-      }
+      this.restoreActual(parsed?.actual);
+      this.restoreActualInput(parsed?.actualInput);
+      this.restoreErrors(parsed?.errors);
 
       this.validateAllFields();
     } catch {
+      this.isStorageHealthy = false;
     }
   }
 
-  //löscht gespeicherten Entwurf
+  private restoreActual(rawActual: any): void {
+    if (!rawActual || typeof rawActual !== 'object') return;
+
+    for (const key of Object.keys(rawActual)) {
+      const exerciseId = Number(key);
+      if (!this.actual[exerciseId]) continue;
+
+      const src = rawActual[key];
+
+      this.actual[exerciseId] = {
+        exerciseId,
+        actualSets: this.clampIntMin(Number(src?.actualSets ?? TrainingStart.MIN_SETS_REPS), TrainingStart.MIN_SETS_REPS),
+        actualReps: this.clampIntMin(Number(src?.actualReps ?? TrainingStart.MIN_SETS_REPS), TrainingStart.MIN_SETS_REPS),
+        actualWeightKg: this.clampFloatMin(Number(src?.actualWeightKg ?? TrainingStart.MIN_WEIGHT), TrainingStart.MIN_WEIGHT),
+        done: Boolean(src?.done),
+        notes: typeof src?.notes === 'string' ? src.notes : '',
+      };
+    }
+  }
+
+  private restoreActualInput(rawInput: any): void {
+    if (!rawInput || typeof rawInput !== 'object') {
+      this.rebuildActualInputFromActual();
+      return;
+    }
+
+    for (const key of Object.keys(rawInput)) {
+      const exerciseId = Number(key);
+      if (!this.actualInput[exerciseId]) continue;
+
+      const src = rawInput[key];
+      this.actualInput[exerciseId] = {
+        sets: typeof src?.sets === 'string' ? src.sets : String(this.actual[exerciseId].actualSets),
+        reps: typeof src?.reps === 'string' ? src.reps : String(this.actual[exerciseId].actualReps),
+        weight: typeof src?.weight === 'string' ? src.weight : this.formatWeight(this.actual[exerciseId].actualWeightKg),
+      };
+    }
+  }
+
+  private restoreErrors(rawErrors: any): void {
+    if (!rawErrors || typeof rawErrors !== 'object') return;
+    this.errors = rawErrors;
+  }
+
+  private rebuildActualInputFromActual(): void {
+    for (const exerciseIdStr of Object.keys(this.actual)) {
+      const exerciseId = Number(exerciseIdStr);
+
+      if (!this.actualInput[exerciseId]) {
+        this.actualInput[exerciseId] = {
+          sets: String(this.actual[exerciseId].actualSets),
+          reps: String(this.actual[exerciseId].actualReps),
+          weight: this.formatWeight(this.actual[exerciseId].actualWeightKg),
+        };
+      }
+    }
+  }
+
   private clearLocalDraft(): void {
     if (!this.sessionId) return;
-    try {
-      localStorage.removeItem(this.localKey(this.sessionId));
-    } catch {
-    }
+    this.safeStorageWrite(() => localStorage.removeItem(this.localKey(this.sessionId as number)));
   }
 
-  //setzt aktuellen Trainingslauf komplett zurück
   private resetRuntime(): void {
+    this.resetExecutionMeta();
+    this.initActualFromPlan();
+  }
+
+  private resetExecutionMeta(): void {
     this.executionId = null;
     this.executionStatus = null;
     this.startedAt = null;
     this.completedAt = null;
-    this.initActualFromPlan();
   }
 
-  //validiert alle Eingabefelder aller Übungen
   private validateAllFields(): void {
     if (!this.session) return;
-    for (const p of this.session.exerciseExecutions) {
-      const exId = p.exerciseId;
-      this.validateAndApply(exId, 'sets');
-      this.validateAndApply(exId, 'reps');
-      this.validateAndApply(exId, 'weight');
+
+    for (const planned of this.session.exerciseExecutions) {
+      const exerciseId = planned.exerciseId;
+      this.validateAndApply(exerciseId, 'sets');
+      this.validateAndApply(exerciseId, 'reps');
+      this.validateAndApply(exerciseId, 'weight');
     }
   }
 
-  //übernimmt Wert eines Eingabefelds nur bei gültiger Eingabe
   private validateAndApply(exerciseId: number, field: FieldKey): void {
-    if (!this.actual[exerciseId]) return;
-    if (!this.actualInput[exerciseId]) this.actualInput[exerciseId] = { sets: '1', reps: '1', weight: '0' };
-    if (!this.errors[exerciseId]) this.errors[exerciseId] = {};
+    this.ensureEntryState(exerciseId);
 
     const raw = (this.actualInput[exerciseId][field] ?? '').toString().trim();
 
     if (!raw) {
-      if (field === 'weight') {
-        this.errors[exerciseId][field] = 'Bitte eine Zahl ≥ 0 eingeben.';
-      } else {
-        this.errors[exerciseId][field] = 'Bitte eine ganze Zahl ≥ 1 eingeben.';
-      }
+      this.errors[exerciseId][field] = field === 'weight' ? 'Bitte eine Zahl ≥ 0 eingeben.' : 'Bitte eine ganze Zahl ≥ 1 eingeben.';
       return;
     }
 
     if (field === 'sets' || field === 'reps') {
-      if (!/^\d+$/.test(raw)) {
-        this.errors[exerciseId][field] = 'Nur ganze Zahlen ohne Sonderzeichen (≥ 1).';
-        return;
-      }
-      const n = Number(raw);
-      if (!Number.isFinite(n) || n < 1) {
-        this.errors[exerciseId][field] = 'Muss mindestens 1 sein.';
-        return;
-      }
-      this.errors[exerciseId][field] = undefined;
-      const intVal = Math.trunc(n);
-      if (field === 'sets') this.actual[exerciseId].actualSets = intVal;
-      else this.actual[exerciseId].actualReps = intVal;
+      this.applyIntField(exerciseId, field, raw);
       return;
     }
 
-    if (!/^\d+([.,]\d+)?$/.test(raw)) {
-      this.errors[exerciseId][field] = 'Nur Zahlen (z.B. 20 oder 20,5). Keine Sonderzeichen.';
+    this.applyFloatField(exerciseId, raw);
+  }
+
+  private applyIntField(exerciseId: number, field: 'sets' | 'reps', raw: string): void {
+    if (!/^\d+$/.test(raw)) {
+      this.errors[exerciseId][field] = 'Nur ganze Zahlen ohne Sonderzeichen (≥ 1).';
       return;
     }
 
-    const normalized = raw.replace(',', '.');
-    const n = Number(normalized);
-    if (!Number.isFinite(n) || n < 0) {
-      this.errors[exerciseId][field] = 'Muss mindestens 0 sein.';
+    const numberValue = Number(raw);
+    if (!Number.isFinite(numberValue) || numberValue < TrainingStart.MIN_SETS_REPS) {
+      this.errors[exerciseId][field] = 'Muss mindestens 1 sein.';
       return;
     }
 
     this.errors[exerciseId][field] = undefined;
-    this.actual[exerciseId].actualWeightKg = this.roundToTenth(n);
+
+    const intValue = Math.trunc(numberValue);
+    if (field === 'sets') this.actual[exerciseId].actualSets = intValue;
+    if (field === 'reps') this.actual[exerciseId].actualReps = intValue;
   }
 
-  //prüft ob Validierungsfehler existieren
+  private applyFloatField(exerciseId: number, raw: string): void {
+    if (!/^\d+([.,]\d+)?$/.test(raw)) {
+      this.errors[exerciseId].weight = 'Nur Zahlen (z.B. 20 oder 20,5). Keine Sonderzeichen.';
+      return;
+    }
+
+    const normalized = raw.replace(',', '.');
+    const numberValue = Number(normalized);
+
+    if (!Number.isFinite(numberValue) || numberValue < TrainingStart.MIN_WEIGHT) {
+      this.errors[exerciseId].weight = 'Muss mindestens 0 sein.';
+      return;
+    }
+
+    this.errors[exerciseId].weight = undefined;
+    this.actual[exerciseId].actualWeightKg = this.roundToTenth(numberValue);
+  }
+
   private hasValidationErrors(): boolean {
-    for (const exIdStr of Object.keys(this.errors)) {
-      const e = this.errors[Number(exIdStr)];
+    for (const exerciseIdStr of Object.keys(this.errors)) {
+      const e = this.errors[Number(exerciseIdStr)];
       if (!e) continue;
       if (e.sets || e.reps || e.weight) return true;
     }
     return false;
   }
 
-  //Stellt sicher, dass eine Zahl über dem Mindestwert ist
-  private clampIntMin(v: any, min: number): number {
-    const n = Number(v);
+  private clampIntMin(value: unknown, min: number): number {
+    const n = Number(value);
     if (!Number.isFinite(n)) return min;
+
     const i = Math.trunc(n);
     return i < min ? min : i;
   }
 
-  //Stellt sicher, dass eine Kommazahl über dem Mindestwer ist
-  private clampFloatMin(v: any, min: number): number {
-    const n = Number(v);
+  private clampFloatMin(value: unknown, min: number): number {
+    const n = Number(value);
     if (!Number.isFinite(n)) return min;
     return n < min ? min : this.roundToTenth(n);
   }
 
-  //rundet Zahl auf eine Nachkommastelle
   private roundToTenth(n: number): number {
     return Math.round(n * 10) / 10;
   }
 
-  //formatiert Gewicht auf eine Nachkommastelle
   private formatWeight(n: number): string {
-    return Number.isFinite(n) ? String(this.roundToTenth(n)) : '0';
+    return Number.isFinite(n) ? String(this.roundToTenth(n)) : String(TrainingStart.MIN_WEIGHT);
   }
 
-  //markiert Übung als erledigt/nicht erledigt
-  onToggleDone(exerciseId: number, checked: boolean): void {
-    const a = this.actual[exerciseId];
-    if (!a) return;
-    a.done = checked;
-    this.persistLocalDraft();
-  }
-
-  //aktualisiert Notizen und speichert sie lokal
-  onNotesChange(exerciseId: number): void {
-    const a = this.actual[exerciseId];
-    if (!a) return;
-    a.notes = (a.notes ?? '').toString();
-    this.persistLocalDraft();
-  }
-
-  //zeigt Temporäre Benachrichtigung
-  private showToast(type: 'success' | 'error' | 'info', text: string): void {
+  private showToast(type: ToastType, text: string): void {
     this.toast = { type, text };
-    window.setTimeout(() => (this.toast = null), 2800);
+    window.setTimeout(() => {
+      this.toast = null;
+    }, TrainingStart.TOAST_TIMEOUT_MS);
   }
 
-  //wandelt HTTP Fehler in lesbare Fehlermeldung um 
   private humanError(err: HttpErrorResponse, fallback: string): string {
     const detail =
-      err?.error?.detail ||
-      err?.error?.message ||
-      (typeof err?.error === 'string' ? err.error : null) ||
+      (err as any)?.error?.detail ||
+      (err as any)?.error?.message ||
+      (typeof (err as any)?.error === 'string' ? (err as any).error : null) ||
       err?.message ||
       fallback;
 
     return detail;
+  }
+
+  private setErrorState(message: string): void {
+    this.state = 'error';
+    this.errorMessage = message;
+  }
+
+  private ensureEntryState(exerciseId: number): void {
+    if (!this.actual[exerciseId]) {
+      this.actual[exerciseId] = {
+        exerciseId,
+        actualSets: TrainingStart.MIN_SETS_REPS,
+        actualReps: TrainingStart.MIN_SETS_REPS,
+        actualWeightKg: TrainingStart.MIN_WEIGHT,
+        done: false,
+        notes: '',
+      };
+    }
+
+    this.ensureInputState(exerciseId);
+
+    if (!this.errors[exerciseId]) {
+      this.errors[exerciseId] = {};
+    }
+  }
+
+  private ensureInputState(exerciseId: number): void {
+    if (!this.actualInput[exerciseId]) {
+      this.actualInput[exerciseId] = {
+        sets: String(TrainingStart.MIN_SETS_REPS),
+        reps: String(TrainingStart.MIN_SETS_REPS),
+        weight: String(TrainingStart.MIN_WEIGHT),
+      };
+    }
+  }
+
+  private safeStorageRead<T>(fn: () => T): T | null {
+    try {
+      return fn();
+    } catch {
+      this.isStorageHealthy = false;
+      return null;
+    }
+  }
+
+  private safeStorageWrite(fn: () => void): void {
+    try {
+      fn();
+    } catch {
+      this.isStorageHealthy = false;
+    }
   }
 }

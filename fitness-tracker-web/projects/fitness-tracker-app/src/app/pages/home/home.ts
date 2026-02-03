@@ -7,12 +7,12 @@ import { RouterModule } from '@angular/router';
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './home.html',
-  styleUrl: './home.css'
+  styleUrl: './home.css',
 })
 export class Home {
   showLoginButtons = false;
 
-  onStart() {
+  onStart(): void {
     this.showLoginButtons = true;
   }
 }
