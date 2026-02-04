@@ -1,6 +1,4 @@
 <div class="dashboard-wrapper">
-
-  <!-- HEADER-BEREICH oben -->
   <div class="header-row">
     <div>
       <p class="eyebrow">Dashboard</p>
@@ -28,7 +26,6 @@
     </div>
   </div>
 
-  <!-- Trainingskalender -->
   <section class="panel wide calendar-panel">
     <div class="panel-header">
       <div>
@@ -43,7 +40,6 @@
       Du hast noch keine Trainingspläne angelegt. Erstelle zuerst einen Plan, dann erscheint hier automatisch der Kalender.
     </p>
 
-    <!-- Tabs: bekommen immer ihre Planfarbe -->
     <div class="plan-tabs" *ngIf="planTabs.length">
       <button
         *ngFor="let p of planTabs"
@@ -51,12 +47,12 @@
         class="plan-tab"
         [class.active]="p.id === selectedPlanId"
         [ngClass]="p.colorClass"
-        (click)="selectPlan(p.id)">
+        (click)="selectPlan(p.id)"
+      >
         {{ p.name }}
       </button>
     </div>
 
-    <!-- Tage als Kalender-Grid -->
     <div class="days-grid" *ngIf="planTabs.length">
       <div
         class="day-card"
@@ -67,7 +63,6 @@
         <div class="day-top">
           <div class="day-label">Tag {{ d.day }}</div>
 
-          <!-- HEUTE Badge -->
           <div class="today-badge" *ngIf="isTodayCalendarDay(d.day)">HEUTE</div>
 
           <div class="day-count" *ngIf="d.sessions.length">{{ d.sessions.length }}</div>
@@ -80,10 +75,7 @@
               <div class="chip-meta muted small">{{ s.planName || '' }}</div>
             </div>
 
-            <button
-              class="mini-btn primary tiny"
-              type="button"
-              [routerLink]="['/app/training/start', s.id]">
+            <button class="mini-btn primary tiny" type="button" [routerLink]="['/app/training/start', s.id]">
               Training
             </button>
           </div>
@@ -96,7 +88,6 @@
     </div>
   </section>
 
-  <!-- STATISTIK-KARTEN -->
   <div class="stats-row">
     <div class="stat-card" *ngFor="let stat of stats">
       <div class="stat-label">{{ stat.label }}</div>
@@ -105,10 +96,7 @@
     </div>
   </div>
 
-  <!-- HAUPTBEREICH -->
   <div class="grid">
-
-    <!-- TRAININGSPLÄNE-BEREICH -->
     <section class="panel wide">
       <div class="panel-header">
         <div>
@@ -117,9 +105,7 @@
             Schneller Überblick über deine Pläne und wie viele Sessions dazu gehören.
           </p>
         </div>
-        <button class="link-btn" type="button" routerLink="/app/plans">
-          Alle Pläne ansehen
-        </button>
+        <button class="link-btn" type="button" routerLink="/app/plans">Alle Pläne ansehen</button>
       </div>
 
       <div class="plans-row" *ngIf="plansDashboard.length; else noPlans">
@@ -140,28 +126,23 @@
           </ng-template>
 
           <footer class="plan-footer">
-            <button class="mini-btn primary" type="button" routerLink="/app/plans">
-              Öffnen
-            </button>
+            <button class="mini-btn primary" type="button" routerLink="/app/plans">Öffnen</button>
           </footer>
         </article>
       </div>
 
       <ng-template #noPlans>
         <p class="muted small">
-          Du hast noch keine Trainingspläne angelegt. Starte mit einem neuen Plan über
-          den Button <strong>+ Plan</strong> oben rechts.
+          Du hast noch keine Trainingspläne angelegt. Starte mit einem neuen Plan über den Button
+          <strong>+ Plan</strong> oben rechts.
         </p>
       </ng-template>
     </section>
 
-    <!-- NÄCHSTE SESSIONS -->
     <section class="panel wide">
       <div class="panel-header">
         <h2>Nächste Sessions</h2>
-        <button class="link-btn" type="button" routerLink="/app/sessions">
-          Alle Sessions ansehen
-        </button>
+        <button class="link-btn" type="button" routerLink="/app/sessions">Alle Sessions ansehen</button>
       </div>
 
       <p class="panel-sub" *ngIf="!quickSessions.length">
@@ -179,15 +160,12 @@
           <p class="session-meta">{{ s.focus }}</p>
 
           <div class="session-footer">
-            <button class="mini-btn primary" type="button" routerLink="/app/sessions">
-              Öffnen
-            </button>
+            <button class="mini-btn primary" type="button" routerLink="/app/sessions">Öffnen</button>
           </div>
         </article>
       </div>
     </section>
 
-    <!-- LETZTE ÜBUNGEN -->
     <section class="panel wide">
       <div class="panel-header">
         <h2>Letzte Übungen</h2>

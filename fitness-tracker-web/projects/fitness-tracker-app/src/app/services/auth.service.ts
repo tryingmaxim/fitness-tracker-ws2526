@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of, throwError } from 'rxjs';
+import { Observable, throwError } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
+
 import { environment } from '../../../environment';
 import { AuthSessionService } from './auth-session.service';
 
@@ -10,60 +11,74 @@ interface LoginResult {
   username: string;
 }
 
+interface MeResponse {
+  username?: string;
+  email?: string;
+}
+
+const API_PATHS = {
+  ME: '/users/me',
+} as const;
+
 @Injectable({
   providedIn: 'root',
 })
 export class AuthService {
   constructor(
-  private session: AuthSessionService,
-  private http: HttpClient
-) {}
+    private readonly sessionService: AuthSessionService,
+    private readonly httpClient: HttpClient
+  ) {}
 
-login(email: string, password: string): Observable<LoginResult> {
-  const trimmedEmail = (email ?? '').trim().toLowerCase();
+  login(email: string, password: string): Observable<LoginResult> {
+    const normalizedEmail = this.normalizeEmail(email);
 
-  // DEV BYPASS
-  const devBypass = environment.devAuthBypass;
-  if (devBypass?.enabled && trimmedEmail === devBypass.email) {
-    const username = devBypass.username ?? trimmedEmail;
-    this.session.setSessionBasic(trimmedEmail, password || 'dev', username);
+    this.sessionService.setBasicAuthSession(normalizedEmail, password, normalizedEmail);
 
-    return of({
-      token: devBypass.token ?? 'dev-basic',
-      username,
-    });
+    return this.httpClient.get<MeResponse>(this.buildMeUrl()).pipe(
+      map((me) => this.toLoginResult(me, normalizedEmail)),
+      catchError((error) => {
+        this.sessionService.clear();
+        return throwError(() => error);
+      })
+    );
   }
 
-  // 1️⃣ Basic Header setzen
-  this.session.setSessionBasic(trimmedEmail, password, trimmedEmail);
-
-  // 2️⃣ Backend MUSS bestätigen
-  return this.http.get<any>(`${environment.apiBaseUrl}/users/me`).pipe(
-    map((me) => ({
-      token: this.session.getAuthHeader()!,
-      username: me?.username || me?.email || trimmedEmail,
-    })),
-    catchError((err) => {
-      // Login fehlgeschlagen → Session löschen
-      this.session.clear();
-      return throwError(() => err);
-    })
-  );
-}
-
   isLoggedIn(): boolean {
-    return this.session.isLoggedIn();
+    return this.sessionService.isLoggedIn();
   }
 
   logout(): void {
-    this.session.clear();
+    this.sessionService.clear();
   }
 
   getUsername(): string | null {
-    return this.session.getUsername();
+    return this.sessionService.getUsername();
   }
 
   getEmail(): string | null {
-    return this.session.getEmail();
+    return this.sessionService.getEmail();
+  }
+
+  private toLoginResult(me: MeResponse | null | undefined, fallbackEmail: string): LoginResult {
+    return {
+      token: this.sessionService.getAuthHeader() ?? '',
+      username: this.resolveUsername(me, fallbackEmail),
+    };
+  }
+
+  private buildMeUrl(): string {
+    return `${environment.apiBaseUrl}${API_PATHS.ME}`;
+  }
+
+  private resolveUsername(me: MeResponse | null | undefined, fallbackEmail: string): string {
+    return this.normalizeText(me?.username ?? me?.email ?? fallbackEmail);
+  }
+
+  private normalizeEmail(value: string | null | undefined): string {
+    return this.normalizeText(value).toLowerCase();
+  }
+
+  private normalizeText(value: string | null | undefined): string {
+    return (value ?? '').trim();
   }
 }

@@ -101,7 +101,7 @@ export class Register {
     this.http.post(`${this.baseUrl}/users/register`, payload).subscribe({
       next: () => {
         this.loading = false;
-        this.info = 'Erfolgreich registriert 🎉 Du kannst dich jetzt anmelden.';
+        this.info = 'Erfolgreich registriert! Du kannst dich jetzt anmelden.';
 
         setTimeout(() => {
           this.router.navigate(['/login'], { queryParams: { email } });

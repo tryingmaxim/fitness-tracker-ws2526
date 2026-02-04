@@ -2,9 +2,7 @@
   <h1>Trainingspläne</h1>
 
   <p class="sub">
-    <ng-container *ngIf="isLoggedIn; else publicHint">
-      Strukturiere deine Wochen.
-    </ng-container>
+    <ng-container *ngIf="isLoggedIn; else publicHint">Strukturiere deine Wochen.</ng-container>
     <ng-template #publicHint>
       Du kannst Pläne und Sessions ansehen. Zum Anlegen, Bearbeiten oder Löschen bitte anmelden.
     </ng-template>
@@ -15,28 +13,23 @@
     <div class="alert info" *ngIf="info">{{ info }}</div>
   </div>
 
-  <!-- Formular zum Erstellen eines neuen Trainingsplans (nur eingeloggt) -->
   <section class="panel create-panel" *ngIf="isLoggedIn">
     <h2>Neuen Trainingsplan anlegen</h2>
     <form class="form" #createForm="ngForm" (ngSubmit)="add(createForm)">
       <input [(ngModel)]="form.name" name="name" placeholder="Plan-Name" required />
       <textarea [(ngModel)]="form.desc" name="desc" placeholder="Beschreibung"></textarea>
 
-      <button type="submit" [disabled]="submitting">
-        {{ submitting ? 'Wird erstellt...' : 'Plan anlegen' }}
-      </button>
+      <button type="submit" [disabled]="submitting">{{ submitting ? 'Wird erstellt...' : 'Plan anlegen' }}</button>
     </form>
   </section>
 
   <div class="layout">
-    <!-- Linke Seite: Übersicht -->
     <section class="panel overview">
       <div class="overview-head">
         <h2>Übersicht</h2>
         <span class="count-badge">{{ filteredPlans.length }}</span>
       </div>
 
-      <!--  Suche -->
       <input
         class="search"
         type="text"
@@ -49,7 +42,6 @@
       <p class="muted" *ngIf="loading">Trainingspläne werden geladen...</p>
       <p class="muted" *ngIf="!loading && !plans.length">Noch keine Trainingspläne vorhanden.</p>
 
-      <!-- Scrollbar-Container -->
       <div class="list-scroll" *ngIf="!loading && plans.length">
         <ul class="list">
           <li
@@ -70,51 +62,32 @@
               <div class="session-count">Sessions: {{ p.sessionsCount ?? '–' }}</div>
             </div>
 
-            <!-- Aktionen: Details immer, Löschen nur eingeloggt -->
             <div class="plan-actions">
-              <button type="button" class="ghost" (click)="selectPlan(p); $event.stopPropagation()">
-                Details
-              </button>
-              <button
-                *ngIf="isLoggedIn"
-                type="button"
-                class="danger"
-                (click)="delete(p, $event)"
-              >
-                Löschen
-              </button>
+              <button type="button" class="ghost" (click)="selectPlan(p); $event.stopPropagation()">Details</button>
+              <button *ngIf="isLoggedIn" type="button" class="danger" (click)="delete(p, $event)">Löschen</button>
             </div>
           </li>
         </ul>
 
-        <p class="empty" *ngIf="plans.length && !filteredPlans.length">
-          Keine Treffer für „{{ query }}“.
-        </p>
+        <p class="empty" *ngIf="plans.length && !filteredPlans.length">Keine Treffer für „{{ query }}“.</p>
       </div>
     </section>
 
-    <!-- Rechte Seite: Details -->
     <section class="panel details" *ngIf="selectedPlan; else selectHint">
       <div class="details-head">
-        <button type="button" class="back" (click)="resetSelection()">
-          ← Zurück zur Übersicht
-        </button>
+        <button type="button" class="back" (click)="resetSelection()">← Zurück zur Übersicht</button>
         <h2>Details: {{ selectedPlan.name }}</h2>
       </div>
 
-      <!-- Ohne Login: read-only -->
       <ng-container *ngIf="!isLoggedIn; else editBlock">
         <div class="read-only">
           <p class="meta"><strong>Plan-Name:</strong> {{ editForm.name }}</p>
           <p class="meta"><strong>Beschreibung:</strong> {{ editForm.desc || '–' }}</p>
 
-          <p class="muted" style="margin-top: 12px;">
-            Zum Bearbeiten/Löschen bitte anmelden.
-          </p>
+          <p class="muted" style="margin-top: 12px;">Zum Bearbeiten/Löschen bitte anmelden.</p>
         </div>
       </ng-container>
 
-      <!-- Mit Login: editierbar -->
       <ng-template #editBlock>
         <form class="edit-form" (ngSubmit)="saveSelected()">
           <label for="editName">Plan-Name</label>
@@ -130,13 +103,10 @@
           <label for="editDesc">Beschreibung</label>
           <textarea id="editDesc" name="editDesc" [(ngModel)]="editForm.desc"></textarea>
 
-          <button type="submit" [disabled]="saving">
-            {{ saving ? 'Speichern...' : 'Änderungen speichern' }}
-          </button>
+          <button type="submit" [disabled]="saving">{{ saving ? 'Speichern...' : 'Änderungen speichern' }}</button>
         </form>
       </ng-template>
 
-      <!-- Anzeige aller Sessions des Plans -->
       <section class="sessions">
         <h3>Trainingssessions</h3>
 
@@ -178,9 +148,7 @@
   <ng-template #selectHint>
     <section class="panel details placeholder">
       <p>Wähle einen Trainingsplan aus der Übersicht, um Details einzusehen.</p>
-      <p class="muted" *ngIf="!isLoggedIn">
-        Anlegen/Bearbeiten/Löschen ist nur nach Anmeldung möglich.
-      </p>
+      <p class="muted" *ngIf="!isLoggedIn">Anlegen/Bearbeiten/Löschen ist nur nach Anmeldung möglich.</p>
     </section>
   </ng-template>
 </div>

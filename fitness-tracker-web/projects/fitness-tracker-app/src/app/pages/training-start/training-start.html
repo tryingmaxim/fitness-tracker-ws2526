@@ -1,18 +1,16 @@
 <div class="training-shell">
-
   <div class="training-wrapper-card">
-
-    <!-- Toast -->
-    <div class="toast" *ngIf="toast"
-         [class.success]="toast.type==='success'"
-         [class.error]="toast.type==='error'"
-         [class.info]="toast.type==='info'">
+    <div
+      class="toast"
+      *ngIf="toast"
+      [class.success]="toast.type==='success'"
+      [class.error]="toast.type==='error'"
+      [class.info]="toast.type==='info'"
+    >
       {{ toast.text }}
     </div>
 
     <ng-container *ngIf="state !== 'loading'; else loadingTpl">
-
-      <!-- Header -->
       <header class="page-header" *ngIf="session; else headerFallback">
         <div class="header-left">
           <p class="eyebrow">Training</p>
@@ -40,9 +38,7 @@
             </div>
           </div>
 
-          <button class="btn ghost" type="button" routerLink="/dashboard">
-            Zurück
-          </button>
+          <button class="btn ghost" type="button" routerLink="/dashboard">Zurück</button>
         </div>
       </header>
 
@@ -60,7 +56,6 @@
         </header>
       </ng-template>
 
-      <!-- Error -->
       <section class="card error" *ngIf="state === 'error'">
         <h2 class="card-title">Fehler</h2>
         <p class="muted">{{ errorMessage }}</p>
@@ -69,7 +64,6 @@
         </div>
       </section>
 
-      <!-- Hero / Controls -->
       <section class="card hero" *ngIf="state === 'ready' && session">
         <div class="hero-main">
           <div class="hero-badge">
@@ -103,27 +97,30 @@
         </div>
 
         <div class="hero-actions">
-          <button class="btn xl primary" type="button"
-                  (click)="startTraining()"
-                  [disabled]="starting || isCompleted || isInProgress">
+          <button
+            class="btn xl primary"
+            type="button"
+            (click)="startTraining()"
+            [disabled]="starting || isCompleted || isInProgress"
+          >
             {{ isInProgress ? 'Training läuft' : (starting ? 'Starte…' : 'Training starten') }}
           </button>
 
-          <button class="btn xl" type="button"
-                  (click)="saveProgress()"
-                  [disabled]="saving || !isInProgress || isCompleted">
+          <button
+            class="btn xl"
+            type="button"
+            (click)="saveProgress()"
+            [disabled]="saving || !isInProgress || isCompleted"
+          >
             {{ saving ? 'Speichere…' : 'Zwischenspeichern' }}
           </button>
 
-          <button class="btn xl danger" type="button"
-                  (click)="cancelTraining()"
-                  [disabled]="isCompleted">
+          <button class="btn xl danger" type="button" (click)="cancelTraining()" [disabled]="isCompleted">
             Abbrechen / Löschen
           </button>
         </div>
       </section>
 
-      <!-- Exercises -->
       <section class="card" *ngIf="state === 'ready' && session">
         <div class="card-head">
           <div>
@@ -149,10 +146,12 @@
               </div>
 
               <label class="toggle" [class.disabled]="!isInProgress || isCompleted">
-                <input type="checkbox"
-                       [checked]="actual[ex.exerciseId]?.done"
-                       (change)="onToggleDone(ex.exerciseId, $any($event.target).checked)"
-                       [disabled]="!isInProgress || isCompleted">
+                <input
+                  type="checkbox"
+                  [checked]="actual[ex.exerciseId]?.done"
+                  (change)="onToggleDone(ex.exerciseId, $any($event.target).checked)"
+                  [disabled]="!isInProgress || isCompleted"
+                />
                 <span>Erledigt</span>
               </label>
             </div>
@@ -163,7 +162,6 @@
             </div>
 
             <div class="fields">
-              <!-- SÄTZE (min 1) -->
               <div class="field">
                 <label>Sätze</label>
                 <input
@@ -185,7 +183,6 @@
                 </div>
               </div>
 
-              <!-- WDH (min 1) -->
               <div class="field">
                 <label>Wdh.</label>
                 <input
@@ -207,7 +204,6 @@
                 </div>
               </div>
 
-              <!-- KG (min 0, Dezimal erlaubt mit . oder ,) -->
               <div class="field">
                 <label>kg</label>
                 <input
@@ -232,17 +228,18 @@
 
             <div class="note">
               <label>Notiz (optional)</label>
-              <textarea rows="2"
-                        [disabled]="!isInProgress || isCompleted"
-                        [(ngModel)]="actual[ex.exerciseId].notes"
-                        (ngModelChange)="onNotesChange(ex.exerciseId)"
-                        placeholder="z.B. schwer / sauber / nächstes Mal +2.5kg…"></textarea>
+              <textarea
+                rows="2"
+                [disabled]="!isInProgress || isCompleted"
+                [(ngModel)]="actual[ex.exerciseId].notes"
+                (ngModelChange)="onNotesChange(ex.exerciseId)"
+                placeholder="z.B. schwer / sauber / nächstes Mal +2.5kg…"
+              ></textarea>
             </div>
           </article>
         </div>
       </section>
 
-      <!-- Sticky footer -->
       <footer class="sticky" *ngIf="state === 'ready' && session">
         <div class="sticky-inner">
           <div class="sticky-left">
@@ -253,21 +250,26 @@
           </div>
 
           <div class="sticky-actions">
-            <button class="btn" type="button"
-                    (click)="saveProgress()"
-                    [disabled]="saving || !isInProgress || isCompleted">
+            <button
+              class="btn"
+              type="button"
+              (click)="saveProgress()"
+              [disabled]="saving || !isInProgress || isCompleted"
+            >
               {{ saving ? 'Speichere…' : 'Speichern' }}
             </button>
 
-            <button class="btn primary" type="button"
-                    (click)="finishTraining()"
-                    [disabled]="finishing || !isInProgress || isCompleted">
+            <button
+              class="btn primary"
+              type="button"
+              (click)="finishTraining()"
+              [disabled]="finishing || !isInProgress || isCompleted"
+            >
               {{ finishing ? 'Schließe ab…' : 'Training abschließen' }}
             </button>
           </div>
         </div>
       </footer>
-
     </ng-container>
 
     <ng-template #loadingTpl>
@@ -277,6 +279,5 @@
         <div class="sk-line short"></div>
       </div>
     </ng-template>
-
   </div>
 </div>

@@ -24,6 +24,11 @@
               },
               {
                 "glob": "**/*",
+                "input": "src/assets",
+                "output": "assets"
+              },
+              {
+                "glob": "**/*",
                 "input": "projects/fitness-tracker-app/src/assets",
                 "output": "assets"
               }
@@ -46,7 +51,6 @@
               ],
               "outputHashing": "all",
               "serviceWorker": false
-
             },
             "development": {
               "optimization": false,
@@ -57,10 +61,10 @@
           "defaultConfiguration": "production"
         },
         "serve": {
+          "builder": "@angular/build:dev-server",
           "options": {
             "proxyConfig": "proxy.conf.json"
           },
-          "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
               "buildTarget": "fitness-tracker:build:production"

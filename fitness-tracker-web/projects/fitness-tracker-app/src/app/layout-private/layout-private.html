@@ -82,13 +82,15 @@
 
 <!-- Slideshow -->
 <div class="slideshow" aria-hidden="true">
-  <img
-    *ngFor="let img of slides; let i = index"
-    class="slide"
-    [class.active]="i === current"
-    [src]="img"
-    alt=""
-  />
+  <ng-container *ngFor="let img of slides; let i = index">
+    <img
+      class="slide"
+      [class.active]="i === current"
+      [src]="img"
+      alt=""
+    />
+  </ng-container>
+
   <div class="overlay"></div>
 </div>
 
