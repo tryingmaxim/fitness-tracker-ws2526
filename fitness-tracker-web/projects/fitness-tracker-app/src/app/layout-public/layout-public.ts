@@ -2,6 +2,8 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { RouterOutlet, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../services/auth.service';
+import { SLIDES, startSlideshow, stopSlideshow } from '../layout-shared';
+import { applyTheme, resolveTheme, setStoredTheme, ThemeMode } from '../theme';
 
 @Component({
   selector: 'app-layout-public',
@@ -11,40 +13,23 @@ import { AuthService } from '../services/auth.service';
   styleUrl: './layout-public.css',
 })
 export class LayoutPublic implements OnInit, OnDestroy {
-  slides: string[] = [
-    'assets/slideshow/GymBild1.png',
-    'assets/slideshow/GymBild2.png',
-    'assets/slideshow/GymBild3.jpg',
-    'assets/slideshow/GymBild5.png',
-    'assets/slideshow/GymBild6.png',
-    'assets/slideshow/GymBild7.png',
-    'assets/slideshow/Bild8.png',
-  ];
-
-  current = 0;
-  private slideTimer?: number;
+  readonly slides = SLIDES;
+  currentSlideIndex = 0;
+  private slideshowTimerId?: number;
 
   isDarkMode = true;
 
   constructor(public auth: AuthService) {}
 
   ngOnInit(): void {
-    // Theme laden
-    const stored = localStorage.getItem('theme');
-    if (stored === 'light') this.isDarkMode = false;
-    if (stored === 'dark') this.isDarkMode = true;
-    this.applyTheme();
-
-    // Slideshow
-    if (this.slides.length > 1) {
-      this.slideTimer = window.setInterval(() => {
-        this.current = (this.current + 1) % this.slides.length;
-      }, 4000);
-    }
+    const initialTheme = resolveTheme('dark');
+    this.isDarkMode = initialTheme === 'dark';
+    applyTheme(initialTheme);
+    this.startSlideshow();
   }
 
   ngOnDestroy(): void {
-    if (this.slideTimer) clearInterval(this.slideTimer);
+    stopSlideshow(this.slideshowTimerId);
   }
 
   get isLoggedIn(): boolean {
@@ -55,7 +40,6 @@ export class LayoutPublic implements OnInit, OnDestroy {
     return this.auth.getUsername() || this.auth.getEmail() || 'User';
   }
 
-  // zentrale Links: public vs private
   get exercisesLink(): string {
     return this.isLoggedIn ? '/app/exercises' : '/exercises';
   }
@@ -69,13 +53,15 @@ export class LayoutPublic implements OnInit, OnDestroy {
   }
 
   toggleTheme(): void {
-    this.isDarkMode = !this.isDarkMode;
-    localStorage.setItem('theme', this.isDarkMode ? 'dark' : 'light');
-    this.applyTheme();
+    const nextTheme: ThemeMode = this.isDarkMode ? 'light' : 'dark';
+    this.isDarkMode = nextTheme === 'dark';
+    setStoredTheme(nextTheme);
+    applyTheme(nextTheme);
   }
 
-  private applyTheme(): void {
-    document.body.classList.remove('light-mode', 'dark-mode');
-    document.body.classList.add(this.isDarkMode ? 'dark-mode' : 'light-mode');
+  private startSlideshow(): void {
+    this.slideshowTimerId = startSlideshow(this.slides.length, (nextIndex) => {
+      this.currentSlideIndex = nextIndex;
+    });
   }
 }

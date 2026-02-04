@@ -1,15 +1,9 @@
 <div class="login-container">
-  <!-- Überschrift und kurze Erklärung -->
   <h1>Anmelden</h1>
   <p>Sie haben bereits ein Konto? Dann melden Sie sich mit Ihrem bestehenden Konto an.</p>
 
-
-
   <div class="login-box">
-    <!-- Login-Formular mit Angular ngForm -->
     <form #loginForm="ngForm" (ngSubmit)="onLogin(loginForm)" novalidate>
-
-      <!-- E-Mail Feld -->
       <label for="email">E-Mail:</label>
       <input
         id="email"
@@ -19,10 +13,9 @@
         [(ngModel)]="email"
         autocomplete="username"
         required
-        [disabled]="loading"
+        [disabled]="isLoading"
       />
 
-      <!-- Passwort Feld -->
       <label for="password">Passwort:</label>
       <input
         id="password"
@@ -32,23 +25,19 @@
         [(ngModel)]="password"
         autocomplete="current-password"
         required
-        [disabled]="loading"
+        [disabled]="isLoading"
       />
 
-      <!-- Fehlermeldung, falls vorhanden -->
-      <div class="error" *ngIf="error">
-        {{ error }}
+      <div class="error" *ngIf="errorMessage">
+        {{ errorMessage }}
       </div>
 
-      <!-- Submit-Button -->
-      <button type="submit" [disabled]="loading || loginForm.invalid">
-        {{ loading ? 'Anmeldung läuft...' : 'Anmelden' }}
+      <button type="submit" [disabled]="isLoading || loginForm.invalid">
+        {{ isLoading ? 'Anmeldung l&auml;uft...' : 'Anmelden' }}
       </button>
-
     </form>
   </div>
 
-  <!-- Hinweis zur Registrierung -->
   <div class="register-hint">
     Sie haben noch kein Konto?
     <a routerLink="/register">Registrieren Sie sich hier</a>.

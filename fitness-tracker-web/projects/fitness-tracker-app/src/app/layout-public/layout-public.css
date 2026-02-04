@@ -1,7 +1,5 @@
 :host {
   display: block;
-
-  /* Defaults (falls Theme-Klasse kurz fehlt) */
   --nav-bg: rgba(0, 0, 0, 0.65);
   --nav-text: #ffffff;
   --nav-title: rgba(255, 255, 255, 0.85);
@@ -11,14 +9,10 @@
   --overlay: rgba(0, 0, 0, 0.35);
   --hover: rgba(255, 255, 255, 0.12);
   --active: rgba(255, 255, 255, 0.18);
-
-  /* Status Farben */
-  --online: #22c55e;  /* grün */
-  --offline: #ef4444; /* rot */
-  --status-ring: rgba(34, 197, 94, 0.18); /* default ring (wird unten überschrieben) */
+  --online: #22c55e;
+  --offline: #ef4444;
 }
 
-/* ===== DARK MODE (Angular-sicher) ===== */
 :host-context(.dark-mode) {
   --nav-bg: rgba(0, 0, 0, 0.65);
   --nav-text: #ffffff;
@@ -31,22 +25,18 @@
   --active: rgba(255, 255, 255, 0.18);
 }
 
-/* ===== LIGHT MODE (Angular-sicher) ===== */
 :host-context(.light-mode) {
   --nav-bg: rgba(255, 255, 255, 0.96);
   --nav-text: #0f172a;
   --nav-title: rgba(15, 23, 42, 0.65);
   --nav-muted: rgba(15, 23, 42, 0.75);
   --section-border: rgba(15, 23, 42, 0.14);
-  --nav-border: rgba(15, 23, 42, 0.10);
+  --nav-border: rgba(15, 23, 42, 0.1);
   --overlay: rgba(0, 0, 0, 0.25);
   --hover: rgba(15, 23, 42, 0.06);
-  --active: rgba(15, 23, 42, 0.10);
+  --active: rgba(15, 23, 42, 0.1);
 }
 
-/* =========================
-   THEME TOGGLE
-========================= */
 .theme-toggle {
   position: fixed;
   top: 1rem;
@@ -73,9 +63,6 @@
   color: #000;
 }
 
-/* =========================
-   SLIDESHOW
-========================= */
 .slideshow {
   position: fixed;
   inset: 0;
@@ -105,18 +92,12 @@
   pointer-events: none;
 }
 
-/* =========================
-   PAGE CONTENT
-========================= */
 .page-content {
   position: relative;
   z-index: 1;
   min-height: 100vh;
 }
 
-/* =========================
-   NAVIGATION
-========================= */
 .nav-wrapper {
   position: fixed;
   top: 0;
@@ -149,18 +130,15 @@
   transition: all 0.3s ease;
 }
 
-/* Side Nav */
 .side-nav {
   position: absolute;
   top: 0;
   left: 0;
   width: 240px;
   height: 100vh;
-
   background: var(--nav-bg);
   color: var(--nav-text);
   border-right: 1px solid var(--nav-border);
-
   backdrop-filter: blur(8px);
   transform: translateX(-100%);
   transition: transform 0.35s ease;
@@ -173,18 +151,18 @@
   transform: translateX(0);
 }
 
-/* Hamburger → X */
 .nav-wrapper:hover .hamburger span:nth-child(1) {
   transform: translateY(8px) rotate(45deg);
 }
+
 .nav-wrapper:hover .hamburger span:nth-child(2) {
   opacity: 0;
 }
+
 .nav-wrapper:hover .hamburger span:nth-child(3) {
   transform: translateY(-8px) rotate(-45deg);
 }
 
-/* Nav content */
 .nav-title {
   padding: 0 1.2rem 0.6rem;
   font-size: 0.75rem;
@@ -193,7 +171,6 @@
   color: var(--nav-title);
 }
 
-/* Sections + Trenner */
 .nav-section {
   padding: 10px 0 6px;
 }
@@ -213,7 +190,6 @@
   opacity: 0.95;
 }
 
-/* Links */
 .side-nav a {
   display: block;
   padding: 0.75rem 1.2rem;
@@ -230,13 +206,11 @@
   background: var(--hover);
 }
 
-/* Active Link */
 .side-nav a.active {
   background: var(--active);
   transform: translateX(2px);
 }
 
-/* Active-Markierung */
 .side-nav a.active::before {
   content: "";
   position: absolute;
@@ -249,7 +223,6 @@
   opacity: 0.9;
 }
 
-/* Kein Browser Default-Farben */
 .side-nav a:visited,
 .side-nav a:active,
 .side-nav a:focus {
@@ -257,9 +230,6 @@
   outline: none;
 }
 
-/* =========================
-   STATUS DOTS (grün/rot)
-========================= */
 .status-dot {
   width: 10px;
   height: 10px;
@@ -268,7 +238,6 @@
   flex: 0 0 auto;
 }
 
-/* User Dot (oben) */
 .user-row {
   padding: 0.25rem 1.2rem 0.6rem;
   color: var(--nav-muted);
@@ -288,7 +257,6 @@
   box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.18);
 }
 
-/* Kleine Dots neben privaten Links */
 .mini-dot {
   width: 8px;
   height: 8px;
@@ -307,7 +275,13 @@
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.14);
 }
 
-/* Responsive */
+.nav-note {
+  margin: 6px 1.2rem 0;
+  font-size: 0.82rem;
+  opacity: 0.8;
+  color: var(--nav-muted);
+}
+
 @media (max-width: 600px) {
   .side-nav {
     width: 75vw;

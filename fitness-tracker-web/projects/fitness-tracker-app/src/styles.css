@@ -1,34 +1,31 @@
-/* Reset */
 * {
-  margin: 0;  /* Standardabstände zurücksetzen */
+  margin: 0;
   padding: 0;
-  box-sizing: border-box; /* Padding/Border in Breite/Höhe einrechnen */
+  box-sizing: border-box;
 }
 
 html,
 body {
   height: 100%;
   width: 100%;
-  overflow: auto;       /* normale Scrollbarkeit */
+  overflow: auto;
   font-family: "Poppins", system-ui, sans-serif;
-  background: #000;  /* Fallback-Hintergrund */
+  background: #000;
 }
 
-/* Farb-Variablen (global) */
 :root {
-  --bg: #ffffff; /* Standard-Hintergrundfarbe */
-  --text: #0f172a; /* Standard-Textfarbe */
-  --panel: #ffffff; /* Standard-Panelfarbe */
-  --primary: #22c55e; /* Primärfarbe (Buttons, Akzente) */
-  --secondary: #2563eb; /* Sekundärfarbe (Links, Akzente) */
+  --bg: #ffffff;
+  --text: #0f172a;
+  --panel: #ffffff;
+  --primary: #22c55e;
+  --secondary: #2563eb;
 }
 
-/* Dark Mode – globale Variante */
 .dark-mode {
-  --bg: #1a1a1a; /* dunkler Hintergrund */
-  --text: #f1f1f1; /* helle Schrift */
-  --panel: rgba(40, 40, 40, 0.75); /* dunkle Panel-Fläche */
-  --blur: 10px; /* Blur-Wert für Glas-Effekte */
+  --bg: #1a1a1a;
+  --text: #f1f1f1;
+  --panel: rgba(40, 40, 40, 0.75);
+  --blur: 10px;
   --primary: #22c55e;
   --secondary: #ffffff;
 }
@@ -36,36 +33,31 @@ body {
 .light-mode {
   --bg: #ffffff;
   --text: #0f172a;
-  --panel: rgba(255, 255, 255, 0.92); /* leicht transparente Panels */
+  --panel: rgba(255, 255, 255, 0.92);
 }
 
-/* Body soll auf Variablen hören */
 body {
-  background-color: var(--bg); /* nutzt Theme-Variable */
-  color: var(--text);  /* nutzt Theme-Variable */
-  transition: background-color 0.4s ease, color 0.4s ease; /* weicher Theme-Wechsel */
-  min-height: 100vh; /* wichtig für mobile */
+  background-color: var(--bg);
+  color: var(--text);
+  transition: background-color 0.4s ease, color 0.4s ease;
+  min-height: 100vh;
 }
 
-/* Scroll-Verhalten global belassen */
 html {
-  scroll-behavior: smooth; /* smooth scrollen bei Ankern */
+  scroll-behavior: smooth;
 }
 
-/* kleine allgemeine Sachen */
 button:active {
-  transform: scale(0.96); /* kleiner Klick-Effekt */
+  transform: scale(0.96);
   opacity: 0.9;
 }
 
-/* PRIVATE PAGES – gemeinsame Box-Optik (Dashboard, Übungen, Pläne, Sessions, Profil) */
 .dashboard-wrapper,
 .page,
 .sessions-page {
-  border-radius: 1.2rem; /* globale Rundung der Haupt-Boxen */
+  border-radius: 1.2rem;
 }
 
-/* FELDER: Basis (gilt für beide Modes) */
 .dashboard-wrapper input,
 .dashboard-wrapper select,
 .dashboard-wrapper textarea,
@@ -75,8 +67,8 @@ button:active {
 .sessions-page input,
 .sessions-page select,
 .sessions-page textarea {
-  width: auto; /* Breite abhängig vom Container */
-  background: rgba(248, 250, 252, 0.9); /* helles Input-Background */
+  width: auto;
+  background: rgba(248, 250, 252, 0.9);
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 0.5rem;
   padding: 0.4rem 0.6rem;
@@ -99,7 +91,6 @@ button:active {
   background: #fff;
 }
 
-/*  FELDER: Darkmode-Override  */
 .dark-mode .dashboard-wrapper input,
 .dark-mode .dashboard-wrapper select,
 .dark-mode .dashboard-wrapper textarea,
@@ -114,7 +105,6 @@ button:active {
   color: #fff;
 }
 
-/* optional: explizites Lightmode-Override */
 .light-mode .dashboard-wrapper input,
 .light-mode .page input,
 .light-mode .sessions-page input {
@@ -122,11 +112,10 @@ button:active {
   color: #0f172a;
 }
 
-/*  BUTTONS: Basis  */
 .dashboard-wrapper button,
 .page button,
 .sessions-page button {
-  background: #22c55e; /* Standard-Button-Grün */
+  background: #22c55e;
   color: #fff;
   border: none;
   border-radius: 0.55rem;
@@ -143,7 +132,6 @@ button:active {
   box-shadow: 0 12px 20px rgba(34, 197, 94, 0.25);
 }
 
-/*  Buttons: Lightmode explizit  */
 .light-mode .dashboard-wrapper button,
 .light-mode .page button,
 .light-mode .sessions-page button {
@@ -151,7 +139,6 @@ button:active {
   color: #fff;
 }
 
-/*  Buttons: Darkmode explizit  */
 .dark-mode .dashboard-wrapper button,
 .dark-mode .page button,
 .dark-mode .sessions-page button {
