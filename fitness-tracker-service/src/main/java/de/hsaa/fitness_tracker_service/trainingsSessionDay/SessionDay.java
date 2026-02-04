@@ -17,46 +17,41 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 @Entity
-@Table(
-    name = "session_days",
-    uniqueConstraints = {
-        @UniqueConstraint(columnNames = { "session_id", "day_number" })
-    }
-)
+@Table(name = "session_days", uniqueConstraints = { @UniqueConstraint(columnNames = { "session_id", "day_number" }) })
 public class SessionDay {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    @NotNull
-    @Min(1)
-    @Max(30)
-    @Column(name = "day_number", nullable = false)
-    private Integer day;
+	@NotNull
+	@Min(1)
+	@Max(30)
+	@Column(name = "day_number", nullable = false)
+	private Integer day;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "session_id", nullable = false)
-    @JsonBackReference
-    private TrainingSession session;
+	@ManyToOne(optional = false)
+	@JoinColumn(name = "session_id", nullable = false)
+	@JsonBackReference
+	private TrainingSession session;
 
-    public Long getId() {
-        return id;
-    }
+	public Long getId() {
+		return id;
+	}
 
-    public Integer getDay() {
-        return day;
-    }
+	public Integer getDay() {
+		return day;
+	}
 
-    public void setDay(Integer day) {
-        this.day = day;
-    }
+	public void setDay(Integer day) {
+		this.day = day;
+	}
 
-    public TrainingSession getSession() {
-        return session;
-    }
+	public TrainingSession getSession() {
+		return session;
+	}
 
-    public void setSession(TrainingSession session) {
-        this.session = session;
-    }
+	public void setSession(TrainingSession session) {
+		this.session = session;
+	}
 }

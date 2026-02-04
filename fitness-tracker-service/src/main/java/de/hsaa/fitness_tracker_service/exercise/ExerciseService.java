@@ -11,67 +11,72 @@ import jakarta.persistence.EntityNotFoundException;
 @Transactional
 public class ExerciseService {
 
-    private final ExerciseRepository repo;
+	private final ExerciseRepository repo;
 
-    public ExerciseService(ExerciseRepository repo) {
-        this.repo = repo;
-    }
+	public ExerciseService(ExerciseRepository repo) {
+		this.repo = repo;
+	}
 
-    @Transactional(readOnly = true)
-    public Page<Exercise> list(Pageable pageable) {
-        return repo.findByArchivedFalse(pageable);
-    }
+	@Transactional(readOnly = true)
+	public Page<Exercise> list(Pageable pageable) {
+		return repo.findByArchivedFalse(pageable);
+	}
 
-    @Transactional(readOnly = true)
-    public Exercise get(Long id) {
-        Exercise ex = repo.findById(id)
-            .orElseThrow(() -> new EntityNotFoundException("exercise not found"));
+	@Transactional(readOnly = true)
+	public Exercise get(Long id) {
+		Exercise ex = repo.findById(id).orElseThrow(() -> new EntityNotFoundException("exercise not found"));
 
-        if (ex.isArchived()) {
-            throw new EntityNotFoundException("exercise not found");
-        }
+		if (ex.isArchived()) {
+			throw new EntityNotFoundException("exercise not found");
+		}
 
-        return ex;
-    }
+		return ex;
+	}
 
-    public Exercise create(Exercise body) {
-        body.setId(null);
-        body.setArchived(false);
-        normalize(body);
-        return repo.save(body);
-    }
+	public Exercise create(Exercise body) {
+		body.setId(null);
+		body.setArchived(false);
+		normalize(body);
+		return repo.save(body);
+	}
 
-    public Exercise update(Long id, Exercise body) {
-        Exercise current = repo.findById(id)
-            .orElseThrow(() -> new EntityNotFoundException("exercise not found"));
+	public Exercise update(Long id, Exercise body) {
+		Exercise current = repo.findById(id).orElseThrow(() -> new EntityNotFoundException("exercise not found"));
 
-        if (current.isArchived()) {
-            throw new EntityNotFoundException("exercise not found");
-        }
+		if (current.isArchived()) {
+			throw new EntityNotFoundException("exercise not found");
+		}
 
-        if (body.getName() != null) current.setName(body.getName());
-        if (body.getCategory() != null) current.setCategory(body.getCategory());
-        if (body.getDescription() != null) current.setDescription(body.getDescription());
-        if (body.getMuscleGroups() != null) current.setMuscleGroups(body.getMuscleGroups());
+		if (body.getName() != null)
+			current.setName(body.getName());
+		if (body.getCategory() != null)
+			current.setCategory(body.getCategory());
+		if (body.getDescription() != null)
+			current.setDescription(body.getDescription());
+		if (body.getMuscleGroups() != null)
+			current.setMuscleGroups(body.getMuscleGroups());
 
-        normalize(current);
-        return current;
-    }
+		normalize(current);
+		return current;
+	}
 
-    // Soft-Delete: verhindert FK-Probleme mit Runs/Plänen
-    public void delete(Long id) {
-        Exercise current = repo.findById(id)
-            .orElseThrow(() -> new EntityNotFoundException("exercise not found"));
+	public void delete(Long id) {
+		Exercise current = repo.findById(id).orElseThrow(() -> new EntityNotFoundException("exercise not found"));
 
-        if (current.isArchived()) return;
+		if (current.isArchived())
+			return;
 
-        current.setArchived(true);
-    }
+		current.setArchived(true);
+	}
 
-    private void normalize(Exercise ex) {
-        if (ex.getName() != null) ex.setName(ex.getName().trim());
-        if (ex.getCategory() != null) ex.setCategory(ex.getCategory().trim());
-        if (ex.getDescription() != null) ex.setDescription(ex.getDescription().trim());
-        if (ex.getMuscleGroups() != null) ex.setMuscleGroups(ex.getMuscleGroups().trim());
-    }
+	private void normalize(Exercise ex) {
+		if (ex.getName() != null)
+			ex.setName(ex.getName().trim());
+		if (ex.getCategory() != null)
+			ex.setCategory(ex.getCategory().trim());
+		if (ex.getDescription() != null)
+			ex.setDescription(ex.getDescription().trim());
+		if (ex.getMuscleGroups() != null)
+			ex.setMuscleGroups(ex.getMuscleGroups().trim());
+	}
 }

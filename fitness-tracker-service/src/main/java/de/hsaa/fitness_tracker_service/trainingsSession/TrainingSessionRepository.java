@@ -9,19 +9,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface TrainingSessionRepository extends JpaRepository<TrainingSession, Long> {
 
-    long countByPlanId(Long planId);
+	long countByPlanId(Long planId);
 
-    @EntityGraph(attributePaths = { "plan", "days" })
-    Page<TrainingSession> findAll(Pageable pageable);
+	@EntityGraph(attributePaths = { "plan", "days" })
+	Page<TrainingSession> findAll(Pageable pageable);
 
-    @EntityGraph(attributePaths = { "plan", "days" })
-    Page<TrainingSession> findAllByPlanId(Long planId, Pageable pageable);
+	@EntityGraph(attributePaths = { "plan", "days" })
+	Page<TrainingSession> findAllByPlanId(Long planId, Pageable pageable);
 
-    @EntityGraph(attributePaths = {
-        "plan",
-        "days",
-        "exerciseExecutions",
-        "exerciseExecutions.exercise"
-    })
-    Optional<TrainingSession> findWithExecutionsById(Long id);
+	@EntityGraph(attributePaths = { "plan", "days", "exerciseExecutions", "exerciseExecutions.exercise" })
+	Optional<TrainingSession> findWithExecutionsById(Long id);
 }

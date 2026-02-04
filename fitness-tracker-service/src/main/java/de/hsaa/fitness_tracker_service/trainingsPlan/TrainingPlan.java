@@ -17,33 +17,25 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.NotBlank;
 
-//@Entity=DB-Tabelle für Trainingspläne
 @Entity
-//@Table mit Unique-Constraint auf name(Plan-Namen dürfen nicht doppelt sein)
 @Table(name = "training_plans", uniqueConstraints = @UniqueConstraint(columnNames = "name"))
 public class TrainingPlan {
 
-	// @Id=Primärschlüssel,automatisch generiert
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
-
-	// @NotBlank=Pflichtfeld; @Column nullable=false setzt NOT NULL in der DB
 	@NotBlank
 	@Column(nullable = false, length = 120)
 	private String name;
 
-	// @NotBlank laut Akzeptanzkriterien(kurze Beschreibung ist Pflicht)
 	@NotBlank
 	@Column(nullable = false, length = 1000)
 	private String description;
 
-	// @OneToMany=ein Plan hat viele Sessions;mappedBy=FK liegt in TrainingSession.plan
 	@OneToMany(mappedBy = "plan", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
 	@JsonManagedReference
 	private List<de.hsaa.fitness_tracker_service.trainingsSession.TrainingSession> sessions = new ArrayList<>();
-  
-	// Getter/Setter
+
 	public Long getId() {
 		return id;
 	}

@@ -48,8 +48,8 @@ public class TrainingExecutionController {
 			LocalDateTime startedAt, LocalDateTime completedAt, List<ExecutedExerciseResponse> executedExercises) {
 	}
 
-	public record StreakResponse(int streakDays, LocalDate lastTrainingDay) {}
-
+	public record StreakResponse(int streakDays, LocalDate lastTrainingDay) {
+	}
 
 	private static TrainingExecutionResponse toDto(TrainingExecution te) {
 		List<ExecutedExerciseResponse> execs = List.of();
