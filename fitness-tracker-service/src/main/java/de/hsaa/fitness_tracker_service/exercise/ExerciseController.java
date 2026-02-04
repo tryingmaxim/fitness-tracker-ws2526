@@ -23,48 +23,42 @@ import jakarta.validation.Valid;
 @RequestMapping("/api/v1/exercises")
 public class ExerciseController {
 
-    private final ExerciseService service;
+	private final ExerciseService service;
 
-    public ExerciseController(ExerciseService service) {
-        this.service = service;
-    }
+	public ExerciseController(ExerciseService service) {
+		this.service = service;
+	}
 
-    // Listet nur aktive (nicht archivierte) Übungen
-    @GetMapping
-    public Page<Exercise> list(@PageableDefault(size = 20) Pageable pageable) {
-        return service.list(pageable);
-    }
+	@GetMapping
+	public Page<Exercise> list(@PageableDefault(size = 20) Pageable pageable) {
+		return service.list(pageable);
+	}
 
-    // Liefert eine aktive Übung anhand der ID
-    @GetMapping("/{id}")
-    public Exercise get(@PathVariable Long id) {
-        return service.get(id);
-    }
+	@GetMapping("/{id}")
+	public Exercise get(@PathVariable Long id) {
+		return service.get(id);
+	}
 
-    // Legt eine neue Übung an
-    @PostMapping
-    public ResponseEntity<Exercise> create(@Valid @RequestBody Exercise body, UriComponentsBuilder uri) {
-        var saved = service.create(body);
-        var location = uri.path("/api/v1/exercises/{id}").buildAndExpand(saved.getId()).toUri();
-        return ResponseEntity.created(location).body(saved);
-    }
+	@PostMapping
+	public ResponseEntity<Exercise> create(@Valid @RequestBody Exercise body, UriComponentsBuilder uri) {
+		var saved = service.create(body);
+		var location = uri.path("/api/v1/exercises/{id}").buildAndExpand(saved.getId()).toUri();
+		return ResponseEntity.created(location).body(saved);
+	}
 
-    // Ersetzt eine Übung vollständig
-    @PutMapping("/{id}")
-    public Exercise put(@PathVariable Long id, @Valid @RequestBody Exercise body) {
-        return service.update(id, body);
-    }
+	@PutMapping("/{id}")
+	public Exercise put(@PathVariable Long id, @Valid @RequestBody Exercise body) {
+		return service.update(id, body);
+	}
 
-    // Aktualisiert Felder einer Übung (teilweise)
-    @PatchMapping("/{id}")
-    public Exercise patch(@PathVariable Long id, @RequestBody Exercise body) {
-        return service.update(id, body);
-    }
+	@PatchMapping("/{id}")
+	public Exercise patch(@PathVariable Long id, @RequestBody Exercise body) {
+		return service.update(id, body);
+	}
 
-    // Archiviert eine Übung (Soft-Delete)
-    @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable Long id) {
-        service.delete(id);
-    }
+	@DeleteMapping("/{id}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void delete(@PathVariable Long id) {
+		service.delete(id);
+	}
 }

@@ -11,11 +11,9 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 
 import jakarta.persistence.EntityNotFoundException;
 
-//@RestControllerAdvice=fängt Exceptions aus allen Controllern zentral ab
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-	// @ExceptionHandler für 404,wenn eine Ressource nicht existiert
 	@ExceptionHandler(EntityNotFoundException.class)
 	public ProblemDetail handleNotFound(EntityNotFoundException ex) {
 		var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
@@ -23,7 +21,6 @@ public class GlobalExceptionHandler {
 		return pd;
 	}
 
-	// @ExceptionHandler für 400,wenn Bean-Validation(@Valid) fehlschlägt
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ProblemDetail handleValidation(MethodArgumentNotValidException ex) {
 		var detail = ex.getBindingResult().getFieldErrors().stream()
@@ -33,7 +30,6 @@ public class GlobalExceptionHandler {
 		return pd;
 	}
 
-	// @ExceptionHandler für 409,wenn es z.B.einen Unique-Constraint-Konflikt gibt
 	@ExceptionHandler(DataIntegrityViolationException.class)
 	public ProblemDetail handleConflict(DataIntegrityViolationException ex) {
 		var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "Constraint/Duplicate violation");
@@ -41,7 +37,6 @@ public class GlobalExceptionHandler {
 		return pd;
 	}
 
-	// @ExceptionHandler für 400,wenn Request-Body z.B.kein gültiges JSON/Datum ist
 	@ExceptionHandler(HttpMessageNotReadableException.class)
 	public ProblemDetail handleUnreadable(HttpMessageNotReadableException ex) {
 		var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Malformed JSON or type mismatch");
@@ -49,7 +44,6 @@ public class GlobalExceptionHandler {
 		return pd;
 	}
 
-	// @ExceptionHandler für 400,wenn z.B.eine ID nicht in eine Zahl geparst werden kann
 	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
 	public ProblemDetail handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
 		var msg = "Invalid parameter '" + ex.getName() + "'";
@@ -58,7 +52,6 @@ public class GlobalExceptionHandler {
 		return pd;
 	}
 
-	// @ExceptionHandler für 400,falls gezielt IllegalArgumentException geworfen wird
 	@ExceptionHandler(IllegalArgumentException.class)
 	public ProblemDetail handleIllegalArg(IllegalArgumentException ex) {
 		var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());

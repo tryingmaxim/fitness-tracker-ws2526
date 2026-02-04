@@ -11,26 +11,21 @@ import de.hsaa.fitness_tracker_service.user.UserRepository;
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final UserRepository users;
+	private final UserRepository users;
 
-    public CustomUserDetailsService(UserRepository users) {
-        this.users = users;
-    }
+	public CustomUserDetailsService(UserRepository users) {
+		this.users = users;
+	}
 
-    @Override
-    public UserDetails loadUserByUsername(String username)
-            throws UsernameNotFoundException {
+	@Override
+	public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
 
-        User user = users.findByUsername(username)
-                .orElseThrow(() ->
-                        new UsernameNotFoundException("User not found: " + username)
-                );
+		User user = users.findByUsername(username)
+				.orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
-        return org.springframework.security.core.userdetails.User
-        	    .withUsername(user.getUsername())
-        	    .password(user.getPassword())
-        	    .roles(user.getUsername().equals("gruppe8@gmail.com") ? "ADMIN" : "USER")
-        	    .build();
+		return org.springframework.security.core.userdetails.User.withUsername(user.getUsername())
+				.password(user.getPassword()).roles(user.getUsername().equals("gruppe8@gmail.com") ? "ADMIN" : "USER")
+				.build();
 
-    }
+	}
 }

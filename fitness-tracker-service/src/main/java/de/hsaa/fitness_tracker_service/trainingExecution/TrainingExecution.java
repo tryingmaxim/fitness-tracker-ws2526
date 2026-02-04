@@ -28,7 +28,6 @@ public class TrainingExecution {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	// NEU: Owner/User der Durchführung (Sprint 4: Trainingshistorie pro User)
 	@ManyToOne(optional = false, fetch = FetchType.LAZY)
 	@JoinColumn(name = "user_id", nullable = false, updatable = false)
 	private User user;
