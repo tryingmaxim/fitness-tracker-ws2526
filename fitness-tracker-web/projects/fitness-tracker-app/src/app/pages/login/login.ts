@@ -1,9 +1,14 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, RouterModule, ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FormsModule, NgForm } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
-import { environment } from '../../../../environment';
+
+const DEFAULT_RETURN_URL = '/dashboard';
+const AUTH_ERROR_MESSAGE =
+  'Anmeldung fehlgeschlagen: E-Mail oder Passwort ist falsch.';
+const FALLBACK_ERROR_MESSAGE =
+  'Anmeldung fehlgeschlagen. Bitte pr\u00fcfe deine Eingaben.';
 
 @Component({
   selector: 'app-login',
@@ -15,8 +20,8 @@ import { environment } from '../../../../environment';
 export class Login implements OnInit {
   email = '';
   password = '';
-  loading = false;
-  error: string | null = null;
+  isLoading = false;
+  errorMessage: string | null = null;
 
   constructor(
     private router: Router,
@@ -25,46 +30,65 @@ export class Login implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    // Prefill: wenn Register nach /login?email=... weiterleitet
-    const prefillEmail = this.route.snapshot.queryParamMap.get('email');
-    if (prefillEmail && !this.email) {
-      this.email = prefillEmail.trim();
+    const prefillEmail = this.getPrefillEmail();
+    if (prefillEmail) {
+      this.email = prefillEmail;
     }
   }
 
   onLogin(form: NgForm): void {
-    if (form.invalid || this.loading) return;
+    if (form.invalid || this.isLoading) {
+      return;
+    }
 
-    this.error = null;
+    this.errorMessage = null;
 
-  
-    this.loading = true;
+    const email = this.email.trim();
+    const password = this.password;
+    this.isLoading = true;
 
-    this.auth.login(this.email, this.password).subscribe({
-      next: () => {
-        this.loading = false;
-
-        // Wenn Guard returnUrl gesetzt hat, dahin zurück
-        const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
-        this.router.navigate([returnUrl || '/dashboard']);
-      },
-      error: (err) => {
-        this.loading = false;
-
-        const status = err?.status ?? err?.error?.status;
-        if (status === 401 || status === 403) {
-          this.error = 'Anmeldung fehlgeschlagen: E-Mail oder Passwort ist falsch.';
-          return;
-        }
-
-        this.error =
-          err?.error?.message ||
-          err?.error?.detail ||
-          err?.message ||
-          'Anmeldung fehlgeschlagen. Bitte prüfe deine Eingaben.';
-
-        console.error(err);
-      },
+    this.auth.login(email, password).subscribe({
+      next: () => this.handleLoginSuccess(),
+      error: (error) => this.handleLoginError(error),
     });
+  }
+
+  private getPrefillEmail(): string | null {
+    const prefillEmail = this.route.snapshot.queryParamMap.get('email');
+    const trimmed = prefillEmail?.trim();
+    return trimmed ? trimmed : null;
+  }
+
+  private handleLoginSuccess(): void {
+    this.isLoading = false;
+    this.router.navigate([this.getReturnUrl()]);
+  }
+
+  private handleLoginError(error: unknown): void {
+    this.isLoading = false;
+    this.errorMessage = this.getErrorMessage(error);
+    console.error(error);
+  }
+
+  private getReturnUrl(): string {
+    return this.route.snapshot.queryParamMap.get('returnUrl') || DEFAULT_RETURN_URL;
+  }
+
+  private getErrorMessage(error: unknown): string {
+    const status =
+      (error as { status?: number; error?: { status?: number } })?.status ??
+      (error as { error?: { status?: number } })?.error?.status;
+
+    if (status === 401 || status === 403) {
+      return AUTH_ERROR_MESSAGE;
+    }
+
+    const message =
+      (error as { error?: { message?: string; detail?: string }; message?: string })
+        ?.error?.message ||
+      (error as { error?: { message?: string; detail?: string } })?.error?.detail ||
+      (error as { message?: string })?.message;
+
+    return message || FALLBACK_ERROR_MESSAGE;
   }
 }
