@@ -2,7 +2,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule, NgFor } from '@angular/common';
 import { Router, RouterModule, RouterOutlet } from '@angular/router';
 import { AuthService } from '../services/auth.service';
-import { SLIDES, startSlideshow, stopSlideshow } from '../layout-shared';
+import { SLIDES, startSlideshow, stopSlideshow } from '../layout.shared';
 import { applyTheme, resolveTheme, setStoredTheme, ThemeMode } from '../theme';
 
 @Component({
