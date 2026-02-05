@@ -175,29 +175,22 @@ public class TrainingExecutionService {
 		if (list.isEmpty())
 			return 0;
 
-		java.util.LinkedHashSet<LocalDate> daysDesc = new java.util.LinkedHashSet<>();
-		for (TrainingExecution te : list) {
-			daysDesc.add(te.getCompletedAt().toLocalDate());
-		}
-
-		if (daysDesc.isEmpty())
-			return 0;
+		List<LocalDate> daysDesc = list.stream().map(te -> te.getCompletedAt().toLocalDate()).distinct().toList();
 
 		LocalDate today = LocalDate.now();
-		LocalDate lastDay = daysDesc.iterator().next();
+		LocalDate lastDay = daysDesc.get(0);
 
-		if (lastDay.isBefore(today.minusDays(1))) {
+		if (lastDay.isBefore(today.minusDays(1)))
 			return 0;
+
+		int streak = 1;
+		for (int i = 1; i < daysDesc.size(); i++) {
+			if (daysDesc.get(i).equals(daysDesc.get(i - 1).minusDays(1))) {
+				streak++;
+			} else {
+				break;
+			}
 		}
-
-		int streak = 0;
-		LocalDate cursor = lastDay;
-
-		while (daysDesc.contains(cursor)) {
-			streak++;
-			cursor = cursor.minusDays(1);
-		}
-
 		return streak;
 	}
 
