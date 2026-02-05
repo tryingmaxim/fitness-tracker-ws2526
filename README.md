@@ -228,58 +228,86 @@ SELECT * FROM training_plans;
 ## Projektstruktur
 
 ```
-fitness-tracker-service/
-├── src/
-│   ├── main/
-│   │   ├── java/
-│   │   │   ├── de.hsaa.fitness_tracker_service
-│   │   │   ├── de.hsaa.fitness_tracker_service.common              # Shared Code (DTOs, Exceptions, Utils)
-│   │   │   ├── de.hsaa.fitness_tracker_service.config              # Allgemeine Konfiguration
-│   │   │   ├── de.hsaa.fitness_tracker_service.security            # Spring Security / Auth
-│   │   │   ├── de.hsaa.fitness_tracker_service.user                # Benutzer & Registrierung
-│   │   │   ├── de.hsaa.fitness_tracker_service.exercise            # Übungen
-│   │   │   ├── de.hsaa.fitness_tracker_service.trainingsPlan       # Trainingspläne
-│   │   │   ├── de.hsaa.fitness_tracker_service.trainingsSession    # Trainingseinheiten (Sessions)
-│   │   │   ├── de.hsaa.fitness_tracker_service.trainingsSessionDay # Tage innerhalb einer Session
-│   │   │   ├── de.hsaa.fitness_tracker_service.execution           # Geplante Übungen
-│   │   │   └── de.hsaa.fitness_tracker_service.trainingExecution   # Trainingsausführungen (Tracking/Historie)
-│   │   │
-│   │   └── resources/
-│   │       ├── application.properties                              # Spring-Konfiguration
-│   │       └── data.sql                                             # Seed-Daten
-│   │
-│   └── test/
-│       └── java/
-│           ├── de.hsaa.fitness_tracker_service                      # Basis-Tests (ApplicationTests)
-│           ├── de.hsaa.fitness_tracker_service.execution
-│           ├── de.hsaa.fitness_tracker_service.exercise
-│           ├── de.hsaa.fitness_tracker_service.security
-│           ├── de.hsaa.fitness_tracker_service.trainingExecution
-│           ├── de.hsaa.fitness_tracker_service.trainingsPlan
-│           ├── de.hsaa.fitness_tracker_service.trainingsSession
-│           └── de.hsaa.fitness_tracker_service.user
+fitness-tracker-ws2526/
+├── assets/                                                   # Bilder (Logo/Screenshots für README)
+├── docker-compose.yml                                        # Startet Backend + Frontend
+├── start.ps1                                                 # Optionales Start-Skript (Windows)
+├── README.md
 │
-├── Dockerfile
-├── pom.xml
-├── mvnw
-└── mvnw.cmd
-
-fitness-tracker-web/                                         # Angular Frontend + Nginx
-├── Dockerfile                                               # Multi-Stage Build (Node -> Nginx)
-├── nginx.conf                                               # Nginx Konfiguration (SPA Routing + API Proxy)
-├── angular.json                                             # Angular Workspace Konfiguration
-├── package.json                                             # Dependencies & Scripts
-└── projects/
-    └── fitness-tracker-app/                                 # Hauptanwendung
-        ├── proxy.conf.json                                  # Dev-Proxy für lokale Entwicklung
-        └── src/
-            ├── main.ts                                      # Angular Bootstrap (Standalone)
-            └── app/
-                ├── app.routes.ts                            # Zentrales Routing
-                ├── layout-public/                           # Öffentliche Seiten (Login, Register, Info)
-                ├── layout-private/                          # Geschützter App-Bereich nach Login
-                ├── pages/                                   # Fachliche Seiten (Dashboard, Übungen, Pläne, Training)
-                └── services/                                # API-Services, Auth Guard & HTTP Interceptor
+├── fitness-tracker-service/
+│   ├── src/
+│   │   ├── main/
+│   │   │   ├── java/
+│   │   │   │   ├── de.hsaa.fitness_tracker_service
+│   │   │   │   ├── de.hsaa.fitness_tracker_service.common              # Shared Code (DTOs, Exceptions, Utils)
+│   │   │   │   ├── de.hsaa.fitness_tracker_service.config              # Allgemeine Konfiguration
+│   │   │   │   ├── de.hsaa.fitness_tracker_service.security            # Spring Security / Auth
+│   │   │   │   ├── de.hsaa.fitness_tracker_service.user                # Benutzer & Registrierung
+│   │   │   │   ├── de.hsaa.fitness_tracker_service.exercise            # Übungen
+│   │   │   │   ├── de.hsaa.fitness_tracker_service.trainingsPlan       # Trainingspläne
+│   │   │   │   ├── de.hsaa.fitness_tracker_service.trainingsSession    # Trainingseinheiten (Sessions)
+│   │   │   │   ├── de.hsaa.fitness_tracker_service.trainingsSessionDay # Tage innerhalb einer Session
+│   │   │   │   ├── de.hsaa.fitness_tracker_service.execution           # Geplante Übungen
+│   │   │   │   └── de.hsaa.fitness_tracker_service.trainingExecution   # Trainingsausführungen (Tracking/Historie)
+│   │   │   │
+│   │   │   └── resources/
+│   │   │       ├── application.properties                              # Spring-Konfiguration
+│   │   │       └── data.sql                                             # Seed-Daten
+│   │   │
+│   │   └── test/
+│   │       └── java/
+│   │           ├── de.hsaa.fitness_tracker_service                      # Basis-Tests (ApplicationTests)
+│   │           ├── de.hsaa.fitness_tracker_service.execution
+│   │           ├── de.hsaa.fitness_tracker_service.exercise
+│   │           ├── de.hsaa.fitness_tracker_service.security
+│   │           ├── de.hsaa.fitness_tracker_service.trainingExecution
+│   │           ├── de.hsaa.fitness_tracker_service.trainingsPlan
+│   │           ├── de.hsaa.fitness_tracker_service.trainingsSession
+│   │           └── de.hsaa.fitness_tracker_service.user
+│   │
+│   ├── Dockerfile
+│   ├── pom.xml
+│   ├── mvnw
+│   └── mvnw.cmd
+│
+└── fitness-tracker-web/                                      # Angular Frontend + Nginx
+    ├── projects/
+    │   └── fitness-tracker-app/                               # Hauptanwendung
+    │       ├── proxy.conf.json                                # Dev-Proxy für lokale Entwicklung
+    │       └── src/
+    │           ├── main.ts                                    # Angular Bootstrap
+    │           └── app/
+    │               ├── app.routes.ts                          # Zentrales Routing
+    │               ├── layout-public/                         # Öffentliche Seiten (Home/Login/Register/Info)
+    │               ├── layout-private/                        # Geschützter App-Bereich nach Login
+    │               ├── pages/                                 # Feature-Seiten (vollständig)
+    │               │   ├── about/                             # About-Seite
+    │               │   ├── agb/                               # AGB
+    │               │   ├── dashboard/                         # Dashboard
+    │               │   ├── exercises/                         # Übungen (privat)
+    │               │   ├── exercises-public/                  # Übungen (öffentlich)
+    │               │   ├── home/                              # Landing / Start
+    │               │   ├── impressum/                         # Impressum
+    │               │   ├── login/                             # Login
+    │               │   ├── plans/                             # Trainingspläne (privat)
+    │               │   ├── plans-public/                      # Trainingspläne (öffentlich)
+    │               │   ├── profile/                           # Profil
+    │               │   ├── register/                          # Registrierung
+    │               │   ├── sessions/                          # Sessions (privat)
+    │               │   ├── sessions-public/                   # Sessions (öffentlich)
+    │               │   ├── training-progress/                 # Fortschritt/Historie
+    │               │   └── training-start/                    # Training starten/ausführen
+    │               └── services/                              # Auth + Guard + Interceptor + API
+    │                   ├── auth.guard.ts
+    │                   ├── auth.interceptor.ts
+    │                   ├── auth.service.ts
+    │                   └── auth-session.service.ts
+    │
+    ├── Dockerfile                                             # Multi-Stage Build (Node -> Nginx)
+    ├── nginx.conf                                             # Nginx: SPA Routing + API Proxy
+    ├── angular.json                                            # Angular Workspace Konfiguration
+    ├── package.json                                            # Dependencies & Scripts
+    └── package-lock.json
 ```
 
 > **Hinweis:** Build-Artefakte (`target/`, `dist/`, `node_modules/`) sind nicht im Repository enthalten.
