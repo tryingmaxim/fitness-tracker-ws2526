@@ -263,6 +263,23 @@ fitness-tracker-service/
 ├── pom.xml
 ├── mvnw
 └── mvnw.cmd
+
+fitness-tracker-web/                                         # Angular Frontend + Nginx
+├── Dockerfile                                               # Multi-Stage Build (Node -> Nginx)
+├── nginx.conf                                               # Nginx Konfiguration (SPA Routing + API Proxy)
+├── angular.json                                             # Angular Workspace Konfiguration
+├── package.json                                             # Dependencies & Scripts
+└── projects/
+    └── fitness-tracker-app/                                 # Hauptanwendung
+        ├── proxy.conf.json                                  # Dev-Proxy für lokale Entwicklung
+        └── src/
+            ├── main.ts                                      # Angular Bootstrap (Standalone)
+            └── app/
+                ├── app.routes.ts                            # Zentrales Routing
+                ├── layout-public/                           # Öffentliche Seiten (Login, Register, Info)
+                ├── layout-private/                          # Geschützter App-Bereich nach Login
+                ├── pages/                                   # Fachliche Seiten (Dashboard, Übungen, Pläne, Training)
+                └── services/                                # API-Services, Auth Guard & HTTP Interceptor
 ```
 
 > **Hinweis:** Build-Artefakte (`target/`, `dist/`, `node_modules/`) sind nicht im Repository enthalten.
