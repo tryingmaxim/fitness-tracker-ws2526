@@ -1,33 +1,35 @@
-<div class="sessions-page">
+<main class="sessions-page">
   <h1>Sessions</h1>
 
   <p class="sub">
     Du kannst Sessions ansehen. Zum Anlegen, Bearbeiten oder Löschen bitte anmelden.
   </p>
 
-  <p class="muted small" *ngIf="loading">Sessions werden geladen...</p>
+  <p class="muted small" *ngIf="isLoading">
+    Sessions werden geladen...
+  </p>
 
-  <div class="alert error" *ngIf="!loading && error">
-    <strong>Fehler:</strong> {{ error }}
+  <div class="alert error" *ngIf="!isLoading && errorMessage">
+    <strong>Fehler:</strong> {{ errorMessage }}
   </div>
 
-  <p class="muted small" *ngIf="!loading && !error && !sessions.length">
+  <p class="muted small" *ngIf="!isLoading && !errorMessage && sessions.length === 0">
     Noch keine Sessions vorhanden.
   </p>
 
-  <div class="sessions-bottom-grid" *ngIf="!loading && !error && sessions.length">
-    <!-- Übersicht -->
-    <div class="sessions-overview-card">
-      <div class="overview-head">
+  <div class="sessions-bottom-grid" *ngIf="!isLoading && !errorMessage && sessions.length > 0">
+    
+    <section class="sessions-overview-card">
+      <header class="overview-head">
         <h2 class="card-title">Übersicht</h2>
         <span class="badge">{{ filteredSessions.length }}</span>
-      </div>
+      </header>
 
       <input
         class="search"
         type="text"
         placeholder="Session suchen..."
-        [(ngModel)]="query"
+        [(ngModel)]="searchQuery"
         aria-label="Session suchen"
       />
 
@@ -35,14 +37,18 @@
         <button
           type="button"
           class="session-item"
-          *ngFor="let s of filteredSessions; trackBy: trackBySession"
-          [class.selected]="selectedSession?.id === s.id"
-          (click)="selectSession(s)"
+          *ngFor="let session of filteredSessions; trackBy: trackBySession"
+          [class.selected]="selectedSession?.id === session.id"
+          (click)="selectSession(session)"
         >
           <div class="session-main">
-            <span class="session-name">{{ s.name }}</span>
-            <span class="session-meta"><strong>Tage:</strong> {{ formatDays(s.days) }}</span>
-            <span class="session-meta"><strong>Plan:</strong> {{ s.planName || '–' }}</span>
+            <span class="session-name">{{ session.name }}</span>
+            <span class="session-meta">
+              <strong>Tage:</strong> {{ formatDays(session.days) }}
+            </span>
+            <span class="session-meta">
+              <strong>Plan:</strong> {{ session.planName || '–' }}
+            </span>
           </div>
 
           <div class="session-actions">
@@ -50,15 +56,14 @@
           </div>
         </button>
 
-        <div class="empty" *ngIf="sessions.length && !filteredSessions.length">
-          Keine Treffer für „{{ query }}“.
+        <div class="empty" *ngIf="sessions.length > 0 && filteredSessions.length === 0">
+          Keine Treffer für „{{ searchQuery }}“.
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- Details -->
-    <ng-container *ngIf="selectedSession; else noSelection">
-      <div class="sessions-detail-card">
+    <section class="sessions-detail-card">
+      <ng-container *ngIf="selectedSession; else noSelectionTemplate">
         <button class="sessions-detail-back" type="button" (click)="clearSelection()">
           ← Zurück zur Übersicht
         </button>
@@ -68,7 +73,7 @@
         <p class="meta"><strong>Plan:</strong> {{ selectedSession.planName || '–' }}</p>
         <p class="meta"><strong>Tage:</strong> {{ formatDays(selectedSession.days) }}</p>
 
-        <div class="exec-config-card" *ngIf="selectedSession.exerciseExecutions?.length">
+        <div class="exec-config-card" *ngIf="selectedSession.exerciseExecutions?.length; else noExercisesTemplate">
           <div class="exec-config-header">
             <h3 class="exec-config-title">Übungen</h3>
           </div>
@@ -76,48 +81,46 @@
           <div class="exec-config-list">
             <div
               class="exec-config-row"
-              *ngFor="let e of selectedSession.exerciseExecutions; let i = index"
+              *ngFor="let execution of selectedSession.exerciseExecutions; let i = index"
             >
               <div class="exec-name">
-                {{ i + 1 }}. {{ getExerciseName(e) }}
+                {{ i + 1 }}. {{ getExerciseName(execution) }}
               </div>
 
               <div class="exec-fields">
                 <div class="exec-field">
                   <label class="mini-label">Sätze</label>
-                  <div>{{ e.plannedSets }}</div>
+                  <div>{{ execution.plannedSets }}</div>
                 </div>
 
                 <div class="exec-field">
                   <label class="mini-label">Wdh</label>
-                  <div>{{ e.plannedReps }}</div>
+                  <div>{{ execution.plannedReps }}</div>
                 </div>
 
                 <div class="exec-field">
                   <label class="mini-label">Kg</label>
-                  <div>{{ e.plannedWeightKg }}</div>
+                  <div>{{ execution.plannedWeightKg }}</div>
                 </div>
               </div>
 
-              <div class="exec-notes" *ngIf="e.notes">
-                <div class="muted small">{{ e.notes }}</div>
+              <div class="exec-notes" *ngIf="execution.notes">
+                <div class="muted small">{{ execution.notes }}</div>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="muted small" *ngIf="!selectedSession.exerciseExecutions?.length">
-          Keine Übungen in dieser Session.
-        </div>
-      </div>
-    </ng-container>
+        <ng-template #noExercisesTemplate>
+          <div class="muted small">Keine Übungen in dieser Session.</div>
+        </ng-template>
+      </ng-container>
 
-    <ng-template #noSelection>
-      <div class="sessions-detail-card">
+      <ng-template #noSelectionTemplate>
         <p class="muted small">
           Wähle links eine Session aus der Übersicht, um Details zu sehen.
         </p>
-      </div>
-    </ng-template>
+      </ng-template>
+    </section>
   </div>
-</div>
+</main>

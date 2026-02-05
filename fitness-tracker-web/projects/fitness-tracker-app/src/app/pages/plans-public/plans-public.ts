@@ -4,26 +4,38 @@ import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { environment } from '../../../../environment';
 
-type AnyObj = Record<string, any>;
+// --- Interfaces (DTOs) ---
 
-interface PublicSessionDto {
+export interface ExerciseDTO {
+  id: number;
+  name: string;
+}
+
+export interface ExerciseExecutionDTO {
+  orderIndex?: number;
+  exercise?: ExerciseDTO;
+  exerciseName?: string; // Fallback für manche API-Antworten
+  notes?: string;
+}
+
+export interface PublicSessionDto {
   id: number;
   name?: string;
   title?: string;
   days?: number[];
   exercisesCount?: number;
   performedCount?: number;
-  exercises?: any[];
-  exerciseExecutions?: any[];
+  exercises?: any[]; // Legacy Support
+  exerciseExecutions?: ExerciseExecutionDTO[];
 }
 
-interface PublicPlanDto {
+export interface PublicPlanDto {
   id: number;
   name: string;
   description?: string;
   sessionsCount?: number;
 
-  // UI state
+  // UI State
   sessions?: PublicSessionDto[];
   sessionsLoaded?: boolean;
   loadingSessions?: boolean;
@@ -34,129 +46,188 @@ interface PublicPlanDto {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './plans-public.html',
-  styleUrls: ['./plans-public.css'],
+  styleUrls: ['../plans/plans.css', './plans-public.css'],
 })
 export class PlansPublic implements OnInit {
-  private readonly baseUrl = environment.apiBaseUrl;
+  // Constants
+  private readonly API_PLANS = `${environment.apiBaseUrl}/training-plans`;
+  private readonly API_SESSIONS = `${environment.apiBaseUrl}/training-sessions`;
 
+  // State
   plans: PublicPlanDto[] = [];
   selectedPlan: PublicPlanDto | null = null;
+  
+  // Renamed to match HTML from previous step
+  isLoading = false;
+  errorMessage: string | null = null;
+  infoMessage: string | null = null;
 
-  loading = false;
+  // Search
+  searchQuery = '';
 
-  error: string | null = null;
-  info: string | null = null;
-
-  // Live Suche
-  query = '';
-
-  constructor(private http: HttpClient) {}
+  constructor(private readonly http: HttpClient) {}
 
   ngOnInit(): void {
-    this.loadPlans();
+    this.fetchPlans();
   }
 
-  //  Live gefilterte Pläne
+  // --- Computed Properties ---
+
   get filteredPlans(): PublicPlanDto[] {
-    const q = (this.query || '').trim().toLowerCase();
-    if (!q) return this.plans;
+    const term = (this.searchQuery || '').trim().toLowerCase();
+    
+    if (!term) {
+      return this.plans;
+    }
 
-    return this.plans.filter((p) => {
-      const name = (p.name || '').toLowerCase();
-      const desc = (p.description || '').toLowerCase();
-      const sessionsCount = String(p.sessionsCount ?? '');
-      return name.includes(q) || desc.includes(q) || sessionsCount.includes(q);
-    });
+    return this.plans.filter((plan) => this.matchesSearch(plan, term));
   }
 
-  private loadPlans(): void {
-    this.loading = true;
-    this.error = null;
+  // --- User Actions ---
 
-    this.http.get<any>(`${this.baseUrl}/training-plans`).subscribe({
-      next: (res) => {
-        const items = this.normalizeArray(res);
+  selectPlan(plan: PublicPlanDto): void {
+    this.selectedPlan = plan;
+    this.errorMessage = null;
+    this.infoMessage = null;
 
-        this.plans = items.map((p: AnyObj): PublicPlanDto => ({
-          id: Number(p['id']),
-          name: String(p['name'] ?? ''),
-          description: p['description'] != null ? String(p['description']) : undefined,
-          sessionsCount: (p['sessionsCount'] ??
-            (Array.isArray(p['sessions']) ? p['sessions'].length : 0)) as number,
-        }));
+    // Caching: Sessions nur laden, wenn noch nicht vorhanden
+    if (plan.sessionsLoaded) {
+      return;
+    }
 
-        // falls der vorher ausgewählte Plan nicht mehr existiert
-        if (this.selectedPlan) {
-          const stillThere = this.plans.find((x) => x.id === this.selectedPlan!.id) || null;
-          this.selectedPlan = stillThere;
-        }
-
-        this.loading = false;
-      },
-      error: (err) => {
-        console.error(err);
-        this.error = 'Fehler beim Laden der Trainingspläne.';
-        this.loading = false;
-      },
-    });
-  }
-
-  selectPlan(p: PublicPlanDto): void {
-    this.selectedPlan = p;
-    this.error = null;
-    this.info = null;
-
-    // Sessions nur einmal laden
-    if (p.sessionsLoaded) return;
-
-    p.loadingSessions = true;
-
-    this.http
-      .get<any>(`${this.baseUrl}/training-sessions`, {
-        params: { planId: String(p.id) },
-      })
-      .subscribe({
-        next: (res) => {
-          const sessions = this.normalizeArray(res) as PublicSessionDto[];
-
-          // optional: sort by name/title for stable UI
-          const sorted = (sessions ?? []).slice().sort((a: any, b: any) => {
-            const an = String(a?.title ?? a?.name ?? '').toLowerCase();
-            const bn = String(b?.title ?? b?.name ?? '').toLowerCase();
-            return an.localeCompare(bn);
-          });
-
-          p.sessions = sorted;
-          p.sessionsLoaded = true;
-          p.loadingSessions = false;
-
-          p.sessionsCount = p.sessionsCount ?? sorted.length ?? 0;
-        },
-        error: (err) => {
-          console.error(err);
-          p.loadingSessions = false;
-        },
-      });
+    this.fetchSessionsForPlan(plan);
   }
 
   resetSelection(): void {
     this.selectedPlan = null;
   }
 
-  formatDays(days: number[] | undefined): string {
-    if (!days || !days.length) return '–';
+  // --- Template Helpers ---
+
+  formatDays(days?: number[]): string {
+    if (!days || days.length === 0) {
+      return '–';
+    }
     return [...days].sort((a, b) => a - b).join(', ');
   }
 
-  private normalizeArray(res: any): AnyObj[] {
-    if (!res) return [];
-    if (Array.isArray(res)) return res as AnyObj[];
-    if (Array.isArray(res.content)) return res.content as AnyObj[];
-    if (Array.isArray(res.items)) return res.items as AnyObj[];
-    if (Array.isArray(res.data)) return res.data as AnyObj[];
-    return [];
+  getExerciseCount(session: PublicSessionDto): number {
+    return session.exercisesCount 
+      ?? session.exercises?.length 
+      ?? session.exerciseExecutions?.length 
+      ?? 0;
   }
 
-  trackByPlan = (_: number, p: PublicPlanDto) => p.id;
-  trackBySession = (_: number, s: PublicSessionDto) => s.id;
+  getExerciseName(execution: ExerciseExecutionDTO): string {
+    return execution.exercise?.name 
+      ?? execution.exerciseName 
+      ?? 'Unbenannte Übung';
+  }
+
+  hasSessions(plan: PublicPlanDto): boolean {
+    return (plan.sessions?.length ?? 0) > 0;
+  }
+
+  trackByPlan(_index: number, plan: PublicPlanDto): number {
+    return plan.id;
+  }
+
+  trackBySession(_index: number, session: PublicSessionDto): number {
+    return session.id;
+  }
+
+  // --- Private Logic (Data & API) ---
+
+  private fetchPlans(): void {
+    this.isLoading = true;
+    this.errorMessage = null;
+
+    this.http.get<unknown>(this.API_PLANS).subscribe({
+      next: (response) => this.handlePlansSuccess(response),
+      error: (err) => this.handleError(err, 'Fehler beim Laden der Trainingspläne.'),
+    });
+  }
+
+  private handlePlansSuccess(response: unknown): void {
+    const rawItems = this.normalizeArray(response);
+
+    this.plans = rawItems.map((item) => this.mapToPlanDto(item));
+
+    this.restoreSelection();
+    this.isLoading = false;
+  }
+
+  private fetchSessionsForPlan(plan: PublicPlanDto): void {
+    plan.loadingSessions = true;
+
+    this.http.get<unknown>(this.API_SESSIONS, { params: { planId: String(plan.id) } }).subscribe({
+      next: (response) => {
+        const sessions = this.normalizeArray(response);
+        plan.sessions = this.sortSessions(sessions);
+        plan.sessionsLoaded = true;
+        plan.loadingSessions = false;
+        
+        // Update count if inconsistent
+        if (!plan.sessionsCount && plan.sessions.length > 0) {
+          plan.sessionsCount = plan.sessions.length;
+        }
+      },
+      error: (err) => {
+        console.error(err);
+        this.infoMessage = `Sessions für "${plan.name}" konnten nicht geladen werden.`;
+        plan.loadingSessions = false;
+      }
+    });
+  }
+
+  private handleError(error: any, fallbackMsg: string): void {
+    console.error(error); // In Prod entfernen oder Logger nutzen
+    this.errorMessage = fallbackMsg;
+    this.isLoading = false;
+  }
+
+  // --- Mappers & Helpers ---
+
+  private normalizeArray(res: any): any[] {
+    if (!res) return [];
+    if (Array.isArray(res)) return res;
+    return res.content || res.items || res.data || [];
+  }
+
+  private mapToPlanDto(item: any): PublicPlanDto {
+    return {
+      id: Number(item.id),
+      name: item.name,
+      description: item.description,
+      sessionsCount: item.sessionsCount ?? item.sessions?.length ?? 0,
+      sessions: [],
+      sessionsLoaded: false,
+      loadingSessions: false
+    };
+  }
+
+  private sortSessions(sessions: any[]): PublicSessionDto[] {
+    // Sortiere nach ID oder Index, falls vorhanden
+    return sessions.map(s => ({
+      id: s.id,
+      name: s.name,
+      title: s.title,
+      days: s.days,
+      exercisesCount: s.exercisesCount,
+      performedCount: s.performedCount,
+      exerciseExecutions: s.exerciseExecutions
+    })).sort((a, b) => a.id - b.id);
+  }
+
+  private restoreSelection(): void {
+    if (this.selectedPlan) {
+      this.selectedPlan = this.plans.find(p => p.id === this.selectedPlan!.id) || null;
+    }
+  }
+
+  private matchesSearch(plan: PublicPlanDto, term: string): boolean {
+    const name = (plan.name || '').toLowerCase();
+    const desc = (plan.description || '').toLowerCase();
+    return name.includes(term) || desc.includes(term);
+  }
 }

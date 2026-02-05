@@ -1,60 +1,72 @@
-<div class="page">
-  <h1>Trainingspläne</h1>
+<main class="page">
+  <header>
+    <h1>Trainingspläne</h1>
+    <p class="sub">
+      Du kannst Pläne und Sessions ansehen. Zum Anlegen, Bearbeiten oder Löschen bitte anmelden.
+    </p>
+  </header>
 
-  <p class="sub">
-    Du kannst Pläne und Sessions ansehen. Zum Anlegen, Bearbeiten oder Löschen bitte anmelden.
-  </p>
-
-  <div class="alerts" *ngIf="error || info">
-    <div class="alert error" *ngIf="error">{{ error }}</div>
-    <div class="alert info" *ngIf="info">{{ info }}</div>
+  <div class="alerts" *ngIf="errorMessage || infoMessage" role="alert">
+    <div class="alert error" *ngIf="errorMessage">{{ errorMessage }}</div>
+    <div class="alert info" *ngIf="infoMessage">{{ infoMessage }}</div>
   </div>
 
   <div class="layout">
-    <!-- Linke Seite: Übersicht -->
     <section class="panel overview">
-      <div class="overview-head">
+      <header class="overview-head">
         <h2>Übersicht</h2>
         <span class="count-badge">{{ filteredPlans.length }}</span>
-      </div>
+      </header>
 
-      <!--  Suche -->
       <input
         class="search"
         type="text"
         placeholder="Plan suchen..."
-        [(ngModel)]="query"
-        name="query"
+        [(ngModel)]="searchQuery"
+        name="searchQuery"
         autocomplete="off"
+        aria-label="Trainingsplan suchen"
       />
 
-      <p class="muted" *ngIf="loading">Trainingspläne werden geladen...</p>
-      <p class="muted" *ngIf="!loading && !plans.length">Noch keine Trainingspläne vorhanden.</p>
+      <p class="muted" *ngIf="isLoading">Trainingspläne werden geladen...</p>
 
-      <!-- Scrollbar Container -->
-      <div class="list-scroll" *ngIf="!loading && plans.length">
+      <p class="muted" *ngIf="!isLoading && !plans.length">Noch keine Trainingspläne vorhanden.</p>
+
+      <div class="list-scroll" *ngIf="!isLoading && plans.length">
         <ul class="list">
           <li
-            *ngFor="let p of filteredPlans; trackBy: trackByPlan"
-            (click)="selectPlan(p)"
-            [class.active]="selectedPlan?.id === p.id"
+            *ngFor="let plan of filteredPlans; trackBy: trackByPlan"
+            (click)="selectPlan(plan)"
+            [class.active]="selectedPlan?.id === plan.id"
+            tabindex="0"
+            role="button"
+            (keydown.enter)="selectPlan(plan)"
+            (keydown.space)="selectPlan(plan)"
           >
             <div class="plan-info">
               <div>
-                <h3>{{ p.name }}</h3>
+                <h3>{{ plan.name }}</h3>
 
-                <p class="desc" *ngIf="p.description; else noDesc">{{ p.description }}</p>
-                <ng-template #noDesc>
+                <p class="desc" *ngIf="plan.description; else noDescTemplate">
+                  {{ plan.description }}
+                </p>
+                <ng-template #noDescTemplate>
                   <p class="desc muted">Keine Beschreibung hinterlegt</p>
                 </ng-template>
               </div>
 
-              <div class="session-count">Sessions: {{ p.sessionsCount ?? '–' }}</div>
+              <div class="session-count">
+                Sessions: {{ plan.sessionsCount ?? '–' }}
+              </div>
             </div>
 
-            <!-- Public: nur Details -->
             <div class="plan-actions">
-              <button type="button" class="ghost" (click)="selectPlan(p); $event.stopPropagation()">
+              <button
+                type="button"
+                class="ghost"
+                (click)="selectPlan(plan); $event.stopPropagation()"
+                tabindex="-1"
+              >
                 Details
               </button>
             </div>
@@ -62,66 +74,52 @@
         </ul>
 
         <p class="empty" *ngIf="plans.length && !filteredPlans.length">
-          Keine Treffer für „{{ query }}“.
+          Keine Treffer für „{{ searchQuery }}“.
         </p>
       </div>
     </section>
 
-    <!-- Rechte Seite: Details -->
-    <section class="panel details" *ngIf="selectedPlan; else selectHint">
-      <div class="details-head">
+    <section class="panel details" *ngIf="selectedPlan; else selectHintTemplate">
+      <header class="details-head">
         <button type="button" class="back" (click)="resetSelection()">
           ← Zurück zur Übersicht
         </button>
         <h2>Details: {{ selectedPlan.name }}</h2>
-      </div>
+      </header>
 
-      <!-- Read-only -->
-      <div class="read-only">
+      <article class="read-only">
         <p class="meta"><strong>Plan-Name:</strong> {{ selectedPlan.name }}</p>
         <p class="meta"><strong>Beschreibung:</strong> {{ selectedPlan.description || '–' }}</p>
 
-        <p class="muted" style="margin-top: 12px;">
+        <p class="muted login-hint">
           Zum Anlegen/Bearbeiten/Löschen bitte anmelden.
         </p>
-      </div>
+      </article>
 
-      <!-- Anzeige aller Sessions des Plans -->
       <section class="sessions">
         <h3>Trainingssessions</h3>
 
         <p class="muted" *ngIf="selectedPlan.loadingSessions">Sessions werden geladen...</p>
-        <p class="muted" *ngIf="selectedPlan.sessionsLoaded && !(selectedPlan.sessions?.length ?? 0)">
+
+        <p class="muted" *ngIf="selectedPlan.sessionsLoaded && !hasSessions(selectedPlan)">
           Noch keine Trainingssessions geplant.
         </p>
 
-        <ul *ngIf="selectedPlan.sessions?.length">
+        <ul *ngIf="hasSessions(selectedPlan)">
           <li *ngFor="let session of selectedPlan.sessions; trackBy: trackBySession">
             <strong>{{ session.title || session.name }}</strong>
 
             <div class="session-meta">
               <span>Tage: {{ formatDays(session.days) }}</span>
-              <span>
-                Übungen:
-                {{
-                  session.exercisesCount
-                    ?? session.exercises?.length
-                    ?? session.exerciseExecutions?.length
-                    ?? 0
-                }}
-              </span>
+              <span>Übungen: {{ getExerciseCount(session) }}</span>
               <span>Durchführungen: {{ session.performedCount ?? 0 }}</span>
             </div>
 
             <ul class="exercise-list" *ngIf="session.exerciseExecutions?.length">
-              <li *ngFor="let exec of session.exerciseExecutions">
-                {{ exec.orderIndex }}.
-                {{
-                  exec.exercise?.name
-                    ?? exec.exerciseName
-                    ?? 'Unbenannte Übung'
-                }}
-                <span *ngIf="exec.notes"> – {{ exec.notes }}</span>
+              <li *ngFor="let execution of session.exerciseExecutions">
+                {{ execution.orderIndex }}.
+                {{ getExerciseName(execution) }}
+                <span *ngIf="execution.notes"> – {{ execution.notes }}</span>
               </li>
             </ul>
           </li>
@@ -130,10 +128,10 @@
     </section>
   </div>
 
-  <ng-template #selectHint>
+  <ng-template #selectHintTemplate>
     <section class="panel details placeholder">
       <p>Wähle einen Trainingsplan aus der Übersicht, um Details einzusehen.</p>
       <p class="muted">Anlegen/Bearbeiten/Löschen ist nur nach Anmeldung möglich.</p>
     </section>
   </ng-template>
-</div>
+</main>

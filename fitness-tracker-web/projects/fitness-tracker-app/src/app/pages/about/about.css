@@ -1,51 +1,88 @@
-/* Wrapper über der Slideshow */
-.content-wrapper {
-  position: relative; /* liegt über dem Slideshow-Hintergrund */
-  z-index: 2; /* über der Overlay-Schicht */ 
-  display: flex; /* Inhalt zentrieren */
-  justify-content: center;
-  padding: 5rem 1.5rem 4rem;
-  min-height: 100vh; /* immer mindestens Bildschirmhöhe */
+:host {
+  /* --- Constants / Theme Configuration --- */
+  --max-width-container: 1000px;
+  --spacing-base: 1rem;
+  
+  /* Colors */
+  --color-accent: #22c55e;
+  --color-accent-hover: #16a34a;
+  --color-text-dark: #0f172a;
+  --color-text-light: #f8fafc;
+  --color-link: #2563eb;
+  --color-link-dark-mode: #bfdbfe;
+  
+  /* Glassmorphism settings */
+  --glass-blur-heavy: 8px;
+  --glass-blur-light: 10px;
+  --border-light: rgba(255, 255, 255, 0.03);
+  --border-dark: rgba(148, 163, 184, 0.25);
+  
+  /* Shadows */
+  --shadow-lg: 0 18px 45px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 14px 30px rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 8px 20px rgba(34, 197, 94, 0.35);
+  
+  /* Transitions */
+  --transition-standard: 0.3s ease;
+  --transition-fast: 0.15s ease;
 }
 
-/* Hauptbox über dem Hintergrund*/
+/* --- Layout Wrapper --- */
+.content-wrapper {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  padding: 5rem 1.5rem 4rem;
+  min-height: 100vh;
+}
+
+/* --- Main Content Box --- */
 .content-box {
-  background: var(--panel); /* dynamisches Theme-Panel */
-  color: var(--text); /* Textfarbe per Theme */
-  max-width: 1000px;
+  background: var(--panel); /* Inherited from parent theme if available */
+  color: var(--text);
+  max-width: var(--max-width-container);
   width: 100%;
   border-radius: 1.4rem;
   padding: 2.2rem 2.4rem;
-  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.5); 
-  transition: background 0.3s ease, color 0.3s ease, border 0.3s ease;
-  backdrop-filter: blur(8px); /* Glas-Effekt */
-  border: 1px solid rgba(255, 255, 255, 0.03);
+  box-shadow: var(--shadow-lg);
+  transition: background var(--transition-standard), 
+              color var(--transition-standard), 
+              border var(--transition-standard);
+  backdrop-filter: blur(var(--glass-blur-heavy));
+  border: 1px solid var(--border-light);
 }
 
-/* Darkmode - dunkle Glasbox */
+/* Dark Mode Overrides */
 :host-context(.dark-mode) .content-box {
   background: rgba(5, 5, 5, 0.88);
   color: var(--text);
-  border: 1px solid rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-light);
 }
 
-/* Lightmode – helle Glasbox*/
+/* Light Mode Overrides */
 :host-context(.light-mode) .content-box {
   background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(var(--glass-blur-light));
   border: 1px solid rgba(15, 23, 42, 0.05);
-  color: #0f172a;
+  color: var(--color-text-dark);
 }
 
-/* Titel */
+/* --- Typography --- */
 h1 {
   font-size: 2.1rem;
   margin-bottom: 0.5rem;
   text-align: center;
-  color: inherit; /* übernimmt Textfarbe des Wrappers */
+  color: inherit;
 }
 
-/* Subtitle */
+h2 {
+  margin-top: 1.4rem;
+  margin-bottom: var(--spacing-base);
+  font-size: 1.25rem;
+  color: inherit;
+}
+
 .subtitle {
   text-align: center;
   margin-bottom: 2rem;
@@ -55,35 +92,27 @@ h1 {
   margin-right: auto;
 }
 
-/* Subtitle im Darkmode aufhellen */
 :host-context(.dark-mode) .subtitle {
   color: rgba(248, 250, 252, 0.82);
 }
 
-/* Abschnittstitel */
-h2 {
-  margin-top: 1.4rem;
-  margin-bottom: 1rem;
-  font-size: 1.25rem;
-  color: inherit;
-}
-
-/* Grid mit den 3 Karten */
+/* --- Feature Grid --- */
 .features {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
+  gap: var(--spacing-base);
   margin-bottom: 2rem;
 }
 
-/* Feature-Karten – wie kleinere Panels */
 .feature {
   background: rgba(15, 23, 42, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.25);
+  border: 1px solid var(--border-dark);
   border-radius: 1rem;
   padding: 1.1rem 1rem 1rem;
-  transition: background 0.2s ease, border 0.2s ease, transform 0.15s ease,
-    box-shadow 0.15s ease; /* Hover-Feedback */
+  transition: background 0.2s ease, 
+              border 0.2s ease, 
+              transform var(--transition-fast),
+              box-shadow var(--transition-fast);
 }
 
 .feature h3 {
@@ -92,20 +121,18 @@ h2 {
   color: inherit;
 }
 
-/* Lightmode Feature-Karten */
 :host-context(.light-mode) .feature {
   background: rgba(248, 250, 252, 0.96);
   border-color: rgba(148, 163, 184, 0.45);
 }
 
-/* Hover-Effekt */
 .feature:hover {
   transform: translateY(-2px);
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-md);
   border-color: rgba(34, 197, 94, 0.6);
 }
 
-/* Liste unten */
+/* --- List --- */
 .why {
   list-style: none;
   padding: 0;
@@ -116,40 +143,42 @@ h2 {
   margin-bottom: 0.4rem;
 }
 
-/* CTA */
+/* --- CTA Section --- */
 .cta {
   text-align: center;
 }
 
 .cta-btn {
   display: inline-block;
-  background: #22c55e;
+  background: var(--color-accent);
   color: #041007;
   padding: 0.8rem 1.8rem;
-  border-radius: 9999px; /* Pillenform */
+  border-radius: 9999px;
   font-weight: 600;
   text-decoration: none;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  transition: transform var(--transition-fast), 
+              box-shadow var(--transition-fast), 
+              background var(--transition-fast);
 }
 
 .cta-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(34, 197, 94, 0.35);
-  background: #16a34a;
+  box-shadow: var(--shadow-sm);
+  background: var(--color-accent-hover);
 }
 
 .cta-text a {
-  color: #2563eb;
+  color: var(--color-link);
 }
 
 :host-context(.dark-mode) .cta-text a {
-  color: #bfdbfe;
+  color: var(--color-link-dark-mode);
 }
 
-/* RESPONSIVE */
+/* --- Responsive --- */
 @media (max-width: 900px) {
   .features {
-    grid-template-columns: 1fr; /* einspaltig */
+    grid-template-columns: 1fr;
   }
   .content-box {
     padding: 1.6rem 1.5rem;

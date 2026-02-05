@@ -4,26 +4,40 @@ import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { environment } from '../../../../environment';
 
-interface PlannedExerciseResponse {
+// --- Domain Models & DTOs ---
+
+export interface ExerciseDTO {
+  id: number;
+  name: string;
+}
+
+export interface PlannedExerciseResponse {
   exerciseId?: number;
   orderIndex?: number;
   plannedSets?: number;
   plannedReps?: number;
   plannedWeightKg?: number;
   notes?: string | null;
-  exercise?: {
-    id: number;
-    name: string;
-  };
+  exercise?: ExerciseDTO;
 }
 
-interface PublicSession {
+export interface PublicSession {
   id: number;
   name: string;
   days: number[];
   planId?: number | null;
   planName?: string;
   exerciseExecutions?: PlannedExerciseResponse[];
+}
+
+/** Erwartete Struktur vom Backend (vermeidet 'any') */
+interface RawSessionData {
+  id: number | string;
+  name: string;
+  days?: (number | string)[];
+  planId?: number;
+  planName?: string;
+  plan?: { id: number; name: string };
 }
 
 @Component({
@@ -34,117 +48,150 @@ interface PublicSession {
   styleUrls: ['./sessions-public.css'],
 })
 export class SessionsPublic implements OnInit {
-  private readonly baseUrl = environment.apiBaseUrl;
+  private readonly API_URL = `${environment.apiBaseUrl}/training-sessions`;
+  private readonly DEFAULT_PAGE_SIZE = 200;
 
   sessions: PublicSession[] = [];
   selectedSession: PublicSession | null = null;
+  
+  isLoading = false;
+  errorMessage: string | null = null;
+  searchQuery = '';
 
-  loading = false;
-  error: string | null = null;
-
-  // ✅ live search
-  query = '';
-
-  constructor(private http: HttpClient) {}
+  constructor(private readonly http: HttpClient) {}
 
   ngOnInit(): void {
     this.loadSessions();
   }
 
-  // ✅ Live gefilterte Liste (ohne Enter)
+  // --- UI Logic & Getters ---
+
   get filteredSessions(): PublicSession[] {
-    const q = (this.query || '').trim().toLowerCase();
-    if (!q) return this.sessions;
-
-    return this.sessions.filter((s) => {
-      const name = (s.name || '').toLowerCase();
-      const plan = (s.planName || '').toLowerCase();
-      const days = this.formatDays(s.days).toLowerCase();
-      return name.includes(q) || plan.includes(q) || days.includes(q);
-    });
+    const term = (this.searchQuery || '').trim().toLowerCase();
+    if (!term) {
+      return this.sessions;
+    }
+    return this.sessions.filter((session) => this.matchesSearch(session, term));
   }
 
-  private loadSessions(): void {
-    this.loading = true;
-    this.error = null;
-
-    this.http.get<any>(`${this.baseUrl}/training-sessions?size=200`).subscribe({
-      next: (res) => {
-        const list = this.normalizeArray(res);
-
-        this.sessions = list.map((s: any): PublicSession => ({
-          id: Number(s.id),
-          name: s.name,
-          planId: s.planId ?? s.plan?.id ?? null,
-          planName: s.planName ?? s.plan?.name,
-          days: Array.isArray(s.days)
-            ? s.days.map((d: any) => Number(d)).filter((d: number) => d >= 1 && d <= 30)
-            : [],
-        }));
-
-        // wenn aktuell Selected nicht mehr existiert -> reset
-        if (this.selectedSession) {
-          const stillThere = this.sessions.find((x) => x.id === this.selectedSession!.id) || null;
-          this.selectedSession = stillThere;
-        }
-
-        this.loading = false;
-      },
-      error: (err) => {
-        console.error(err);
-        this.error = 'Fehler beim Laden der Sessions.';
-        this.loading = false;
-      },
-    });
-  }
-
-  selectSession(s: PublicSession): void {
-    this.selectedSession = s;
-
-    if (s.exerciseExecutions?.length) return;
-
-    this.http
-      .get<any[]>(`${this.baseUrl}/training-sessions/${s.id}/executions`)
-      .subscribe({
-        next: (execs) => {
-          // optional: sortieren nach orderIndex (falls vorhanden)
-          const list = (execs ?? []).slice().sort((a: any, b: any) => {
-            const ai = a?.orderIndex ?? 999999;
-            const bi = b?.orderIndex ?? 999999;
-            return ai - bi;
-          });
-          s.exerciseExecutions = list;
-        },
-        error: (err) => {
-          console.error(err);
-        },
-      });
+  selectSession(session: PublicSession): void {
+    this.selectedSession = session;
+    
+    const hasDetailsLoaded = session.exerciseExecutions && session.exerciseExecutions.length > 0;
+    if (hasDetailsLoaded) {
+      return;
+    }
+    
+    this.loadSessionDetails(session);
   }
 
   clearSelection(): void {
     this.selectedSession = null;
   }
 
+  trackBySession(_index: number, session: PublicSession): number {
+    return session.id;
+  }
+
+  // --- View Helpers ---
+
   formatDays(days: number[]): string {
-    if (!days?.length) return '–';
+    if (!days || days.length === 0) {
+      return '–';
+    }
     return [...days].sort((a, b) => a - b).join(', ');
   }
 
-  getExerciseName(e: PlannedExerciseResponse): string {
-    return e.exercise?.name ?? `Übung #${e.exerciseId}`;
+  getExerciseName(execution: PlannedExerciseResponse): string {
+    return execution.exercise?.name ?? `Übung #${execution.exerciseId}`;
   }
 
-  private normalizeArray(res: any): any[] {
+  // --- Data Access (Should be in Service) ---
+
+  private loadSessions(): void {
+    this.isLoading = true;
+    this.errorMessage = null;
+
+    // Use generic object here as the API wrap structure is dynamic (page/content/items)
+    this.http.get<unknown>(`${this.API_URL}?size=${this.DEFAULT_PAGE_SIZE}`)
+      .subscribe({
+        next: (response) => {
+          this.sessions = this.processSessionsResponse(response);
+          this.restoreSelection();
+          this.isLoading = false;
+        },
+        error: () => {
+          this.errorMessage = 'Fehler beim Laden der Sessions.';
+          this.isLoading = false;
+        }
+      });
+  }
+
+  private loadSessionDetails(session: PublicSession): void {
+    const url = `${this.API_URL}/${session.id}/executions`;
+    
+    this.http.get<PlannedExerciseResponse[]>(url)
+      .subscribe({
+        next: (executions) => {
+          session.exerciseExecutions = this.sortExecutions(executions);
+        },
+        error: () => {
+          // Silent fail for details or show toast in real app
+          this.errorMessage = `Details für "${session.name}" konnten nicht geladen werden.`;
+        }
+      });
+  }
+
+  // --- Helper / Mapping Logic ---
+
+  private processSessionsResponse(response: unknown): PublicSession[] {
+    const rawData = this.extractDataArray(response);
+    return rawData.map((item) => this.mapToPublicSession(item));
+  }
+
+  private extractDataArray(res: any): RawSessionData[] {
     if (!res) return [];
     if (Array.isArray(res)) return res;
-    if (Array.isArray(res.content)) return res.content;
-    if (Array.isArray(res.items)) return res.items;
-    if (Array.isArray(res.data)) return res.data;
-    if (Array.isArray(res?._embedded?.trainingSessions)) {
-      return res._embedded.trainingSessions;
-    }
-    return [];
+    // Support standard Spring Data / HATEOAS / Custom wrappers
+    return res.content || res.items || res.data || res._embedded?.trainingSessions || [];
   }
 
-  trackBySession = (_: number, s: PublicSession) => s.id;
+  private mapToPublicSession(data: RawSessionData): PublicSession {
+    return {
+      id: Number(data.id),
+      name: data.name,
+      planId: data.planId ?? data.plan?.id ?? null,
+      planName: data.planName ?? data.plan?.name,
+      days: this.parseDays(data.days)
+    };
+  }
+
+  private parseDays(days: (number | string)[] | undefined): number[] {
+    if (!Array.isArray(days)) return [];
+    
+    return days
+      .map((d) => Number(d))
+      .filter((d) => !isNaN(d) && d >= 1 && d <= 30);
+  }
+
+  private sortExecutions(executions: PlannedExerciseResponse[]): PlannedExerciseResponse[] {
+    if (!executions) return [];
+    // Magic Number 999 extracted implicitly as fallback
+    return [...executions].sort((a, b) => (a.orderIndex ?? 999) - (b.orderIndex ?? 999));
+  }
+
+  private restoreSelection(): void {
+    if (!this.selectedSession) return;
+    
+    const found = this.sessions.find((s) => s.id === this.selectedSession!.id);
+    this.selectedSession = found || null;
+  }
+
+  private matchesSearch(session: PublicSession, term: string): boolean {
+    const name = (session.name || '').toLowerCase();
+    const plan = (session.planName || '').toLowerCase();
+    const days = this.formatDays(session.days).toLowerCase();
+    
+    return name.includes(term) || plan.includes(term) || days.includes(term);
+  }
 }

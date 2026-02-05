@@ -20,104 +20,117 @@ export interface ExerciseDto {
   styleUrls: ['./exercises-public.css'],
 })
 export class ExercisesPublic implements OnInit {
-  baseUrl = environment.apiBaseUrl;
+  private readonly API_URL = `${environment.apiBaseUrl}/exercises`;
 
+  // Data State
   exercises: ExerciseDto[] = [];
-  filteredExerciseOverview: ExerciseDto[] = [];
-  exerciseOverviewSearch = '';
-
-  loading = false;
-  error: string | null = null;
-
+  filteredExercises: ExerciseDto[] = [];
   selectedExercise: ExerciseDto | null = null;
+  
+  // UI State
+  searchQuery = '';
+  isLoading = false;
+  errorMessage: string | null = null;
 
-  // nur Anzeige (für Details Panel rechts)
-  viewModel = {
-    name: '',
-    category: '',
-    muscleGroups: '',
-    description: '',
-  };
-
-  constructor(private http: HttpClient) {}
+  constructor(private readonly http: HttpClient) {}
 
   ngOnInit(): void {
-    this.loadExercises();
+    this.fetchExercises();
   }
 
-  private loadExercises(): void {
-    this.loading = true;
-    this.error = null;
+  // --- Event Handlers ---
 
-    this.http.get<any>(`${this.baseUrl}/exercises`).subscribe({
-      next: (res) => {
-        this.exercises = this.normalizeExercisesArray(res);
-        this.applyFilter();
-        this.loading = false;
-
-        // Falls ausgewählte Übung nicht mehr existiert: Auswahl resetten
-        if (this.selectedExercise) {
-          const stillExists = this.exercises.some((e) => e.id === this.selectedExercise?.id);
-          if (!stillExists) this.resetSelection();
-        }
-      },
-      error: (err) => {
-        console.error(err);
-        this.error = 'Fehler beim Laden der Übungen.';
-        this.loading = false;
-      },
-    });
+  onSearchChange(): void {
+    this.filterExercises();
   }
 
-  private normalizeExercisesArray(res: any): ExerciseDto[] {
-    if (!res) return [];
-    if (Array.isArray(res)) return res;
-    if (Array.isArray(res.content)) return res.content;
-    if (Array.isArray(res.items)) return res.items;
-    if (Array.isArray(res.data)) return res.data;
-    if (Array.isArray(res._embedded?.exercises)) return res._embedded.exercises;
-    if (res && typeof res === 'object' && res.id != null) return [res];
-    return [];
-  }
-
-  onExerciseOverviewSearchChange(): void {
-    this.applyFilter();
-  }
-
-  private applyFilter(): void {
-    const term = this.exerciseOverviewSearch.trim().toLowerCase();
-
-    if (!term) {
-      this.filteredExerciseOverview = [...this.exercises];
-      return;
-    }
-
-    this.filteredExerciseOverview = this.exercises.filter((e) => {
-      const name = e.name?.toLowerCase() ?? '';
-      const cat = e.category?.toLowerCase() ?? '';
-      const muscles = e.muscleGroups?.toLowerCase() ?? '';
-      const desc = e.description?.toLowerCase() ?? '';
-      return name.includes(term) || cat.includes(term) || muscles.includes(term) || desc.includes(term);
-    });
-  }
-
-  selectExercise(ex: ExerciseDto): void {
-    this.selectedExercise = ex;
-
-    this.viewModel = {
-      name: ex.name ?? '',
-      category: ex.category ?? '',
-      muscleGroups: ex.muscleGroups ?? '',
-      description: ex.description ?? '',
-    };
-
-    this.error = null;
+  selectExercise(exercise: ExerciseDto): void {
+    this.selectedExercise = exercise;
+    this.errorMessage = null;
   }
 
   resetSelection(): void {
     this.selectedExercise = null;
-    this.viewModel = { name: '', category: '', muscleGroups: '', description: '' };
   }
 
-  trackByExercise = (_: number, ex: ExerciseDto) => ex.id;
+  trackByExercise(_index: number, exercise: ExerciseDto): number {
+    return exercise.id;
+  }
+
+  // --- Private Logic ---
+
+  private fetchExercises(): void {
+    this.isLoading = true;
+    this.errorMessage = null;
+
+    this.http.get<unknown>(this.API_URL).subscribe({
+      next: (response) => this.handleSuccess(response),
+      error: () => this.handleError('Fehler beim Laden der Übungen.'),
+    });
+  }
+
+  private handleSuccess(response: unknown): void {
+    this.exercises = this.normalizeResponse(response);
+    this.filterExercises();
+    this.isLoading = false;
+    this.validateSelection();
+  }
+
+  private handleError(message: string): void {
+    this.errorMessage = message;
+    this.isLoading = false;
+  }
+
+  private filterExercises(): void {
+    const term = (this.searchQuery || '').trim().toLowerCase();
+
+    if (!term) {
+      this.filteredExercises = [...this.exercises];
+      return;
+    }
+
+    this.filteredExercises = this.exercises.filter((exercise) =>
+      this.matchesSearch(exercise, term)
+    );
+  }
+
+  private matchesSearch(exercise: ExerciseDto, term: string): boolean {
+    const name = (exercise.name || '').toLowerCase();
+    const category = (exercise.category || '').toLowerCase();
+    const muscles = (exercise.muscleGroups || '').toLowerCase();
+    const description = (exercise.description || '').toLowerCase();
+
+    return (
+      name.includes(term) ||
+      category.includes(term) ||
+      muscles.includes(term) ||
+      description.includes(term)
+    );
+  }
+
+  private validateSelection(): void {
+    if (this.selectedExercise) {
+      const stillExists = this.exercises.some((e) => e.id === this.selectedExercise!.id);
+      if (!stillExists) {
+        this.resetSelection();
+      }
+    }
+  }
+
+  /**
+   * Normalizes various API response formats (Spring Page, HAL, List)
+   */
+  private normalizeResponse(response: any): ExerciseDto[] {
+    if (!response) return [];
+    if (Array.isArray(response)) return response;
+    
+    // Support common wrapper structures
+    return (
+      response.content ||
+      response.items ||
+      response.data ||
+      response._embedded?.exercises ||
+      (response.id ? [response] : [])
+    );
+  }
 }
